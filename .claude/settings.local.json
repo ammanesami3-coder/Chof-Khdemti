@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --eslint --no-src-dir --import-alias \"@/*\" --yes)",
+      "Bash(npx create-next-app@15 temp-m3alem --typescript --tailwind --app --eslint --no-src-dir --import-alias \"@/*\" --yes)",
+      "Read(//c/Users/amman/OneDrive/Desktop/**)",
+      "Bash(npx create-next-app@15 m3alem-init --typescript --tailwind --app --eslint --no-src-dir --import-alias \"@/*\" --yes)",
+      "Bash(cp -r \"C:/Users/amman/OneDrive/Desktop/m3alem-init/.\" \"C:/Users/amman/OneDrive/Desktop/M3alem/\")",
+      "Bash(rm -rf \"C:/Users/amman/OneDrive/Desktop/m3alem-init\")",
+      "Bash(mv temp-m3alem/app .)",
+      "Bash(mv temp-m3alem/eslint.config.mjs .)",
+      "Bash(mv temp-m3alem/next.config.ts .)",
+      "Bash(mv temp-m3alem/next-env.d.ts .)",
+      "Bash(mv temp-m3alem/package.json .)",
+      "Bash(rm -rf \"C:/Users/amman/OneDrive/Desktop/M3alem/temp-m3alem\")",
+      "Bash(mkdir -p src)",
+      "Bash(mv app:*)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init --defaults --base-color slate)",
+      "Bash(npx shadcn@latest init --defaults)",
+      "Bash(npx shadcn@latest add input label form card dialog avatar dropdown-menu tabs skeleton sheet --overwrite)",
+      "Bash(npx shadcn@latest add form sonner)",
+      "Bash(npx shadcn@latest add form)",
+      "Bash(npx shadcn@latest add --help)",
+      "Bash(npx shadcn@latest add form -y)",
+      "Bash(timeout 30 npm run dev)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 20 npm run dev)",
+      "Bash(wc -l \"C:/Users/amman/OneDrive/Desktop/M3alem/supabase/migrations/\"*.sql)",
+      "Bash(npm list:*)",
+      "Bash(npm i:*)",
+      "Bash(npx supabase:*)",
+      "Bash(timeout 15 npm run dev)"
+    ]
+  }
+}
