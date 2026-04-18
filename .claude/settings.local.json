@@ -30,7 +30,10 @@
       "Bash(npm list:*)",
       "Bash(npm i:*)",
       "Bash(npx supabase:*)",
-      "Bash(timeout 15 npm run dev)"
+      "Bash(timeout 15 npm run dev)",
+      "Bash(npm run *)",
+      "Bash(rm \"/c/Users/amman/OneDrive/Desktop/Chof Khdemti/src/app/api/debug/route.ts\")",
+      "Bash(rmdir \"/c/Users/amman/OneDrive/Desktop/Chof Khdemti/src/app/api/debug\")"
     ]
   }
 }
