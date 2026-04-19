@@ -33,7 +33,12 @@
       "Bash(timeout 15 npm run dev)",
       "Bash(npm run *)",
       "Bash(rm \"/c/Users/amman/OneDrive/Desktop/Chof Khdemti/src/app/api/debug/route.ts\")",
-      "Bash(rmdir \"/c/Users/amman/OneDrive/Desktop/Chof Khdemti/src/app/api/debug\")"
+      "Bash(rmdir \"/c/Users/amman/OneDrive/Desktop/Chof Khdemti/src/app/api/debug\")",
+      "Bash(node -e ' *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(npm ls *)"
     ]
   }
 }

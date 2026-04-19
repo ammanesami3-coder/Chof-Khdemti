@@ -2,8 +2,7 @@ import { notFound } from 'next/navigation';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ProfileHeader } from '@/components/profile/profile-header';
-import { ProfileStats } from '@/components/profile/profile-stats';
+import { ProfileClient } from '@/components/profile/profile-client';
 import { createClient } from '@/lib/supabase/server';
 
 type Props = {
@@ -95,17 +94,14 @@ export default async function ProfilePage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-2xl">
-      <ProfileHeader
+      <ProfileClient
         user={profileUser}
         profile={profile}
         avgRating={avgRating}
         currentUser={currentUser}
         initialIsFollowing={initialIsFollowing}
-      />
-
-      <ProfileStats
         postsCount={postsRes.count ?? 0}
-        followersCount={followersRes.count ?? 0}
+        initialFollowersCount={followersRes.count ?? 0}
         followingCount={followingRes.count ?? 0}
       />
 

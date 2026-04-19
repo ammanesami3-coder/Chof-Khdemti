@@ -1,10 +1,7 @@
-'use client';
-
 import Image from 'next/image';
 import Link from 'next/link';
 import { BadgeCheck, MapPin, Briefcase, Clock, Star, MessageCircle, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useFollow } from '@/hooks/use-follow';
 import { getCraftById } from '@/lib/constants/crafts';
 import { CITIES } from '@/lib/constants/cities';
 
@@ -35,7 +32,9 @@ type Props = {
   profile: ProfileData;
   avgRating: number | null;
   currentUser: CurrentUser;
-  initialIsFollowing: boolean;
+  isFollowing: boolean;
+  isPending: boolean;
+  onToggleFollow: () => void;
 };
 
 export function ProfileHeader({
@@ -43,10 +42,11 @@ export function ProfileHeader({
   profile,
   avgRating,
   currentUser,
-  initialIsFollowing,
+  isFollowing,
+  isPending,
+  onToggleFollow,
 }: Props) {
   const isOwnProfile = currentUser?.id === user.id;
-  const { isFollowing, isPending, toggle } = useFollow(user.id, initialIsFollowing);
 
   const craft = profile.craft_category ? getCraftById(profile.craft_category) : null;
   const cityName = profile.city
@@ -144,7 +144,7 @@ export function ProfileHeader({
               <Button
                 size="sm"
                 variant={isFollowing ? 'outline' : 'default'}
-                onClick={toggle}
+                onClick={onToggleFollow}
                 disabled={isPending}
                 className="min-h-10 min-w-20"
               >
