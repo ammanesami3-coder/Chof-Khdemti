@@ -392,7 +392,7 @@ function TestimonialCard({
           <Star key={i} className="size-4 fill-amber-400 text-amber-400" />
         ))}
       </div>
-      <p className="flex-1 text-sm leading-relaxed text-muted-foreground">"{quote}"</p>
+      <p className="flex-1 text-sm leading-relaxed text-muted-foreground">«{quote}»</p>
       <div>
         <p className="font-semibold">{name}</p>
         <p className="text-xs text-muted-foreground">{role}</p>
