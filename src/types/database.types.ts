@@ -286,6 +286,7 @@ export type Database = {
           craft_category: string | null
           created_at: string
           is_verified: boolean
+          onboarding_complete: boolean
           updated_at: string
           user_id: string
           years_experience: number | null
@@ -298,6 +299,7 @@ export type Database = {
           craft_category?: string | null
           created_at?: string
           is_verified?: boolean
+          onboarding_complete?: boolean
           updated_at?: string
           user_id: string
           years_experience?: number | null
@@ -310,6 +312,7 @@ export type Database = {
           craft_category?: string | null
           created_at?: string
           is_verified?: boolean
+          onboarding_complete?: boolean
           updated_at?: string
           user_id?: string
           years_experience?: number | null
