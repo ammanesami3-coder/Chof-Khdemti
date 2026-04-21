@@ -117,6 +117,13 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+@keyframes like-bounce {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); }
+  70%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

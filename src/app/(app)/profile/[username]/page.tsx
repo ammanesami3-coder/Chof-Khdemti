@@ -3,7 +3,9 @@ import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProfileClient } from '@/components/profile/profile-client';
+import { FeedList } from '@/components/feed/feed-list';
 import { createClient } from '@/lib/supabase/server';
+import { fetchUserPosts } from '@/lib/queries/posts';
 
 type Props = {
   params: Promise<{ username: string }>;
@@ -43,7 +45,7 @@ export default async function ProfilePage({ params }: Props) {
   const isOwnProfile = authUser?.id === profileUser.id;
 
   // ── Parallel queries ────────────────────────────────────────────────────
-  const [postsRes, followersRes, followingRes, ratingsRes, currentUserRes, isFollowingRes] =
+  const [postsRes, followersRes, followingRes, ratingsRes, currentUserRes, isFollowingRes, initialPostsPage] =
     await Promise.all([
       supabase
         .from('posts')
@@ -74,6 +76,7 @@ export default async function ProfilePage({ params }: Props) {
             .eq('follower_id', authUser.id)
             .eq('following_id', profileUser.id)
         : Promise.resolve({ count: 0 }),
+      fetchUserPosts(profileUser.id, authUser?.id),
     ]);
 
   const stars = ratingsRes.data ?? [];
@@ -110,20 +113,20 @@ export default async function ProfilePage({ params }: Props) {
         <TabsList className="w-full rounded-none border-b bg-transparent p-0">
           <TabsTrigger
             value="posts"
-            className="flex-1 rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-primary data-[state=active]:shadow-none"
+            className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-primary data-active:shadow-none"
           >
             الأعمال
           </TabsTrigger>
           <TabsTrigger
             value="about"
-            className="flex-1 rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-primary data-[state=active]:shadow-none"
+            className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-primary data-active:shadow-none"
           >
             عن
           </TabsTrigger>
           {isArtisan && (
             <TabsTrigger
               value="ratings"
-              className="flex-1 rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-primary data-[state=active]:shadow-none"
+              className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-primary data-active:shadow-none"
             >
               التقييمات
             </TabsTrigger>
@@ -131,10 +134,13 @@ export default async function ProfilePage({ params }: Props) {
         </TabsList>
 
         {/* Posts */}
-        <TabsContent value="posts" className="p-4">
-          <p className="text-center text-sm text-muted-foreground py-8">
-            المنشورات ستظهر هنا في المرحلة 3
-          </p>
+        <TabsContent value="posts" className="pt-4">
+          <FeedList
+            feedType="user"
+            currentUserId={authUser?.id}
+            profileUserId={profileUser.id}
+            initialData={initialPostsPage}
+          />
         </TabsContent>
 
         {/* About */}
