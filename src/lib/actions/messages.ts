@@ -60,10 +60,7 @@ export async function sendMessage(
 
   if (insertErr || !message) return { error: insertErr?.message ?? 'خطأ في الإرسال' };
 
-  await supabase
-    .from('conversations')
-    .update({ last_message_at: new Date().toISOString() })
-    .eq('id', parsed.data.conversationId);
+  // last_message_at يُحدَّث تلقائياً بـ trigger trg_update_last_message_at (SECURITY DEFINER)
 
   return { data: message as SentMessage };
 }

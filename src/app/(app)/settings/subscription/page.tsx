@@ -214,7 +214,12 @@ export default async function SubscriptionPage() {
           )}
 
           {/* CTA button */}
-          <SubscriptionActions status={status} canManage={canManage} />
+          <SubscriptionActions
+            status={status}
+            canManage={canManage}
+            periodEnd={sub?.current_period_end ?? null}
+            cancelAtPeriodEnd={sub?.cancel_at_period_end ?? false}
+          />
         </div>
       </div>
 

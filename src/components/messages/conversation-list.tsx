@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MessageCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -16,7 +16,8 @@ type Props = {
 
 export function ConversationList({ initialData, currentUserId }: Props) {
   const queryClient = useQueryClient();
-  const supabase = createClient();
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
 
   const { data: conversations, isLoading } = useQuery({
     queryKey: ['conversations'],

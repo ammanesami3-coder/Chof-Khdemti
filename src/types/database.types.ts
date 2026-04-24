@@ -453,6 +453,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_total_unread_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       get_user_conversations: {
         Args: Record<PropertyKey, never>
         Returns: {

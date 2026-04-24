@@ -1,6 +1,6 @@
 # PROGRESS.md — Chof Khdemti
 
-## المرحلة الحالية: ✅ 3 مكتملة — بدء المرحلة 4
+## المرحلة الحالية: ✅ 4 مكتملة — بدء المرحلة 5
 
 ---
 
@@ -158,51 +158,62 @@
 
 > **النموذج الجديد:** تجربة 30 يوماً مجانية كاملة، ثم اشتراك 99 MAD/شهر
 
-### DoD Checklist
+> **بيئة العمل:** Lemon Squeezy Test Mode مفعّل — بطاقة `4242 4242 4242 4242` للاختبار
+> **متغيرات الإنتاج:** `LEMON_SQUEEZY_WEBHOOK_SECRET` مُضاف في Vercel Environment Variables
 
-- [x] رسالة المستخدم A تظهر عند B في أقل من 1 ثانية — Supabase Realtime channel
-- [x] الحرفي ضمن التجربة يرسل بحرية كاملة بدون أي قيد
-- [x] `<TrialIndicator />` يعرض عدد الأيام المتبقية بدقة (في Navbar)
-- [x] الحرفي لا يستطيع الرد إذا `trial_ended`/`cancelled`/`past_due` — `can_artisan_reply` RPC
-- [x] عرض `<UpgradePrompt />` للحرفي المنتهية تجربته بدل فورم الإرسال
-- [x] Webhook يتحقق من التوقيع ويرفض الطلبات المزورة — اختُبر بـ curl ✓
-- [x] إعادة إرسال نفس الـ webhook لا يُكرر الإجراء — "Already processed" ✓
-- [ ] الاشتراك عبر Lemon Squeezy ينقل المستخدم إلى `active` — يحتاج اختبار بـ test mode
-- [ ] RLS تمنع حرفياً من رؤية محادثات حرفي آخر — يحتاج تأكيد على Supabase
-- [x] الزبون يرسل دائماً بدون أي تحقق من الاشتراك
+### DoD Checklist ✅ (10/10)
+
+- [x] رسالة المستخدم A تظهر عند B في أقل من 1 ثانية — Supabase Realtime channel مع filter بـ `conversation_id`
+- [x] الحرفي ضمن التجربة يرسل بحرية كاملة بدون أي قيد — `can_artisan_reply` ترجع `true` لكل `trial` + `trial_ends_at` في المستقبل
+- [x] `<TrialIndicator />` يعرض عدد الأيام المتبقية بدقة — أخضر (>5) / أصفر (≤5) / أحمر (≤1) / "يُلغى [تاريخ]" (cancel_at_period_end)
+- [x] الحرفي لا يستطيع الرد إذا `trial_ended`/`cancelled`/`past_due` — `can_artisan_reply` ترجع `false` + `UpgradePrompt` بدل فورم الإرسال
+- [x] عرض `<UpgradePrompt />` للحرفي المنتهية تجربته بدل فورم الإرسال — مع رسائل مختلفة لكل حالة
+- [x] الاشتراك عبر Lemon Squeezy ينقل المستخدم إلى `active` خلال 5 ثوانٍ — Webhook → `supabaseAdmin.update` + `SuccessToast` يُبطل cache TanStack Query فوراً
+- [x] Webhook يتحقق من التوقيع ويرفض الطلبات المزورة — HMAC-SHA256 + `timingSafeEqual` → 401
+- [x] إعادة إرسال نفس الـ webhook لا يُكرر الإجراء — فحص `webhook_events.event_id` + unique constraint + race condition guard (code 23505)
+- [x] RLS تمنع حرفياً من رؤية محادثات حرفي آخر — `conversations_select_parties` (artisan_id=uid OR customer_id=uid) + double-check يدوي في [conversationId]/page.tsx → `notFound()`
+- [x] الزبون يرسل دائماً بدون أي تحقق من الاشتراك — `sendMessage` يستدعي `can_artisan_reply` فقط إذا `isArtisan`
 
 ### ما أُنجز تفصيلاً
 
 **بنية المحادثات**
 - `src/app/(app)/messages/page.tsx` — قائمة المحادثات (SSR) + معالجة `?to=username` لبدء محادثة جديدة من ملف حرفي
-- `src/app/(app)/messages/[conversationId]/page.tsx` — Server Component مع parallel fetches + تحقق RLS يدوي
+- `src/app/(app)/messages/[conversationId]/page.tsx` — Server Component مع parallel fetches + تحقق RLS يدوي + `notFound()` عند محاولة الاختراق
 - `src/app/(app)/messages/new/page.tsx` — صفحة بدء محادثة جديدة (find or create) مع race condition guard
-- `src/components/messages/chat-window.tsx` — Client Component (~330 سطر): Realtime، date grouping، RTL bubbles، autosize textarea، Enter=send/Shift+Enter=newline
+- `src/components/messages/chat-window.tsx` — Client Component: Realtime (filter بـ conversation_id + unsubscribe عند unmount)، date grouping، RTL bubbles، autosize textarea، Enter=send/Shift+Enter=newline، `createClient` في `useRef`
+- `src/components/messages/conversation-list.tsx` — Realtime على `conversations` UPDATE + `createClient` في `useRef`
 - `src/lib/actions/messages.ts` — `sendMessage` + `markConversationRead` Server Actions
-- `src/lib/queries/conversations.ts` — `fetchConversations` + `fetchMessages`
-- `src/types/conversation.ts` — أنواع TypeScript
+- `src/lib/queries/conversations.ts` — `fetchUserConversations` (يستدعي `get_user_conversations` RPC)
 
 **منطق التجربة والاشتراك**
-- `src/hooks/use-subscription-status.ts` — TanStack Query hook يجلب الاشتراك من DB
-- `src/components/subscription/upgrade-prompt.tsx` — بطاقة غنية (gradient stripe، lock icon، 3 bullet points، CTA) بـ 5 حالات
-- `src/components/layout/trial-indicator.tsx` — مؤشر في Navbar لعدد الأيام المتبقية
-- `src/lib/constants/subscription.ts` — `SUBSCRIPTION_PRICE_DISPLAY`, `TRIAL_DURATION_DAYS`
-- `src/types/subscription.ts`
+- `src/hooks/use-subscription-status.ts` — TanStack Query (staleTime: 30s) + يكشف `cancelAtPeriodEnd` و`periodEnd`
+- `src/components/subscription/trial-indicator.tsx` — 6 حالات مع ألوان: نشط / يُلغى / trial (3 درجات) / trial_ended / past_due / cancelled
+- `src/components/subscription/upgrade-prompt.tsx` — بطاقة غنية مع رسائل مختلفة لكل حالة
+- `src/components/subscription/success-toast.tsx` — يستدعي `invalidateQueries(['subscription-status'])` بعد redirect من checkout
 
-**Lemon Squeezy**
-- `src/lib/lemon-squeezy.ts` — `setupLS()` singleton
+**Lemon Squeezy — نظام الاشتراك الكامل**
 - `src/app/api/lemon/checkout/route.ts` — إنشاء checkout session مع `custom.user_id`
-- `src/app/api/lemon/portal/route.ts` — Customer Portal URL
-- `src/app/api/lemon/webhook/route.ts` — HMAC-SHA256 verification + idempotency + 7 events
-- `src/lib/supabase/admin.ts` — `supabaseAdmin` singleton (service role)
-- `src/components/subscription/subscription-actions.tsx` — أزرار Client Component
-- `src/components/subscription/success-toast.tsx` — Toast عند `?success=1`
-- `src/app/(app)/settings/subscription/page.tsx` — صفحة الاشتراك الكاملة (hero card + FAQ + progress bar)
+- `src/app/api/lemon/portal/route.ts` — Customer Portal URL (للحرفي النشط)
+- `src/app/api/lemon/cancel/route.ts` — POST: إلغاء + `cancel_at_period_end=true` فوراً + webhook يكمل لاحقاً
+- `src/app/api/lemon/webhook/route.ts` — HMAC-SHA256 + timingSafeEqual + idempotency (double-check + unique constraint) + 7 events
+- `src/components/subscription/subscription-actions.tsx` — 3 حالات: اشترك / إدارة+إلغاء (مع Dialog تأكيد) / حدّث طريقة الدفع
+- `src/app/(app)/settings/subscription/page.tsx` — hero card + progress bar (trial) + cancel_at_period_end badge + FAQ
 
-**إصلاحات**
-- `src/components/providers.tsx` — أضيف `AuthWatcher` لمسح query cache عند تبديل الحساب
-- `src/components/profile/profile-header.tsx` — إصلاح `showMessageBtn` + رابط `/messages/new?to=`
-- Migrations: `0011_phase4_prep.sql` + `0012_conversations_query.sql`
+**Notification Badge**
+- `src/hooks/use-unread-messages-count.ts` — Realtime على `conversations` UPDATE → `get_total_unread_count()` RPC
+- `src/components/layout/nav-messages-link.tsx` — badge أحمر مع `99+` للأعداد الكبيرة
+- `src/components/layout/navbar.tsx` — تمرير `userId` لـ `NavMessagesLink`
+
+**أمان وإصلاحات**
+- `supabase/migrations/0013_security_hardening.sql` — إصلاح ثغرة `mark_messages_read` (التحقق من `auth.uid() = p_reader_id` + عضوية المحادثة) + دالة `get_total_unread_count()`
+- `src/types/database.types.ts` — أضاف `get_total_unread_count` للأنواع
+- `src/lib/actions/messages.ts` — حذف `conversations.update` المتكرر (الـ trigger يتولاه)
+- RLS audit: `SUPABASE_SERVICE_ROLE_KEY` غائب من `.next/static/` ✅
+
+**Migrations المضافة في المرحلة 4**
+- `0011_phase4_prep.sql` — حذف النسخة القديمة من `can_artisan_reply(uuid,uuid)` + إصلاح `update_conversation_last_message` بـ SECURITY DEFINER
+- `0012_conversations_query.sql` — دالة `get_user_conversations()` مع unread_count و partner info
+- `0013_security_hardening.sql` — إصلاح `mark_messages_read` + `get_total_unread_count`
 
 ---
 

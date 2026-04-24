@@ -72,7 +72,8 @@ export function ChatWindow({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const supabase = createClient();
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
 
   const { data: subStatus } = useSubscriptionStatus();
   const canReply =

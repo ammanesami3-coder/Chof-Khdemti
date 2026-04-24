@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { Home, MessageCircle, Search } from 'lucide-react';
+import { Home, Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { TrialIndicator } from '@/components/subscription/trial-indicator';
 import { UserMenu } from './user-menu';
+import { NavMessagesLink } from './nav-messages-link';
 
 async function getNavUser() {
   const supabase = await createClient();
@@ -19,16 +20,16 @@ async function getNavUser() {
   if (!userRes.data) return null;
 
   return {
+    id: user.id,
     username: userRes.data.username,
     full_name: userRes.data.full_name,
     avatar_url: profileRes.data?.avatar_url ?? null,
   };
 }
 
-const NAV_LINKS = [
+const STATIC_NAV_LINKS = [
   { href: '/feed', label: 'الفيد', icon: Home },
   { href: '/explore', label: 'اكتشاف', icon: Search },
-  { href: '/messages', label: 'رسائل', icon: MessageCircle },
 ] as const;
 
 export async function Navbar() {
@@ -45,7 +46,7 @@ export async function Navbar() {
 
         {/* وسط — روابط التنقل (مخفية على الموبايل) */}
         <div className="hidden items-center gap-1 sm:flex">
-          {NAV_LINKS.map(({ href, label, icon: Icon }) => (
+          {STATIC_NAV_LINKS.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
@@ -55,6 +56,8 @@ export async function Navbar() {
               {label}
             </Link>
           ))}
+          {/* رابط الرسائل مع badge ديناميكي */}
+          <NavMessagesLink userId={navUser.id} />
         </div>
 
         {/* يسار (end في RTL) — مؤشر الاشتراك + الأفاتار */}

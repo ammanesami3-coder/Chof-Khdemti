@@ -17,9 +17,23 @@ export function TrialIndicator() {
 
   if (!data?.isArtisan) return null;
 
-  const { status, daysLeft } = data;
+  const { status, daysLeft, cancelAtPeriodEnd, periodEnd } = data;
 
   if (status === 'active') {
+    if (cancelAtPeriodEnd) {
+      const dateStr = periodEnd
+        ? new Date(periodEnd).toLocaleDateString('ar-MA', { month: 'short', day: 'numeric' })
+        : null;
+      return (
+        <Link
+          href="/settings/subscription"
+          className={`${BASE} bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400`}
+        >
+          <AlertTriangle className="h-3 w-3" />
+          {dateStr ? `يُلغى ${dateStr}` : 'يُلغى قريباً'}
+        </Link>
+      );
+    }
     return (
       <span className={`${BASE} bg-green-100 text-green-700`}>
         <CheckCircle className="h-3 w-3" />
