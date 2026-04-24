@@ -57,7 +57,8 @@ export function ProfileHeader({
   const showMessageBtn =
     !!currentUser &&
     !isOwnProfile &&
-    currentUser.account_type !== user.account_type;
+    currentUser.account_type === 'customer' &&
+    user.account_type === 'artisan';
 
   const initials = user.full_name
     .split(' ')
@@ -133,10 +134,10 @@ export function ProfileHeader({
           {/* Buttons */}
           <div className="flex shrink-0 gap-2">
             {showMessageBtn && (
-              <Link href={`/messages?to=${user.username}`}>
+              <Link href={`/messages/new?to=${user.username}`}>
                 <Button size="sm" variant="outline" className="min-h-10 gap-1.5">
                   <MessageCircle className="size-4" />
-                  رسالة
+                  مراسلة
                 </Button>
               </Link>
             )}

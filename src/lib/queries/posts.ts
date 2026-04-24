@@ -16,20 +16,6 @@ export type FeedPage = {
 
 const PAGE_SIZE = 20;
 
-/** Inject f_auto,q_auto into a Cloudinary upload URL so the proxy fetches a small, format-negotiated image */
-function cldOpt(url: string): string {
-  const idx = url.indexOf('/upload/');
-  if (idx === -1) return url;
-  return url.slice(0, idx + 8) + 'f_auto,q_auto/' + url.slice(idx + 8);
-}
-
-function optimizeMedia(media: PostMedia[]): PostMedia[] {
-  return media.map((m) => ({
-    ...m,
-    url: cldOpt(m.url),
-    thumbnail: cldOpt(m.thumbnail),
-  }));
-}
 
 type RawPost = {
   id: string;
@@ -79,7 +65,7 @@ async function enrichPosts(
   return rawPosts.map((p) => ({
     id: p.id,
     content: p.content,
-    media: optimizeMedia(((p.media ?? []) as unknown) as PostMedia[]),
+    media: ((p.media ?? []) as unknown) as PostMedia[],
     likes_count: p.likes_count,
     comments_count: p.comments_count,
     created_at: p.created_at,

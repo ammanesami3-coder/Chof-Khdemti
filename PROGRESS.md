@@ -127,12 +127,83 @@
 
 ---
 
-## المرحلة التالية: 4 — المحادثات ونظام الاشتراك (أيام 17-22)
+---
 
-- [ ] بنية المحادثات (`conversations` + `messages`) — صفحتا `/messages` و `/messages/[id]`
-- [ ] Realtime عبر Supabase channel لكل محادثة
-- [ ] منطق الـ Quota — `can_artisan_reply()` RPC + `<UpgradePrompt />`
-- [ ] عرض حالة الـ Quota في Navbar — `<QuotaIndicator />`
-- [ ] Lemon Squeezy Checkout — `POST /api/lemon/checkout`
-- [ ] Lemon Squeezy Webhook — `POST /api/lemon/webhook` مع signature verification + idempotency
-- [ ] صفحة `/settings/subscription` — حالة الاشتراك + زر اشترك + Customer Portal
+## تغيير نموذج الربح — أبريل 2026
+
+**ما تغيّر:** استُبدل نظام الـ quota (5 محادثات مجانية) بتجربة مجانية كاملة مدتها **30 يوماً** بدون أي قيد على عدد الرسائل.
+
+**ملفات التوثيق المحدّثة:**
+- `CLAUDE.md`: القسم 2 كاملاً (نموذج الربح) + القسم 6.7, 6.10, 6.11, 6.12 (DB) + المرحلة 4 + القسم 12 (اختبارات) + القسم 14 (ممنوعات)
+
+**Migration جديدة:** `supabase/migrations/0010_trial_model.sql`
+- أضاف قيمة `trial_ended` إلى enum `subscription_status`
+- أضاف عمود `trial_ends_at timestamptz` إلى جدول `subscriptions`
+- حذف trigger `trg_consume_quota` ودالته `consume_quota_on_reply()`
+- حذف دالة `get_artisan_quota_status()`
+- حذف جدول `conversation_quota` بالكامل
+- حذف حقل `first_artisan_reply_at` من جدول `conversations`
+- أعاد كتابة `can_artisan_reply(p_artisan_id)` — يفحص `status` و`trial_ends_at` فقط
+- أضاف دالة `expire_trials()` للتشغيل اليومي عبر pg_cron
+- حدّث `create_artisan_subscription()` لتضع `trial_ends_at = now() + 30 days`
+
+**⚠️ يحتاج تطبيقاً يدوياً في Supabase:**
+- تشغيل `0010_trial_model.sql` عبر SQL Editor
+- تفعيل امتداد `pg_cron` في Supabase → Database → Extensions
+- تشغيل: `select cron.schedule('expire-trials-daily', '0 0 * * *', 'select public.expire_trials()');`
+
+---
+
+## المرحلة 4 — المحادثات ونظام الاشتراك ✅
+
+> **النموذج الجديد:** تجربة 30 يوماً مجانية كاملة، ثم اشتراك 99 MAD/شهر
+
+### DoD Checklist
+
+- [x] رسالة المستخدم A تظهر عند B في أقل من 1 ثانية — Supabase Realtime channel
+- [x] الحرفي ضمن التجربة يرسل بحرية كاملة بدون أي قيد
+- [x] `<TrialIndicator />` يعرض عدد الأيام المتبقية بدقة (في Navbar)
+- [x] الحرفي لا يستطيع الرد إذا `trial_ended`/`cancelled`/`past_due` — `can_artisan_reply` RPC
+- [x] عرض `<UpgradePrompt />` للحرفي المنتهية تجربته بدل فورم الإرسال
+- [x] Webhook يتحقق من التوقيع ويرفض الطلبات المزورة — اختُبر بـ curl ✓
+- [x] إعادة إرسال نفس الـ webhook لا يُكرر الإجراء — "Already processed" ✓
+- [ ] الاشتراك عبر Lemon Squeezy ينقل المستخدم إلى `active` — يحتاج اختبار بـ test mode
+- [ ] RLS تمنع حرفياً من رؤية محادثات حرفي آخر — يحتاج تأكيد على Supabase
+- [x] الزبون يرسل دائماً بدون أي تحقق من الاشتراك
+
+### ما أُنجز تفصيلاً
+
+**بنية المحادثات**
+- `src/app/(app)/messages/page.tsx` — قائمة المحادثات (SSR) + معالجة `?to=username` لبدء محادثة جديدة من ملف حرفي
+- `src/app/(app)/messages/[conversationId]/page.tsx` — Server Component مع parallel fetches + تحقق RLS يدوي
+- `src/app/(app)/messages/new/page.tsx` — صفحة بدء محادثة جديدة (find or create) مع race condition guard
+- `src/components/messages/chat-window.tsx` — Client Component (~330 سطر): Realtime، date grouping، RTL bubbles، autosize textarea، Enter=send/Shift+Enter=newline
+- `src/lib/actions/messages.ts` — `sendMessage` + `markConversationRead` Server Actions
+- `src/lib/queries/conversations.ts` — `fetchConversations` + `fetchMessages`
+- `src/types/conversation.ts` — أنواع TypeScript
+
+**منطق التجربة والاشتراك**
+- `src/hooks/use-subscription-status.ts` — TanStack Query hook يجلب الاشتراك من DB
+- `src/components/subscription/upgrade-prompt.tsx` — بطاقة غنية (gradient stripe، lock icon، 3 bullet points، CTA) بـ 5 حالات
+- `src/components/layout/trial-indicator.tsx` — مؤشر في Navbar لعدد الأيام المتبقية
+- `src/lib/constants/subscription.ts` — `SUBSCRIPTION_PRICE_DISPLAY`, `TRIAL_DURATION_DAYS`
+- `src/types/subscription.ts`
+
+**Lemon Squeezy**
+- `src/lib/lemon-squeezy.ts` — `setupLS()` singleton
+- `src/app/api/lemon/checkout/route.ts` — إنشاء checkout session مع `custom.user_id`
+- `src/app/api/lemon/portal/route.ts` — Customer Portal URL
+- `src/app/api/lemon/webhook/route.ts` — HMAC-SHA256 verification + idempotency + 7 events
+- `src/lib/supabase/admin.ts` — `supabaseAdmin` singleton (service role)
+- `src/components/subscription/subscription-actions.tsx` — أزرار Client Component
+- `src/components/subscription/success-toast.tsx` — Toast عند `?success=1`
+- `src/app/(app)/settings/subscription/page.tsx` — صفحة الاشتراك الكاملة (hero card + FAQ + progress bar)
+
+**إصلاحات**
+- `src/components/providers.tsx` — أضيف `AuthWatcher` لمسح query cache عند تبديل الحساب
+- `src/components/profile/profile-header.tsx` — إصلاح `showMessageBtn` + رابط `/messages/new?to=`
+- Migrations: `0011_phase4_prep.sql` + `0012_conversations_query.sql`
+
+---
+
+## المرحلة التالية: 5 — التقييمات والجودة (أيام 23-27)

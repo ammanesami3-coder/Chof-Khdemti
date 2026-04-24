@@ -38,7 +38,17 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(npm ls *)"
+      "Bash(npm ls *)",
+      "Bash(git commit *)",
+      "Bash(cat src/hooks/use-like-post.ts)",
+      "Bash(ls supabase/migrations/)",
+      "Bash(del *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(xargs grep *)",
+      "Bash(node -e \"require\\('@lemonsqueezy/lemonsqueezy.js'\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/lemon/webhook -H 'Content-Type: application/json' -H 'x-signature: wrongsignature' -d '{}')",
+      "Bash(curl -s http://localhost:3000/api/lemon/checkout -X POST)",
+      "Bash(node *)"
     ]
   }
 }

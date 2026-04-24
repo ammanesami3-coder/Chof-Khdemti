@@ -53,48 +53,11 @@ export type Database = {
           },
         ]
       }
-      conversation_quota: {
-        Row: {
-          artisan_id: string
-          consumed_at: string
-          conversation_id: string
-          id: string
-        }
-        Insert: {
-          artisan_id: string
-          consumed_at?: string
-          conversation_id: string
-          id?: string
-        }
-        Update: {
-          artisan_id?: string
-          consumed_at?: string
-          conversation_id?: string
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversation_quota_artisan_id_fkey"
-            columns: ["artisan_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conversation_quota_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       conversations: {
         Row: {
           artisan_id: string
           created_at: string
           customer_id: string
-          first_artisan_reply_at: string | null
           id: string
           last_message_at: string
         }
@@ -102,7 +65,6 @@ export type Database = {
           artisan_id: string
           created_at?: string
           customer_id: string
-          first_artisan_reply_at?: string | null
           id?: string
           last_message_at?: string
         }
@@ -110,7 +72,6 @@ export type Database = {
           artisan_id?: string
           created_at?: string
           customer_id?: string
-          first_artisan_reply_at?: string | null
           id?: string
           last_message_at?: string
         }
@@ -380,6 +341,7 @@ export type Database = {
           lemon_subscription_id: string | null
           lemon_variant_id: string | null
           status: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at: string | null
           updated_at: string
           user_id: string
         }
@@ -393,6 +355,7 @@ export type Database = {
           lemon_subscription_id?: string | null
           lemon_variant_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -406,6 +369,7 @@ export type Database = {
           lemon_subscription_id?: string | null
           lemon_variant_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -482,16 +446,30 @@ export type Database = {
     }
     Functions: {
       can_artisan_reply: {
-        Args: { p_artisan_id: string; p_conversation_id: string }
+        Args: { p_artisan_id: string }
         Returns: boolean
       }
-      get_artisan_quota_status: {
-        Args: { p_artisan_id: string }
+      expire_trials: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      get_user_conversations: {
+        Args: Record<PropertyKey, never>
         Returns: {
-          can_send: boolean
-          conversations_max: number
-          conversations_used: number
-          status: Database["public"]["Enums"]["subscription_status"]
+          id: string
+          artisan_id: string
+          customer_id: string
+          last_message_at: string
+          created_at: string
+          partner_id: string
+          partner_username: string
+          partner_full_name: string
+          partner_avatar_url: string | null
+          last_message_content: string | null
+          last_message_created_at: string | null
+          last_message_sender_id: string | null
+          last_message_is_read: boolean | null
+          unread_count: number
         }[]
       }
       mark_messages_read: {
@@ -502,7 +480,7 @@ export type Database = {
     Enums: {
       subscription_status:
         | "trial"
-        | "quota_used"
+        | "trial_ended"
         | "active"
         | "past_due"
         | "cancelled"
@@ -635,7 +613,7 @@ export const Constants = {
     Enums: {
       subscription_status: [
         "trial",
-        "quota_used",
+        "trial_ended",
         "active",
         "past_due",
         "cancelled",

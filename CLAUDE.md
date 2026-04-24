@@ -45,7 +45,7 @@
 
 ## 2. نموذج الربح (التحديث المهم)
 
-> ⚠️ **هذا الجزء تم تعديله عن الخطة الأولى. اعتمد هذا النموذج الجديد فقط.**
+> ⚠️ **هذا الجزء تم تعديله مرتين. اعتمد هذا النموذج النهائي فقط.**
 
 ### 2.1 النموذج: اشتراك شهري للحرفيين
 
@@ -53,31 +53,26 @@
 - **الزبون (customer):** مجاناً بالكامل. لا يدفع شيئاً.
 - **بوابة الدفع:** **Lemon Squeezy** (وليس Stripe)
 
-### 2.2 آلية المحادثات (Quota System)
+### 2.2 آلية التجربة المجانية (Trial Period)
 
-- كل حرفي يحصل على **5 محادثات مجانية** (conversation quota) دائماً كنافذة تجريبية
-- "المحادثة" = تواصل (أخذ ورد) كامل مع زبون واحد (threaded conversation)
-- عند استنفاذ الـ 5 محادثات، الحرفي **لا يستطيع الرد** على أي زبون جديد حتى يشترك
+- كل حرفي جديد يحصل على **30 يوماً مجانية كاملة** من تاريخ التسجيل
+- خلال الـ 30 يوماً: محادثات ورسائل **غير محدودة** بدون أي قيد
+- بعد انتهاء الـ 30 يوماً وبدون اشتراك: الحرفي يصبح **read-only** (يقرأ رسائل الزبائن لكن لا يستطيع الرد)
 - بعد الاشتراك النشط (`subscription_status = 'active'`): محادثات غير محدودة طوال فترة الاشتراك
-- إذا انتهى الاشتراك أو أُلغي: يعود الحرفي إلى وضع "read-only" (يقرأ رسائل الزبائن لكن لا يرد على محادثات جديدة)
+- إذا انتهى الاشتراك أو أُلغي: يعود الحرفي إلى وضع read-only
+- **الزبون:** مجاني دائماً، لا يتأثر بأي قيد
 
-### 2.3 قاعدة العدّ المهمة
-
-- المحادثات المجانية الخمس تُحسب **مرة واحدة فقط لكل زبون**
-- أي: إذا بدأ الزبون A محادثة، ثم عاد بعد شهر وأرسل مجدداً، يظل ذلك ضمن **نفس المحادثة** ولا يُحسب من جديد
-- العدّاد يزيد `+1` فقط عند **أول رد من الحرفي** على محادثة جديدة مع زبون لم يُراسله من قبل
-
-### 2.4 حالات الاشتراك (Subscription States)
+### 2.3 حالات الاشتراك (Subscription States)
 
 ```
-trial       → لديه quota متبقية (< 5 محادثات مستعملة)
-quota_used  → استنفذ الـ 5 محادثات ولم يشترك بعد
-active      → اشتراك Lemon Squeezy نشط
-past_due    → فشل آخر دفع، لديه مهلة 3 أيام
-cancelled   → ألغى الاشتراك، يعود لوضع read-only
+trial        → ضمن فترة الـ 30 يوماً المجانية (trial_ends_at في المستقبل)
+trial_ended  → انتهت الـ 30 يوماً ولم يشترك، read-only
+active       → اشتراك Lemon Squeezy نشط، محادثات غير محدودة
+past_due     → فشل آخر دفع، لديه مهلة 3 أيام
+cancelled    → ألغى الاشتراك، يعود لوضع read-only
 ```
 
-### 2.5 تكامل Lemon Squeezy
+### 2.4 تكامل Lemon Squeezy
 
 Claude Code يجب أن:
 1. يستعمل **Lemon Squeezy Checkout** (hosted checkout، لا تُبنى صفحة دفع داخلية)
@@ -91,7 +86,7 @@ Claude Code يجب أن:
 4. يحفظ `subscription_id` و `customer_id` من Lemon Squeezy في جدول `subscriptions`
 5. يسجل كل حدث webhook في جدول `webhook_events` (idempotency)
 
-### 2.6 جدول الاشتراكات في DB
+### 2.5 جدول الاشتراكات في DB
 
 ```sql
 subscriptions (
@@ -99,22 +94,28 @@ subscriptions (
   user_id uuid fk → users,
   lemon_subscription_id text unique,
   lemon_customer_id text,
-  status enum('trial','quota_used','active','past_due','cancelled'),
+  status enum('trial','trial_ended','active','past_due','cancelled'),
+  trial_ends_at timestamptz,           -- تاريخ انتهاء التجربة (now() + 30 days عند التسجيل)
   current_period_start timestamptz,
   current_period_end timestamptz,
+  cancel_at_period_end boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 )
 ```
 
-### 2.7 ما الذي يجب حذفه من الخطة القديمة
+### 2.6 ما الذي يجب حذفه من الخطط القديمة
 
 - ❌ جدول `wallet_accounts`
 - ❌ جدول `wallet_transactions`
 - ❌ صفحة `/wallet`
 - ❌ زر "اشحن رصيدك"
 - ❌ أي منطق خصم بالدرهم من المحفظة
-- ✅ استُبدلت كلها بجداول: `subscriptions`, `conversation_quota`, `webhook_events`
+- ❌ جدول `conversation_quota` (نظام الـ 5 محادثات — محذوف كلياً)
+- ❌ حقل `first_artisan_reply_at` في جدول `conversations`
+- ❌ دالة `consume_quota_on_reply()` والـ trigger `trg_consume_quota`
+- ❌ القيمة `quota_used` من enum `subscription_status`
+- ✅ استُبدل كل ذلك بـ: `trial_ends_at` + دالة `expire_trials()` + `pg_cron`
 
 ---
 
@@ -269,7 +270,7 @@ Chof Khdemti/
 │   │   │   └── message-composer.tsx
 │   │   ├── subscription/
 │   │   │   ├── subscription-status-badge.tsx
-│   │   │   ├── quota-indicator.tsx
+│   │   │   ├── trial-indicator.tsx
 │   │   │   └── upgrade-prompt.tsx
 │   │   └── rating/
 │   │       ├── star-rating.tsx
@@ -307,7 +308,7 @@ Chof Khdemti/
 │   │   ├── constants/
 │   │   │   ├── crafts.ts              ← قائمة الـ 20+ تخصص
 │   │   │   ├── cities.ts              ← مدن المغرب
-│   │   │   └── subscription.ts        ← SUBSCRIPTION_PRICE, FREE_QUOTA
+│   │   │   └── subscription.ts        ← SUBSCRIPTION_PRICE, TRIAL_DAYS (30)
 │   │   └── utils.ts
 │   │
 │   ├── types/
@@ -324,14 +325,19 @@ Chof Khdemti/
 │   │   ├── 0001_initial_schema.sql
 │   │   ├── 0002_rls_policies.sql
 │   │   ├── 0003_functions.sql
-│   │   ├── 0004_subscriptions.sql
-│   │   └── 0005_quota_logic.sql
+│   │   ├── 0004_subscriptions.sql    ← نظام الاشتراك الأصلي
+│   │   ├── 0005_auth_trigger.sql
+│   │   ├── 0006_onboarding_complete.sql
+│   │   ├── 0007_indexes.sql
+│   │   ├── 0008_toggle_like_rpc.sql
+│   │   ├── 0009_feed_indexes.sql
+│   │   └── 0010_trial_model.sql      ← نموذج التجربة 30 يوماً (يُطبَّق فوق 0004)
 │   ├── seed.sql                       ← بيانات اختبار
 │   └── config.toml
 │
 └── tests/
     ├── unit/
-    │   ├── quota.test.ts
+    │   ├── trial.test.ts
     │   └── subscription.test.ts
     └── e2e/
         └── signup-flow.spec.ts
@@ -435,7 +441,6 @@ create table public.conversations (
   artisan_id uuid not null references public.users(id) on delete cascade,
   customer_id uuid not null references public.users(id) on delete cascade,
   last_message_at timestamptz default now() not null,
-  first_artisan_reply_at timestamptz,   -- متى ردّ الحرفي لأول مرة (لحساب الـ quota)
   created_at timestamptz default now() not null,
   unique (artisan_id, customer_id)
 );
@@ -470,15 +475,15 @@ create table public.ratings (
 );
 ```
 
-### 6.10 جدول `subscriptions` (جديد - بدل المحفظة)
+### 6.10 جدول `subscriptions`
 
 ```sql
 create type subscription_status as enum (
-  'trial',        -- لديه quota متبقية
-  'quota_used',   -- استنفذ الـ 5 ولم يشترك
-  'active',       -- اشتراك فعّال
-  'past_due',     -- فشل الدفع
-  'cancelled'     -- ألغى
+  'trial',        -- ضمن الـ 30 يوماً المجانية
+  'trial_ended',  -- انتهت التجربة ولم يشترك (read-only)
+  'active',       -- اشتراك Lemon Squeezy فعّال
+  'past_due',     -- فشل الدفع، مهلة 3 أيام
+  'cancelled'     -- ألغى الاشتراك (read-only)
 );
 
 create table public.subscriptions (
@@ -488,32 +493,21 @@ create table public.subscriptions (
   lemon_customer_id text,
   lemon_variant_id text,
   status subscription_status not null default 'trial',
+  trial_ends_at timestamptz,           -- يُعيَّن عند التسجيل: now() + interval '30 days'
   current_period_start timestamptz,
   current_period_end timestamptz,
-  cancel_at_period_end boolean default false,
-  created_at timestamptz default now() not null,
-  updated_at timestamptz default now() not null,
+  cancel_at_period_end boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   unique (user_id)
 );
+
+create index if not exists subscriptions_trial_ends_at_idx
+  on public.subscriptions(trial_ends_at)
+  where status = 'trial';
 ```
 
-### 6.11 جدول `conversation_quota` (جديد - لعدّ المحادثات الخمس)
-
-```sql
--- سجل المحادثات المحسوبة من الـ quota لكل حرفي
--- كل row يمثّل "استهلاك" فتحة محادثة مع زبون جديد
-create table public.conversation_quota (
-  id uuid primary key default gen_random_uuid(),
-  artisan_id uuid not null references public.users(id) on delete cascade,
-  conversation_id uuid not null references public.conversations(id) on delete cascade,
-  consumed_at timestamptz default now() not null,
-  unique (artisan_id, conversation_id)  -- محادثة واحدة = حسبة واحدة
-);
-
-create index cq_artisan_idx on conversation_quota(artisan_id);
-```
-
-### 6.12 جدول `webhook_events` (للـ idempotency)
+### 6.11 جدول `webhook_events` (للـ idempotency)
 
 ```sql
 create table public.webhook_events (
@@ -526,119 +520,71 @@ create table public.webhook_events (
 );
 ```
 
-### 6.13 Database Functions المطلوبة
+### 6.12 Database Functions المطلوبة
 
 ```sql
--- دالة للتحقق هل الحرفي يستطيع الرد على محادثة
-create or replace function public.can_artisan_reply(
-  p_artisan_id uuid,
-  p_conversation_id uuid
-) returns boolean
-language plpgsql security definer
+-- هل يستطيع الحرفي الرد؟ (يفحص trial_ends_at والـ status فقط)
+create or replace function public.can_artisan_reply(p_artisan_id uuid)
+returns boolean
+language plpgsql security definer stable
 as $$
 declare
-  v_status subscription_status;
-  v_quota_used int;
-  v_is_in_quota boolean;
+  v_status        public.subscription_status;
+  v_trial_ends_at timestamptz;
 begin
-  -- تحقق من وجود اشتراك نشط
-  select status into v_status
+  select status, trial_ends_at
+  into v_status, v_trial_ends_at
   from public.subscriptions
   where user_id = p_artisan_id;
 
+  -- اشتراك نشط = محادثات غير محدودة
   if v_status = 'active' then
     return true;
   end if;
 
-  -- هل هذه المحادثة مُستهلَكة من الـ quota مسبقاً؟
-  select exists(
-    select 1 from public.conversation_quota
-    where artisan_id = p_artisan_id
-    and conversation_id = p_conversation_id
-  ) into v_is_in_quota;
-
-  if v_is_in_quota then
-    return true;  -- يستطيع المتابعة في محادثة مفتوحة مسبقاً
+  -- ضمن فترة التجربة وهي لم تنتهِ بعد
+  if v_status = 'trial' and v_trial_ends_at > now() then
+    return true;
   end if;
 
-  -- احسب كم استهلك
-  select count(*) into v_quota_used
-  from public.conversation_quota
-  where artisan_id = p_artisan_id;
-
-  return v_quota_used < 5;
+  -- كل الحالات الأخرى: trial_ended, past_due, cancelled
+  return false;
 end;
 $$;
 
--- دالة لاستهلاك فتحة quota عند أول رد من الحرفي
-create or replace function public.consume_quota_on_reply()
-returns trigger
+-- تشغَّل يومياً عبر pg_cron: تحديث status من trial → trial_ended عند انتهاء المهلة
+create or replace function public.expire_trials()
+returns void
 language plpgsql security definer
 as $$
-declare
-  v_artisan_id uuid;
-  v_is_artisan_message boolean;
-  v_already_consumed boolean;
 begin
-  -- هل المرسل هو الحرفي في هذه المحادثة؟
-  select (c.artisan_id = new.sender_id), c.artisan_id
-  into v_is_artisan_message, v_artisan_id
-  from public.conversations c
-  where c.id = new.conversation_id;
-
-  if not v_is_artisan_message then
-    return new;
-  end if;
-
-  -- هل سبق واستهلكنا quota لهذه المحادثة؟
-  select exists(
-    select 1 from public.conversation_quota
-    where conversation_id = new.conversation_id
-  ) into v_already_consumed;
-
-  if v_already_consumed then
-    return new;
-  end if;
-
-  -- استهلك الـ quota وسجّل أول رد
-  insert into public.conversation_quota (artisan_id, conversation_id)
-  values (v_artisan_id, new.conversation_id);
-
-  update public.conversations
-  set first_artisan_reply_at = now()
-  where id = new.conversation_id;
-
-  -- حدّث حالة الاشتراك إذا استنفذ
   update public.subscriptions
-  set status = 'quota_used', updated_at = now()
-  where user_id = v_artisan_id
-  and status = 'trial'
-  and (
-    select count(*) from public.conversation_quota
-    where artisan_id = v_artisan_id
-  ) >= 5;
-
-  return new;
+  set status     = 'trial_ended',
+      updated_at = now()
+  where status        = 'trial'
+    and trial_ends_at <= now();
 end;
 $$;
 
-create trigger trg_consume_quota
-after insert on public.messages
-for each row execute function public.consume_quota_on_reply();
+-- تشغيل expire_trials يومياً عند منتصف الليل (يحتاج امتداد pg_cron مفعّلاً في Supabase)
+-- select cron.schedule('expire-trials', '0 0 * * *', 'select public.expire_trials()');
 
--- دالة لزيادة/إنقاص عدّادات الـ counts
-create or replace function public.increment_post_likes()
-returns trigger language plpgsql as $$
+-- إنشاء subscription تلقائي للحرفي عند التسجيل (مع trial_ends_at)
+create or replace function public.create_artisan_subscription()
+returns trigger language plpgsql security definer
+as $$
 begin
-  update public.posts set likes_count = likes_count + 1 where id = new.post_id;
+  if new.account_type = 'artisan' then
+    insert into public.subscriptions (user_id, status, trial_ends_at)
+    values (new.id, 'trial', now() + interval '30 days')
+    on conflict (user_id) do nothing;
+  end if;
   return new;
 end;
 $$;
 
-create trigger trg_inc_likes after insert on public.likes
-for each row execute function public.increment_post_likes();
-
--- (وبنفس المنطق للـ decrement و comments_count)
+-- دالة لزيادة/إنقاص عدّادات الـ counts (موجودة في 0003_functions.sql)
+-- create or replace function public.increment_post_likes() ... (see 0003)
 ```
 
 ---
@@ -919,9 +865,9 @@ export async function createPost(input: z.infer<typeof schema>) {
 
 ### 🟢 المرحلة 4 — المحادثات ونظام الاشتراك (أيام 17-22)
 
-> ⚠️ **هذه المرحلة الأكثر تعديلاً عن الخطة الأصلية.** نموذج المحفظة محذوف، ومكانه نظام Lemon Squeezy + Quota.
+> ⚠️ **النموذج الجديد:** تجربة مجانية 30 يوماً كاملة بدون قيود، ثم اشتراك Lemon Squeezy. لا يوجد نظام quota عدّ محادثات.
 
-**الهدف:** بناء نظام محادثات فوري مع منطق quota (5 مجاناً) و Lemon Squeezy للاشتراك الشهري.
+**الهدف:** بناء نظام محادثات فوري مع منطق التجربة المجانية (30 يوماً) و Lemon Squeezy للاشتراك الشهري.
 
 #### ما يجب على Claude Code أن يفعله
 
@@ -943,16 +889,20 @@ export async function createPost(input: z.infer<typeof schema>) {
        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, handleNew)
        .subscribe();
      ```
-   - الغاء الـ subscription في `useEffect` cleanup
+   - إلغاء الـ subscription في `useEffect` cleanup
 
-4. **منطق الـ Quota (قرار Claude Code الحاسم)**
-   - **قبل إرسال أي رسالة من الحرفي**: استدعِ الدالة `can_artisan_reply(artisan_id, conversation_id)` عبر RPC
+4. **منطق التجربة المجانية (قرار Claude Code الحاسم)**
+   - **قبل إرسال أي رسالة من الحرفي**: استدعِ `can_artisan_reply(artisan_id)` عبر RPC
    - إذا أرجعت `false`: اعرض `<UpgradePrompt />` بدل فورم الإرسال
-   - إذا أرجعت `true`: اسمح بالإرسال. الـ trigger `trg_consume_quota` سيستهلك quota تلقائياً عند أول رد
+   - إذا أرجعت `true`: اسمح بالإرسال مباشرة، لا triggers ولا جداول إضافية
+   - **الزبون:** يُرسل دائماً بدون أي تحقق من الاشتراك
 
-5. **عرض حالة الـ Quota للحرفي**
-   - في Navbar: badge صغيرة تعرض `3/5 محادثات متبقية` (إذا `trial`) أو `اشتراك نشط` (إذا `active`)
-   - مكون `<QuotaIndicator />` يستعمل hook `useSubscriptionStatus`
+5. **عرض حالة التجربة للحرفي**
+   - في Navbar: مكون `<TrialIndicator />` يعرض:
+     - `trial` + trial_ends_at في المستقبل → "X يوم متبقي في التجربة"
+     - `trial_ended` أو `cancelled` → "اشترك للاستمرار"
+     - `active` → "اشتراك نشط"
+   - يستعمل hook `useSubscriptionStatus`
 
 6. **Lemon Squeezy - Checkout**
    - API Route: `POST /api/lemon/checkout`
@@ -992,11 +942,15 @@ export async function createPost(input: z.infer<typeof schema>) {
 
 8. **صفحة الاشتراك**
    - `/settings/subscription`:
-     - الحالة الحالية (trial / active / past_due / cancelled)
-     - عدد المحادثات المستهلكة (إذا trial)
-     - زر "اشترك" (إذا ليس active)
-     - زر "إدارة الاشتراك" يفتح Customer Portal من Lemon Squeezy (إذا active)
-     - زر "إلغاء" (يضع `cancel_at_period_end`)
+     - الحالة الحالية مع شرح واضح:
+       - `trial`: "تجربة مجانية — X يوم متبقي"
+       - `trial_ended`: "انتهت التجربة — اشترك للاستمرار"
+       - `active`: "اشتراك نشط حتى [تاريخ]"
+       - `past_due`: "فشل الدفع — حدّث طريقة الدفع"
+       - `cancelled`: "مُلغى — اشترك مجدداً"
+     - زر "اشترك الآن" (إذا ليس `active`)
+     - زر "إدارة الاشتراك" يفتح Customer Portal من Lemon Squeezy (إذا `active`)
+     - زر "إلغاء" (يضع `cancel_at_period_end = true`)
 
 9. **Notification Badge**
    - في Navbar: أيقونة رسائل مع عدد غير المقروء
@@ -1005,14 +959,15 @@ export async function createPost(input: z.infer<typeof schema>) {
 #### معايير الاكتمال (DoD)
 
 - [ ] رسالة المستخدم A تظهر عند B في أقل من 1 ثانية
-- [ ] الـ quota يُستهلك **مرة واحدة فقط** عند أول رد في محادثة جديدة
-- [ ] الحرفي يرى quota `5/5` في البداية، وينقص فقط عند رد **على زبون جديد**
-- [ ] الحرفي لا يستطيع الرد إذا: `trial` وأستنفذ 5، أو `quota_used`, `cancelled`
+- [ ] الحرفي ضمن التجربة يرسل بحرية كاملة بدون أي قيد
+- [ ] `<TrialIndicator />` يعرض عدد الأيام المتبقية بدقة
+- [ ] الحرفي لا يستطيع الرد إذا: `trial_ended`, `cancelled`, `past_due`
+- [ ] عرض `<UpgradePrompt />` للحرفي المنتهية تجربته بدل فورم الإرسال
 - [ ] الاشتراك عبر Lemon Squeezy ينقل المستخدم إلى `active` خلال 5 ثوانٍ بعد الدفع
 - [ ] Webhook يتحقق من التوقيع ويرفض الطلبات المزورة (اختبار بـ curl)
 - [ ] إعادة إرسال نفس الـ webhook لا يُكرر الإجراء (idempotency)
 - [ ] RLS تمنع حرفياً من رؤية محادثات حرفي آخر
-- [ ] الزبون لا يتأثر بالـ quota أبداً (يُرسل بلا قيود)
+- [ ] الزبون يرسل دائماً بدون أي تحقق من الاشتراك
 
 ---
 
@@ -1052,7 +1007,7 @@ export async function createPost(input: z.infer<typeof schema>) {
    - لا توجد منشورات في الملف: "لم ينشر X بعد"
 
 7. **اختبارات الوحدة (Vitest)**
-   - `tests/unit/quota.test.ts`: اختبار دالة `can_artisan_reply` بسيناريوهات مختلفة (trial مع 0, 3, 5 مستهلك / active / cancelled)
+   - `tests/unit/trial.test.ts`: اختبار دالة `can_artisan_reply` بسيناريوهات مختلفة (trial نشط / trial منتهٍ / trial_ended / active / cancelled)
    - `tests/unit/subscription.test.ts`: اختبار معالج webhook مع payloads مزيفة
    - `tests/unit/validations.test.ts`: اختبار Zod schemas
 
@@ -1204,7 +1159,7 @@ export async function createPost(input: z.infer<typeof schema>) {
 **messages**
 - `SELECT`: المستخدم طرف في المحادثة
 - `INSERT`: `sender_id = auth.uid()` و طرف في المحادثة
-  - **إضافة:** إذا `sender_id` = `artisan_id`، يجب استدعاء `can_artisan_reply()` (عبر check constraint أو trigger)
+  - **إضافة للحرفي:** قبل الإرسال من Server Action، استدعِ `can_artisan_reply(artisan_id)` ← يُرجع false إذا انتهت التجربة أو الاشتراك
 
 **ratings**
 - `SELECT`: الجميع
@@ -1215,7 +1170,7 @@ export async function createPost(input: z.infer<typeof schema>) {
 - `SELECT`: `user_id = auth.uid()`
 - `INSERT/UPDATE`: **فقط service role** (من webhook)
 
-**conversation_quota / webhook_events**
+**webhook_events**
 - لا صلاحية من client. فقط service role.
 
 ### 11.2 مثال policy
@@ -1239,13 +1194,14 @@ using (
 
 ### 12.1 ما يجب اختباره (أولوية)
 
-1. **منطق الـ quota** (الأهم):
-   - حرفي جديد يرد مرة = quota 4/5
-   - يرد مجدداً على نفس الزبون = لا يزال 4/5
-   - يرد على زبون ثانٍ = 3/5
-   - ... حتى يصل 0/5
-   - المحاولة التالية = `can_artisan_reply()` ترجع false
-   - بعد اشتراك = يسمح بلا حدود
+1. **منطق التجربة المجانية** (الأهم):
+   - حرفي جديد (`trial`, `trial_ends_at` في المستقبل) = `can_artisan_reply()` ترجع true
+   - حرفي trial انتهت مهلته = ترجع false
+   - حرفي `trial_ended` = ترجع false
+   - حرفي `active` = ترجع true دائماً
+   - حرفي `cancelled` = ترجع false
+   - حرفي `past_due` = ترجع false
+   - `expire_trials()` يُحدّث `trial` → `trial_ended` للصفوف المنتهية فقط
 
 2. **معالج webhook**:
    - توقيع خاطئ = 401
@@ -1260,24 +1216,37 @@ using (
 ### 12.2 مثال اختبار
 
 ```ts
-// tests/unit/quota.test.ts
+// tests/unit/trial.test.ts
 import { describe, it, expect } from 'vitest';
-import { canArtisanReply } from '@/lib/actions/quota';
+import { canArtisanReply } from '@/lib/actions/messages';
+
+const future = new Date(Date.now() + 86400000).toISOString();
+const past   = new Date(Date.now() - 86400000).toISOString();
 
 describe('canArtisanReply', () => {
-  it('allows reply when trial with 0 consumed', async () => {
-    const result = await canArtisanReply({ artisanId: 'a1', conversationId: 'c1', mockConsumed: 0, mockStatus: 'trial' });
+  it('allows reply during active trial', async () => {
+    const result = await canArtisanReply({ mockStatus: 'trial', mockTrialEndsAt: future });
     expect(result).toBe(true);
   });
 
-  it('blocks reply when trial with 5 consumed', async () => {
-    const result = await canArtisanReply({ artisanId: 'a1', conversationId: 'c1', mockConsumed: 5, mockStatus: 'trial' });
+  it('blocks reply when trial period expired', async () => {
+    const result = await canArtisanReply({ mockStatus: 'trial', mockTrialEndsAt: past });
     expect(result).toBe(false);
   });
 
-  it('allows reply on existing conversation even after quota used', async () => {
-    const result = await canArtisanReply({ artisanId: 'a1', conversationId: 'c1', mockConsumed: 5, mockStatus: 'quota_used', isInQuota: true });
+  it('blocks reply when trial_ended', async () => {
+    const result = await canArtisanReply({ mockStatus: 'trial_ended', mockTrialEndsAt: past });
+    expect(result).toBe(false);
+  });
+
+  it('allows reply when subscription active', async () => {
+    const result = await canArtisanReply({ mockStatus: 'active', mockTrialEndsAt: past });
     expect(result).toBe(true);
+  });
+
+  it('blocks reply when cancelled', async () => {
+    const result = await canArtisanReply({ mockStatus: 'cancelled', mockTrialEndsAt: past });
+    expect(result).toBe(false);
   });
 });
 ```
@@ -1319,8 +1288,8 @@ refactor(messages): extract realtime logic to custom hook
 ❌ **لا تفعل هذا أبداً:**
 
 1. لا تستعمل Stripe. نحن على Lemon Squeezy حصراً.
-2. لا تُعد إنشاء جدول `wallet_accounts` أو `wallet_transactions`. النموذج تغيّر.
-3. لا تخصم "درهم" على الرد. الرد إما مسموح (active/quota متبقية) أو ممنوع.
+2. لا تُعد إنشاء جدول `wallet_accounts` أو `wallet_transactions` أو `conversation_quota`. النموذج تغيّر.
+3. لا تخصم "درهم" على الرد، ولا تعدّ المحادثات. الرد إما مسموح (active أو ضمن trial) أو ممنوع (trial انتهت / cancelled).
 4. لا تستعمل `SUPABASE_SERVICE_ROLE_KEY` في أي ملف `use client`.
 5. لا تحفظ مفاتيح API في الـ repo.
 6. لا تجلب من DB بدون RLS (أي: عبر service role) إلا في webhooks و admin actions.

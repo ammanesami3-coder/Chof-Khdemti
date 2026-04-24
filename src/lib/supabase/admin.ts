@@ -1,10 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 
-/**
- * عميل Supabase بصلاحيات service role.
- * استخدمه فقط في Server Actions و API Routes — لا في 'use client'.
- */
+// ⚠️ فقط في API Routes — لا تستورد في 'use client' أو Server Components العامة
 export function createAdminClient() {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,3 +14,6 @@ export function createAdminClient() {
     }
   );
 }
+
+// Singleton للاستخدام في API routes (module loaded once per worker)
+export const supabaseAdmin = createAdminClient();
