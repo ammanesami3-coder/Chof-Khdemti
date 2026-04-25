@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { BadgeCheck, MapPin, Briefcase, Star } from 'lucide-react';
+import { BadgeCheck, MapPin, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { RatingDisplay } from '@/components/rating/rating-display';
 import { useFollow } from '@/hooks/use-follow';
 import { getCraftById } from '@/lib/constants/crafts';
 import { CITIES } from '@/lib/constants/cities';
@@ -80,12 +81,11 @@ export function ArtisanCard({ artisan, currentUserId }: Props) {
             {cityName}
           </span>
         )}
-        {artisan.avgRating != null && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-            <Star className="size-3 fill-current" />
-            {artisan.avgRating.toFixed(1)}
-          </span>
-        )}
+        <RatingDisplay
+          avgStars={artisan.avgRating}
+          totalCount={artisan.totalRatingsCount}
+          size="sm"
+        />
       </div>
 
       {/* ── Follow button ────────────────────────────────────────────────── */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { ArtisanGrid, ArtisanGridSkeleton } from './artisan-grid';
@@ -23,10 +23,12 @@ export function ExploreClient({
   initialQ,
   currentUserId,
 }: Props) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const craft = searchParams.get('craft') ?? '';
   const city = searchParams.get('city') ?? '';
   const q = searchParams.get('q') ?? '';
+  const hasActiveFilters = !!(craft || city || q);
 
   // Use server-fetched data only when URL params match what the server used
   const matchesInitial =
@@ -57,7 +59,12 @@ export function ExploreClient({
         <ArtisanGridSkeleton />
       ) : (
         <>
-          <ArtisanGrid artisans={artisans} currentUserId={currentUserId} />
+          <ArtisanGrid
+            artisans={artisans}
+            currentUserId={currentUserId}
+            hasActiveFilters={hasActiveFilters}
+            onClearFilters={() => router.push('?', { scroll: false })}
+          />
 
           {hasNextPage && (
             <div className="flex justify-center pt-2">

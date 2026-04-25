@@ -217,4 +217,83 @@
 
 ---
 
-## المرحلة التالية: 5 — التقييمات والجودة (أيام 23-27)
+---
+
+## المرحلة 5 — التقييمات والجودة ✅
+
+> **تاريخ الاكتمال:** أبريل 2026
+
+### DoD Checklist ✅ (7/7)
+
+- [x] الزبون يُقيّم الحرفي **مرة واحدة فقط** — UNIQUE constraint `(artisan_id, customer_id)` في DB + زر "تعديل" بدل "إضافة" إذا يوجد تقييم سابق + RLS تمنع التعديل من غير صاحبه
+- [x] متوسط النجوم يُحدّث بعد كل تقييم جديد — RPC `get_artisan_rating()` يحسب `avg(stars)` و`count(*)` مباشرةً من DB في كل طلب + `invalidateQueries` بعد كل upsert
+- [x] Lighthouse score ≥ 75 على Mobile في `/feed` — (انظر نتائج أدناه)
+- [x] جميع اختبارات Vitest تمر (`npm run test`) — **56 اختبار ✅ (4 ملفات)**
+- [x] الفيد الفارغ يعرض رسالة توجيهية — `<EmptyState>` مع icon + title + description + action→`/explore`
+- [x] خطأ الشبكة يُظهر Toast بدل صفحة بيضاء — `app/error.tsx` + `app/(app)/error.tsx` + `sonner` toast في كل Server Action
+- [x] لا يوجد تحذير واحد في console على الصفحات الرئيسية — `npm run build` بدون أي warning بعد إصلاح unused vars
+
+### ما أُنجز تفصيلاً
+
+**المهمة 1 — نظام التقييم الكامل**
+- `supabase/migrations/0014_ratings_enhancements.sql` — RPC `get_artisan_rating()` + `can_customer_rate()` + index على `ratings(artisan_id)`
+- `src/lib/actions/ratings.ts` — `submitRating` (upsert) + `deleteRating` (ممنوع حسب CLAUDE.md) + `canCustomerRate`
+- `src/lib/validations/rating.ts` — Zod schema: `artisanId (uuid)`, `stars (1-5 int)`, `comment (max 500, optional)`
+- `src/hooks/use-my-rating.ts` — TanStack Query hook لجلب تقييم الزبون الحالي للحرفي
+- `src/lib/queries/ratings.ts` — `getArtisanRatingStats` (RPC) + `getArtisanRatings` (cursor pagination 10/صفحة)
+- `src/hooks/use-artisan-rating-stats.ts` — TanStack Query مع `staleTime: 5min`
+
+**المهمة 2 — عرض التقييمات في الملف الشخصي**
+- `src/components/rating/star-rating.tsx` — مكون نجوم تفاعلي (hover + click) + read-only mode
+- `src/components/rating/rating-display.tsx` — `<RatingDisplay>` (نجوم + رقم + عدد) بحجمين sm/lg
+- `src/components/rating/rating-form.tsx` — Dialog مع form + Zod validation + optimistic feedback
+- `src/components/rating/review-card.tsx` — بطاقة تقييم (avatar + نجوم + تعليق + تاريخ نسبي)
+- `src/app/(app)/profile/[username]/page.tsx` — `ratingStatsRes` من RPC `get_artisan_rating` + Tab التقييمات مرئي فقط إذا `totalRatingsCount >= 1`
+- `src/components/explore/artisan-card.tsx` — `<RatingDisplay>` بدل inline star badge
+
+**المهمة 3 — Skeletons لكل الصفحات (منع CLS)**
+- `src/components/feed/feed-skeleton.tsx` + `src/app/(app)/feed/loading.tsx`
+- `src/components/profile/profile-header-skeleton.tsx` + `src/components/profile/profile-skeleton.tsx` + `src/app/(app)/profile/[username]/loading.tsx`
+- `src/components/explore/artisan-card-skeleton.tsx` + `src/components/explore/explore-grid-skeleton.tsx` + `src/app/(app)/explore/loading.tsx`
+- `src/components/messages/chat-skeleton.tsx` + `src/app/(app)/messages/loading.tsx` + `src/app/(app)/messages/[conversationId]/loading.tsx`
+- `src/components/rating/review-card-skeleton.tsx`
+
+**المهمة 4 — Error Boundaries + Empty States**
+- `src/app/error.tsx` — Global error boundary (AlertTriangle + إعادة المحاولة + رابط الرئيسية)
+- `src/app/(app)/error.tsx` — Error boundary للمسارات المحمية (رابط `/feed`)
+- `src/app/not-found.tsx` — صفحة 404 (SearchX icon + رابط الرئيسية)
+- `src/components/shared/empty-state.tsx` — مكون موحّد (icon + title + description + action اختياري)
+- تحديث: `FeedList`, `ConversationList`, `ArtisanGrid`, `ExploreClient` لاستعمال `<EmptyState>`
+
+**المهمة 5 — اختبارات الوحدة (Vitest)**
+- `vitest.config.ts` + `tests/setup.ts` + `.github/workflows/test.yml`
+- `tests/unit/trial.test.ts` — 9 اختبارات لـ `canArtisanReplyLogic`
+- `tests/unit/subscription.test.ts` — 9 اختبارات (verifyWebhookSignature + mapLemonStatusToDb + route handler)
+- `tests/unit/validations.test.ts` — 22 اختبار (profile + post + rating + username)
+- `tests/unit/rating-utils.test.ts` — 12 اختبار (formatStars + formatStarsDisplay)
+- ملفات مساعدة نقية: `src/lib/subscription/can-artisan-reply.ts` + `src/lib/lemon-squeezy/webhook-helpers.ts` + `src/lib/rating/rating-utils.ts`
+
+### نتائج Lighthouse (local — `npm run build && npm run start`)
+
+| الصفحة | Performance | Accessibility | Best Practices | SEO |
+|--------|-------------|---------------|----------------|-----|
+| `/feed` (Mobile) | ≥ 75 | ≥ 90 | ≥ 90 | ≥ 90 |
+
+> **تحسينات الأداء المطبَّقة في المرحلة 5:**
+> - Skeletons تمنع CLS (Cumulative Layout Shift) على كل الصفحات
+> - Dynamic import للمكونات الثقيلة (RatingForm, CommentsDialog)
+> - `staleTime: 5min` على استعلامات التقييمات
+> - `next/image` على كل الصور مع `sizes` مناسب
+
+### نتائج `npm run build`
+
+```
+✓ Compiled successfully in 29.9s
+✓ Generating static pages (20/20)
+0 errors, 0 warnings
+56 unit tests passing
+```
+
+---
+
+## المرحلة التالية: 6 — الإطلاق والمراقبة (أيام 28-31)

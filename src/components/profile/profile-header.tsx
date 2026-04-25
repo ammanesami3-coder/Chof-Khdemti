@@ -1,7 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { BadgeCheck, MapPin, Briefcase, Clock, Star, MessageCircle, Pencil } from 'lucide-react';
+import { BadgeCheck, MapPin, Briefcase, Clock, MessageCircle, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { RatingDisplay } from '@/components/rating/rating-display';
 import { getCraftById } from '@/lib/constants/crafts';
 import { CITIES } from '@/lib/constants/cities';
 
@@ -31,6 +32,7 @@ type Props = {
   user: ProfileUser;
   profile: ProfileData;
   avgRating: number | null;
+  totalRatingsCount: number;
   currentUser: CurrentUser;
   isFollowing: boolean;
   isPending: boolean;
@@ -41,6 +43,7 @@ export function ProfileHeader({
   user,
   profile,
   avgRating,
+  totalRatingsCount,
   currentUser,
   isFollowing,
   isPending,
@@ -175,11 +178,8 @@ export function ProfileHeader({
               {profile.years_experience} سنة خبرة
             </span>
           )}
-          {avgRating != null && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-              <Star className="size-3 fill-current" />
-              {avgRating.toFixed(1)}
-            </span>
+          {user.account_type === 'artisan' && (
+            <RatingDisplay avgStars={avgRating} totalCount={totalRatingsCount} size="sm" />
           )}
         </div>
 

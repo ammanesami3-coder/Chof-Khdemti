@@ -32,6 +32,7 @@ type Props = {
   user: ProfileUser;
   profile: ProfileData;
   avgRating: number | null;
+  totalRatingsCount: number;
   currentUser: CurrentUser;
   initialIsFollowing: boolean;
   postsCount: number;
@@ -43,6 +44,7 @@ export function ProfileClient({
   user,
   profile,
   avgRating,
+  totalRatingsCount,
   currentUser,
   initialIsFollowing,
   postsCount,
@@ -77,6 +79,7 @@ export function ProfileClient({
         user={user}
         profile={profile}
         avgRating={avgRating}
+        totalRatingsCount={totalRatingsCount}
         currentUser={currentUser}
         isFollowing={isFollowing}
         isPending={isPending}

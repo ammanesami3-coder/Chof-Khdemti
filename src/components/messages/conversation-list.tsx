@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { fetchUserConversations } from '@/lib/queries/conversations';
 import { ConversationListItem } from './conversation-list-item';
 import { ConversationListSkeleton } from './conversation-list-skeleton';
+import { EmptyState } from '@/components/shared/empty-state';
 import type { ConversationRow } from '@/lib/queries/conversations';
 
 type Props = {
@@ -52,16 +53,13 @@ export function ConversationList({ initialData, currentUserId }: Props) {
 
   if (!conversations?.length) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-          <MessageCircle className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <div>
-          <p className="font-medium text-foreground">لا توجد محادثات بعد</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            ابدأ محادثة من ملف أي حرفي
-          </p>
-        </div>
+      <div className="px-4 pt-8">
+        <EmptyState
+          icon={MessageCircle}
+          title="لا توجد محادثات بعد"
+          description="ابدأ بالاكتشاف وتواصل مع الحرفيين"
+          action={{ label: "اكتشف حرفيين", href: "/explore" }}
+        />
       </div>
     );
   }

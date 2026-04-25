@@ -20,6 +20,7 @@ export type ArtisanListItem = {
   city: string | null;
   years_experience: number | null;
   avgRating: number | null;
+  totalRatingsCount: number;
 };
 
 type RawRating = { stars: number };
@@ -60,6 +61,7 @@ function mapArtisan(raw: RawArtisan): ArtisanListItem {
     city: p?.city ?? null,
     years_experience: p?.years_experience ?? null,
     avgRating,
+    totalRatingsCount: stars.length,
   };
 }
 

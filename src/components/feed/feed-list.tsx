@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { ArrowUp, Loader2, RefreshCw } from "lucide-react";
+import { ArrowUp, Compass, Image, Loader2, RefreshCw } from "lucide-react";
 import { PostCard } from "@/components/feed/post-card";
 import { PostCardSkeletonList } from "@/components/feed/post-card-skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
 import {
   fetchFollowingFeed,
   fetchDiscoverFeed,
@@ -27,6 +28,8 @@ type Props = {
   currentUserId?: string;
   currentUser?: CurrentUser;
   profileUserId?: string;
+  ownerName?: string;
+  isOwnProfile?: boolean;
   initialData?: FeedPage;
   newPosts?: PostWithAuthor[];
 };
@@ -40,6 +43,8 @@ export function FeedList({
   currentUserId,
   currentUser,
   profileUserId,
+  ownerName,
+  isOwnProfile,
   initialData,
   newPosts = [],
 }: Props) {
@@ -205,41 +210,31 @@ export function FeedList({
   if (!displayed.length) {
     if (feedType === "following") {
       return (
-        <div className="flex flex-col items-center gap-5 rounded-xl border border-dashed px-6 py-16 text-center">
-          <div
-            className="flex size-16 items-center justify-center rounded-full bg-muted text-3xl"
-            aria-hidden="true"
-          >
-            🧑‍🔧
-          </div>
-          <div className="space-y-1.5">
-            <p className="font-semibold">فيدك فارغ حتى الآن</p>
-            <p className="text-sm text-muted-foreground">
-              ابدأ بمتابعة حرفيين لتظهر منشوراتهم هنا
-            </p>
-          </div>
-          <a
-            href="/explore"
-            className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            اكتشف حرفيين
-          </a>
-        </div>
+        <EmptyState
+          icon={Compass}
+          title="فيدك فارغ حتى الآن"
+          description="ابدأ بمتابعة حرفيين لتظهر منشوراتهم هنا"
+          action={{ label: "اكتشف حرفيين", href: "/explore" }}
+        />
       );
     }
     if (feedType === "user") {
+      const label = ownerName ? `لم ينشر ${ownerName} بعد` : "لم ينشر شيئاً بعد";
       return (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-14 text-center">
-          <span className="text-3xl" aria-hidden="true">📷</span>
-          <p className="text-sm text-muted-foreground">لم ينشر شيئاً بعد</p>
-        </div>
+        <EmptyState
+          icon={Image}
+          title={label}
+          description={isOwnProfile ? "شارك أول عمل لك مع المجتمع" : undefined}
+          action={isOwnProfile ? { label: "انشر أول منشور", href: "/feed" } : undefined}
+        />
       );
     }
     return (
-      <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-14 text-center">
-        <span className="text-3xl" aria-hidden="true">🔍</span>
-        <p className="text-sm text-muted-foreground">لا توجد منشورات حالياً</p>
-      </div>
+      <EmptyState
+        icon={Compass}
+        title="لا توجد منشورات بعد"
+        description="لم يتم نشر أي منشورات في هذا القسم حتى الآن"
+      />
     );
   }
 

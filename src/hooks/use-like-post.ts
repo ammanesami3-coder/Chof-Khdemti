@@ -66,7 +66,7 @@ export function useLikePost() {
       queryClient.setQueriesData<InfiniteData<FeedPage>>(
         { queryKey: ['feed'] },
         (old) =>
-          patchPost(old, postId, (_, __) => ({
+          patchPost(old, postId, () => ({
             liked: _result.liked,
             count: _result.newCount,
           }))

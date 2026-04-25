@@ -49,7 +49,9 @@
       "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/lemon/webhook -H 'Content-Type: application/json' -H 'x-signature: wrongsignature' -d '{}')",
       "Bash(curl -s http://localhost:3000/api/lemon/checkout -X POST)",
       "Bash(node *)",
-      "Bash(echo \"EXIT:$?\")"
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(npx vitest *)",
+      "Bash(git stash *)"
     ]
   }
 }

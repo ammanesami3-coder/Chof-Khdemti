@@ -1,23 +1,34 @@
+import { Users } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArtisanCard } from './artisan-card';
+import { EmptyState } from '@/components/shared/empty-state';
 import type { ArtisanListItem } from '@/lib/queries/artisans';
 
 type Props = {
   artisans: ArtisanListItem[];
   isLoading?: boolean;
   currentUserId: string | null;
+  onClearFilters?: () => void;
+  hasActiveFilters?: boolean;
 };
 
-export function ArtisanGrid({ artisans, isLoading, currentUserId }: Props) {
+export function ArtisanGrid({ artisans, isLoading, currentUserId, onClearFilters, hasActiveFilters }: Props) {
   if (isLoading) return <ArtisanGridSkeleton />;
 
   if (artisans.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <span className="mb-3 text-4xl">🔍</span>
-        <p className="font-medium">لا توجد نتائج</p>
-        <p className="mt-1 text-sm text-muted-foreground">جرّب فلاتر أخرى أو ابحث بكلمة مختلفة</p>
-      </div>
+    return hasActiveFilters ? (
+      <EmptyState
+        icon={Users}
+        title="لم نجد حرفيين مطابقين"
+        description="جرّب فلاتر أخرى أو ابحث بكلمة مختلفة"
+        action={onClearFilters ? { label: "مسح الفلاتر", onClick: onClearFilters } : undefined}
+      />
+    ) : (
+      <EmptyState
+        icon={Users}
+        title="لا يوجد حرفيون بعد"
+        description="كن أول من ينضم لمجتمع الحرفيين"
+      />
     );
   }
 

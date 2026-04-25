@@ -68,6 +68,7 @@ async function fetchArtisansServer(params: SearchParams): Promise<ArtisanListIte
       city: p?.city ?? null,
       years_experience: p?.years_experience ?? null,
       avgRating,
+      totalRatingsCount: stars.length,
     };
   });
 }

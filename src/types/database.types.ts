@@ -293,6 +293,7 @@ export type Database = {
           artisan_id: string
           comment: string | null
           created_at: string
+          updated_at: string
           customer_id: string
           id: string
           stars: number
@@ -301,6 +302,7 @@ export type Database = {
           artisan_id: string
           comment?: string | null
           created_at?: string
+          updated_at?: string
           customer_id: string
           id?: string
           stars: number
@@ -309,6 +311,7 @@ export type Database = {
           artisan_id?: string
           comment?: string | null
           created_at?: string
+          updated_at?: string
           customer_id?: string
           id?: string
           stars?: number
@@ -448,6 +451,14 @@ export type Database = {
       can_artisan_reply: {
         Args: { p_artisan_id: string }
         Returns: boolean
+      }
+      can_customer_rate: {
+        Args: { p_artisan_id: string; p_customer_id: string }
+        Returns: boolean
+      }
+      get_artisan_rating: {
+        Args: { p_artisan_id: string }
+        Returns: { avg_stars: number | null; total_count: number }[]
       }
       expire_trials: {
         Args: Record<PropertyKey, never>
