@@ -4,12 +4,8 @@ import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
 import { useUnreadMessagesCount } from '@/hooks/use-unread-messages-count';
 
-type Props = {
-  userId: string;
-};
-
-export function NavMessagesLink({ userId }: Props) {
-  const count = useUnreadMessagesCount(userId);
+export function NavMessagesLink() {
+  const count = useUnreadMessagesCount();
 
   return (
     <Link

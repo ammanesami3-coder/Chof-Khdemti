@@ -88,7 +88,7 @@ export async function Navbar() {
               {label}
             </Link>
           ))}
-          <NavMessagesLink userId={navUser.id} />
+          <NavMessagesLink />
         </div>
 
         {/* يسار (end في RTL) — مؤشر الاشتراك + الأفاتار */}

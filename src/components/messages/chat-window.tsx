@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo, useTransition } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Send, Check } from 'lucide-react';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { sendMessage, markConversationRead } from '@/lib/actions/messages';
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status';
+import { useNotificationSound } from '@/hooks/use-notification-sound';
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { Button } from '@/components/ui/button';
@@ -20,6 +22,7 @@ type MessageData = {
   content: string;
   is_read: boolean;
   created_at: string;
+  is_optimistic?: boolean;
 };
 
 type Partner = {
@@ -49,7 +52,6 @@ function formatTime(isoTimestamp: string): string {
   return format(parseISO(isoTimestamp), 'HH:mm');
 }
 
-
 export function ChatWindow({
   conversationId,
   currentUserId,
@@ -60,7 +62,7 @@ export function ChatWindow({
 }: Props) {
   const [messages, setMessages] = useState<MessageData[]>(initialMessages);
   const [content, setContent] = useState('');
-  const [isPending, startTransition] = useTransition();
+  const [isSending, setIsSending] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -68,6 +70,9 @@ export function ChatWindow({
   const supabase = supabaseRef.current;
 
   const { data: subStatus } = useSubscriptionStatus();
+  const { playMessage } = useNotificationSound();
+  const queryClient = useQueryClient();
+
   const canReply =
     accountType !== 'artisan'
       ? true
@@ -75,10 +80,11 @@ export function ChatWindow({
         ? subStatus.canReply
         : initialCanReply;
 
-  // Mark as read on mount
+  // Mark as read on mount + invalidate unread badge
   useEffect(() => {
     markConversationRead(conversationId);
-  }, [conversationId]);
+    queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
+  }, [conversationId, queryClient]);
 
   // Realtime: listen for new messages in this conversation
   useEffect(() => {
@@ -95,11 +101,23 @@ export function ChatWindow({
         (payload) => {
           const newMsg = payload.new as MessageData;
           setMessages((prev) => {
+            // Replace optimistic placeholder if id matches, else append
+            const tempIdx = prev.findIndex(
+              (m) => m.is_optimistic && m.content === newMsg.content && m.sender_id === newMsg.sender_id,
+            );
+            if (tempIdx !== -1) {
+              const next = [...prev];
+              next[tempIdx] = newMsg;
+              return next;
+            }
             if (prev.some((m) => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
+
           if (newMsg.sender_id !== currentUserId) {
+            playMessage();
             markConversationRead(conversationId);
+            queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
           }
         },
       )
@@ -108,9 +126,9 @@ export function ChatWindow({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, conversationId, currentUserId]);
+  }, [supabase, conversationId, currentUserId, playMessage, queryClient]);
 
-  // Scroll to bottom on mount (instant) and when messages change (smooth)
+  // Scroll to bottom on mount (instant) and on new messages (smooth)
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
@@ -131,29 +149,48 @@ export function ChatWindow({
     ta.style.height = `${Math.min(ta.scrollHeight, 96)}px`;
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = content.trim();
-    if (!trimmed || isPending) return;
+    if (!trimmed || isSending) return;
 
-    startTransition(async () => {
-      const result = await sendMessage(conversationId, trimmed);
-      if (result.error) {
-        if (result.error !== 'subscription_required') {
-          toast.error(result.error);
-        }
-        return;
+    // 1. Clear input immediately
+    setContent('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+
+    // 2. Add optimistic message
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: MessageData = {
+      id: tempId,
+      sender_id: currentUserId,
+      content: trimmed,
+      created_at: new Date().toISOString(),
+      is_read: false,
+      is_optimistic: true,
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setIsSending(true);
+
+    // 3. Send to server
+    const result = await sendMessage(conversationId, trimmed);
+    setIsSending(false);
+
+    if (result.error) {
+      // Rollback
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      if (result.error !== 'subscription_required') {
+        toast.error('فشل إرسال الرسالة');
+        setContent(trimmed); // Restore content so user can retry
       }
-      const sent = result.data;
-      if (!sent) return;
-      setContent('');
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === sent.id)) return prev;
-        return [...prev, sent];
-      });
-    });
+      return;
+    }
+
+    // 4. Replace optimistic with real message (Realtime may have already done this)
+    const sent = result.data;
+    if (sent) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? sent : m)),
+      );
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -227,6 +264,7 @@ export function ChatWindow({
                   'flex items-end gap-2',
                   msg.isFirstInGroup && !msg.showDate ? 'mt-2' : 'mt-0.5',
                   isSent ? 'justify-end' : 'justify-start',
+                  msg.is_optimistic && 'opacity-70',
                 )}
               >
                 {/* Partner avatar — only for received, last in group */}
@@ -254,8 +292,8 @@ export function ChatWindow({
                   {/* Timestamp + read receipt (last in group only) */}
                   {msg.isLastInGroup && (
                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <span>{formatTime(msg.created_at)}</span>
-                      {isSent && (
+                      <span>{msg.is_optimistic ? '...' : formatTime(msg.created_at)}</span>
+                      {isSent && !msg.is_optimistic && (
                         <span
                           className={cn(
                             'flex items-center',
@@ -292,7 +330,7 @@ export function ChatWindow({
               onKeyDown={handleKeyDown}
               placeholder="اكتب رسالة..."
               rows={1}
-              disabled={isPending}
+              disabled={isSending}
               className="flex-1 resize-none rounded-2xl border bg-muted/50 px-4 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
               style={{ maxHeight: '96px', overflowY: 'auto' }}
             />
@@ -300,7 +338,7 @@ export function ChatWindow({
               size="icon"
               className="h-10 w-10 shrink-0 rounded-full"
               onClick={handleSend}
-              disabled={!content.trim() || isPending}
+              disabled={!content.trim() || isSending}
               aria-label="إرسال الرسالة"
             >
               <Send className="h-4 w-4" />
