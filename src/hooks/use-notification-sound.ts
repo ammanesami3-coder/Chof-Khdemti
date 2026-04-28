@@ -14,23 +14,37 @@ export function useNotificationSound() {
     messageSoundRef.current.volume = 0.5;
     notificationSoundRef.current.volume = 0.5;
 
-    // Unlock audio context on first user gesture (browser autoplay policy)
+    // iOS Safari requires an actual play() call during a user gesture to unlock
+    // audio context. We play silently (volume=0) then immediately pause.
     function unlock() {
-      messageSoundRef.current?.load();
-      notificationSoundRef.current?.load();
+      [messageSoundRef.current, notificationSoundRef.current].forEach((audio) => {
+        if (!audio) return;
+        const saved = audio.volume;
+        audio.volume = 0;
+        audio
+          .play()
+          .then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = saved;
+          })
+          .catch(() => {
+            audio.volume = saved;
+          });
+      });
       document.removeEventListener('click', unlock, true);
-      document.removeEventListener('keydown', unlock, true);
       document.removeEventListener('touchstart', unlock, true);
+      document.removeEventListener('keydown', unlock, true);
     }
 
     document.addEventListener('click', unlock, true);
-    document.addEventListener('keydown', unlock, true);
     document.addEventListener('touchstart', unlock, true);
+    document.addEventListener('keydown', unlock, true);
 
     return () => {
       document.removeEventListener('click', unlock, true);
-      document.removeEventListener('keydown', unlock, true);
       document.removeEventListener('touchstart', unlock, true);
+      document.removeEventListener('keydown', unlock, true);
     };
   }, []);
 
