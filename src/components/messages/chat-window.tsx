@@ -10,7 +10,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { sendMessage, markConversationRead } from '@/lib/actions/messages';
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status';
-import { useNotificationSound } from '@/hooks/use-notification-sound';
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { Button } from '@/components/ui/button';
@@ -70,7 +69,6 @@ export function ChatWindow({
   const supabase = supabaseRef.current;
 
   const { data: subStatus } = useSubscriptionStatus();
-  const { playMessage } = useNotificationSound();
   const queryClient = useQueryClient();
 
   const canReply =
@@ -115,7 +113,7 @@ export function ChatWindow({
           });
 
           if (newMsg.sender_id !== currentUserId) {
-            playMessage();
+            // Sound is handled globally by NotificationListener
             markConversationRead(conversationId);
             queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
           }
@@ -126,7 +124,7 @@ export function ChatWindow({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, conversationId, currentUserId, playMessage, queryClient]);
+  }, [supabase, conversationId, currentUserId, queryClient]);
 
   // Scroll to bottom on mount (instant) and on new messages (smooth)
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
