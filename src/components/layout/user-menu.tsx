@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { LogOut, Settings, User } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/shared/user-avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,12 +20,6 @@ type NavUser = {
 export function UserMenu({ user }: { user: NavUser }) {
   const router = useRouter();
 
-  const initials = user.full_name
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join('');
-
   async function handleLogout() {
     await fetch('/logout', { method: 'POST', redirect: 'manual' });
     router.push('/login');
@@ -38,10 +32,7 @@ export function UserMenu({ user }: { user: NavUser }) {
         className="rounded-full ring-2 ring-transparent transition-all hover:ring-primary focus-visible:outline-none focus-visible:ring-primary"
         aria-label="قائمة المستخدم"
       >
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={user.avatar_url ?? undefined} alt={user.full_name} />
-          <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-        </Avatar>
+        <UserAvatar user={user} size="sm" linkable={false} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <div className="px-2 py-1.5">

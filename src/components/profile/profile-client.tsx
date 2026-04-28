@@ -81,6 +81,7 @@ export function ProfileClient({
         avgRating={avgRating}
         totalRatingsCount={totalRatingsCount}
         currentUser={currentUser}
+        isAuthenticated={!!currentUser}
         isFollowing={isFollowing}
         isPending={isPending}
         onToggleFollow={toggleFollow}

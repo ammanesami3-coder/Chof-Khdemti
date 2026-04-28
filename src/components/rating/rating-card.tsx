@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/shared/user-avatar';
 import { StarRating } from './star-rating';
 
 export type RatingCardData = {
@@ -20,21 +20,11 @@ export function RatingCard({ stars, comment, created_at, updated_at, customer }:
   const wasEdited = created_at !== updated_at;
   const displayDate = wasEdited ? updated_at : created_at;
 
-  const initials = customer.full_name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
   return (
     <div className="space-y-2.5 border-b py-4 last:border-b-0">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <Avatar>
-            {customer.avatar_url && <AvatarImage src={customer.avatar_url} alt={customer.full_name} />}
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
+          <UserAvatar user={customer} size="sm" />
           <div>
             <p className="text-sm font-medium leading-none">{customer.full_name}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">@{customer.username}</p>

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/shared/user-avatar';
 import { cn } from '@/lib/utils';
 import type { ConversationRow } from '@/lib/queries/conversations';
 
@@ -9,15 +9,6 @@ type Props = {
   conv: ConversationRow;
   currentUserId: string;
 };
-
-function getInitials(name: string) {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0] ?? '')
-    .join('')
-    .toUpperCase();
-}
 
 function relativeTime(dateStr: string | null) {
   if (!dateStr) return '';
@@ -53,18 +44,12 @@ export function ConversationListItem({ conv, currentUserId }: Props) {
         isUnread && 'bg-accent/20',
       )}
     >
-      {/* Avatar */}
-      <div className="relative shrink-0">
-        <Avatar className="h-12 w-12">
-          <AvatarImage
-            src={partner_avatar_url ?? undefined}
-            alt={partner_full_name}
-          />
-          <AvatarFallback className="text-sm font-medium">
-            {getInitials(partner_full_name)}
-          </AvatarFallback>
-        </Avatar>
-      </div>
+      {/* Avatar — linkable=false لأن الـ item بأكمله Link */}
+      <UserAvatar
+        user={{ username: partner_username, full_name: partner_full_name, avatar_url: partner_avatar_url }}
+        size="lg"
+        linkable={false}
+      />
 
       {/* Main content */}
       <div className="min-w-0 flex-1">

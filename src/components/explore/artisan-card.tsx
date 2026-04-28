@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { BadgeCheck, MapPin, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RatingDisplay } from '@/components/rating/rating-display';
 import { useFollow } from '@/hooks/use-follow';
+import { AuthGate } from '@/components/shared/auth-gate';
+import { UserAvatar } from '@/components/shared/user-avatar';
 import { getCraftById } from '@/lib/constants/crafts';
 import { CITIES } from '@/lib/constants/cities';
 import type { ArtisanListItem } from '@/lib/queries/artisans';
@@ -22,13 +23,6 @@ export function ArtisanCard({ artisan, currentUserId }: Props) {
     ? (CITIES.find((c) => c.id === artisan.city)?.name_ar ?? artisan.city)
     : null;
 
-  const initials = artisan.full_name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
   const isOwnProfile = currentUserId === artisan.id;
 
   return (
@@ -38,22 +32,8 @@ export function ArtisanCard({ artisan, currentUserId }: Props) {
     >
       {/* ── Header row ──────────────────────────────────────────────────── */}
       <div className="flex items-start gap-3">
-        {/* Avatar */}
-        <div className="relative size-14 shrink-0 overflow-hidden rounded-full bg-muted">
-          {artisan.avatar_url ? (
-            <Image
-              src={artisan.avatar_url}
-              alt={artisan.full_name}
-              fill
-              className="object-cover"
-              sizes="56px"
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center bg-gradient-to-br from-red-500 to-green-600 text-lg font-bold text-white">
-              {initials}
-            </div>
-          )}
-        </div>
+        {/* Avatar — linkable=false: البطاقة كلها Link للملف الشخصي */}
+        <UserAvatar user={artisan} size="lg" linkable={false} />
 
         {/* Name + username */}
         <div className="min-w-0 flex-1">
@@ -89,20 +69,26 @@ export function ArtisanCard({ artisan, currentUserId }: Props) {
       </div>
 
       {/* ── Follow button ────────────────────────────────────────────────── */}
-      {currentUserId && !isOwnProfile && (
-        <Button
-          size="sm"
-          variant={isFollowing ? 'outline' : 'default'}
-          disabled={isPending}
-          className="w-full min-h-9"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggle();
-          }}
+      {!isOwnProfile && (
+        <AuthGate
+          isAuthenticated={!!currentUserId}
+          action="follow"
+          redirectTo={`/profile/${artisan.username}`}
         >
-          {isPending ? '...' : isFollowing ? 'متابَع ✓' : 'متابعة'}
-        </Button>
+          <Button
+            size="sm"
+            variant={isFollowing ? 'outline' : 'default'}
+            disabled={isPending}
+            className="w-full min-h-9"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggle();
+            }}
+          >
+            {isPending ? '...' : isFollowing ? 'متابَع' : 'متابعة'}
+          </Button>
+        </AuthGate>
       )}
     </Link>
   );

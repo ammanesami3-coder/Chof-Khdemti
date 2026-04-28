@@ -25,7 +25,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +33,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLikePost } from "@/hooks/use-like-post";
+import { AuthGate } from "@/components/shared/auth-gate";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import type { PostMedia, PostWithAuthor } from "@/lib/validations/post";
 
 type CurrentUser = {
@@ -42,16 +43,6 @@ type CurrentUser = {
   full_name: string;
   avatar_url: string | null;
 };
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0] ?? "")
-    .slice(0, 2)
-    .join("");
-}
 
 // ── Lazy video: preload="none" until in viewport ──────────────────────────────
 
@@ -356,20 +347,7 @@ export function PostCard({
 
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="flex items-start gap-3 p-4 pb-0">
-        <Link
-          href={`/profile/${post.author.username}`}
-          aria-label={`زيارة ملف ${post.author.full_name}`}
-        >
-          <Avatar size="lg" className="shrink-0">
-            {post.author.avatar_url && (
-              <AvatarImage
-                src={post.author.avatar_url}
-                alt={post.author.full_name}
-              />
-            )}
-            <AvatarFallback>{initials(post.author.full_name)}</AvatarFallback>
-          </Avatar>
-        </Link>
+        <UserAvatar user={post.author} size="md" />
 
         <div className="min-w-0 flex-1 pt-0.5">
           <div className="flex items-center gap-1">
@@ -454,45 +432,49 @@ export function PostCard({
       {/* ── Actions bar ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-1 px-3 py-2">
         {/* Like */}
-        <button
-          type="button"
-          onClick={handleLike}
-          disabled={isPending}
-          aria-label={liked ? "إلغاء الإعجاب" : "إعجاب"}
-          aria-pressed={liked}
-          className="flex items-center gap-1.5 rounded-full px-2 py-1.5 transition-colors hover:bg-red-50 disabled:pointer-events-none dark:hover:bg-red-950"
-        >
-          <Heart
-            className={[
-              "size-5 transition-colors duration-150",
-              liked ? "fill-red-600 text-red-600" : "text-muted-foreground",
-              bouncing ? "animate-[like-bounce_350ms_ease-out]" : "",
-            ].join(" ")}
-          />
-          {likesCount > 0 && (
-            <span
-              className={`text-xs font-medium ${
-                liked ? "text-red-600" : "text-muted-foreground"
-              }`}
-            >
-              {likesCount}
-            </span>
-          )}
-        </button>
+        <AuthGate isAuthenticated={!!currentUserId} action="like">
+          <button
+            type="button"
+            onClick={handleLike}
+            disabled={isPending}
+            aria-label={liked ? "إلغاء الإعجاب" : "إعجاب"}
+            aria-pressed={liked}
+            className="flex items-center gap-1.5 rounded-full px-2 py-1.5 transition-colors hover:bg-red-50 disabled:pointer-events-none dark:hover:bg-red-950"
+          >
+            <Heart
+              className={[
+                "size-5 transition-colors duration-150",
+                liked ? "fill-red-600 text-red-600" : "text-muted-foreground",
+                bouncing ? "animate-[like-bounce_350ms_ease-out]" : "",
+              ].join(" ")}
+            />
+            {likesCount > 0 && (
+              <span
+                className={`text-xs font-medium ${
+                  liked ? "text-red-600" : "text-muted-foreground"
+                }`}
+              >
+                {likesCount}
+              </span>
+            )}
+          </button>
+        </AuthGate>
 
         {/* Comment */}
-        <button
-          type="button"
-          onClick={() => setCommentsOpen(true)}
-          disabled={isPending}
-          aria-label="تعليق"
-          className="flex items-center gap-1.5 rounded-full px-2 py-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:pointer-events-none"
-        >
-          <MessageCircle className="size-5" />
-          {post.comments_count > 0 && (
-            <span className="text-xs font-medium">{post.comments_count}</span>
-          )}
-        </button>
+        <AuthGate isAuthenticated={!!currentUserId} action="comment">
+          <button
+            type="button"
+            onClick={() => setCommentsOpen(true)}
+            disabled={isPending}
+            aria-label="تعليق"
+            className="flex items-center gap-1.5 rounded-full px-2 py-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:pointer-events-none"
+          >
+            <MessageCircle className="size-5" />
+            {post.comments_count > 0 && (
+              <span className="text-xs font-medium">{post.comments_count}</span>
+            )}
+          </button>
+        </AuthGate>
 
         {/* Share — pushed to the far end */}
         <button
@@ -510,17 +492,7 @@ export function PostCard({
         <div className="space-y-2 border-t px-4 pb-4 pt-3">
           {post.recent_comments.map((comment) => (
             <div key={comment.id} className="flex gap-2">
-              <Avatar size="sm" className="mt-0.5 shrink-0">
-                {comment.author.avatar_url && (
-                  <AvatarImage
-                    src={comment.author.avatar_url}
-                    alt={comment.author.full_name}
-                  />
-                )}
-                <AvatarFallback>
-                  {initials(comment.author.full_name)}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar user={comment.author} size="xs" className="mt-0.5" />
               <p className="min-w-0 text-xs leading-relaxed">
                 <span className="font-semibold">{comment.author.full_name}</span>
                 {" "}

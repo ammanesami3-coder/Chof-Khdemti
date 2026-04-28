@@ -296,4 +296,103 @@
 
 ---
 
-## المرحلة التالية: 6 — الإطلاق والمراقبة (أيام 28-31)
+---
+
+## المرحلة 5.5 — التحسينات قبل الإطلاق (جارية)
+
+### التحسين #1 — Browse-as-Guest ✅
+
+#### ما أُنجز
+
+**الجزء أ — Middleware**
+- `middleware.ts`: تغيير param `redirectTo` → `next` للتوحيد
+- تعليق يوضح أن `/explore` و `/profile/[username]` عامة متعمداً
+
+**الجزء ب — `<AuthGate />`**
+- `src/components/shared/auth-gate.tsx` — مكوّن Client جديد
+  - يستعمل `onClickCapture` (capture phase) لاعتراض النقر قبل وصوله للزر
+  - `e.stopPropagation()` يمنع تشغيل الـ onClick الداخلي أو الـ Link الأصل
+  - يوجّه لـ `/login?next={url}&action={action}` عند النقر من غير مسجّل
+  - إذا `isAuthenticated = true`: يعرض children طبيعياً بدون أي تدخل
+
+**الجزء ج — لفّ الأزرار التفاعلية**
+- `post-card.tsx`: زرّا Like وComment ملفوفان بـ `<AuthGate isAuthenticated={!!currentUserId}>`
+- `profile-header.tsx`: زرّا "متابعة" و"مراسلة" مع `redirectTo={/profile/username}` — ويظهران للزوار الآن (كانا مخفيَّين)
+- `profile-client.tsx`: تمرير `isAuthenticated={!!currentUser}` للـ ProfileHeader
+- `artisan-card.tsx`: زر "متابعة" يظهر للزوار مع AuthGate بدل الإخفاء الكامل
+
+**الجزء د — Navbar للزوار**
+- `navbar.tsx`: بدل `return null` → navbar ضيف مع رابطَي "دخول" + "حساب جديد" (بدل avatar/dropdown)
+- يستعمل `buttonVariants` (لأن `Button` في المشروع مبني على Base UI ولا يدعم `asChild`)
+
+**الجزء هـ — Login/Signup: redirect بعد الدخول**
+- `login/page.tsx`: أُحوّل لـ Server Component يقرأ `searchParams.next` ويمرّره لـ `<LoginForm>`
+- `login/login-form.tsx` (جديد): منطق الفورم + بعد نجاح الدخول `router.push(next ?? '/feed')`
+  - رابط التسجيل يحافظ على `next`: `/signup?next={next}`
+  - تحقق أمني: `safeNext = next?.startsWith('/') ? next : undefined` لمنع open redirect
+- `signup/page.tsx`: نفس النمط (Server Component + `<SignupForm>`)
+- `signup/signup-form.tsx` (جديد): المستخدمون الجدد دائماً يمرّون بـ Onboarding قبل الـ `next`
+
+**الجزء هـ — GuestBanner**
+- `src/components/shared/guest-banner.tsx` — banner لاصق أسفل الـ navbar
+  - يُعرض فقط للزوار (Server Component يتحقق من auth ويمرّر القرار)
+  - قابل للإغلاق مع حفظ الاختيار في localStorage (key: `guest_banner_dismissed`)
+- `explore/page.tsx`: `{!authUserId && <GuestBanner />}`
+- `profile/[username]/page.tsx`: `{!authUser && <GuestBanner />}`
+
+#### نتائج `npm run build`
+```
+✓ Compiled successfully
+✓ Generating static pages (20/20)
+0 errors, 0 warnings
+```
+
+---
+
+---
+
+### التحسين #8 — `<UserAvatar />` (مكوّن موحّد للصور الشخصية) ✅
+
+#### ما أُنجز
+
+**`src/components/shared/user-avatar.tsx`** — مكوّن جديد
+- أحجام: `xs(24px)` / `sm(32px)` / `md(40px)` / `lg(56px)` / `xl(80px)`
+- prop `linkable` (افتراضي `true`): يلفّ الصورة بـ `<Link href=/profile/username>`
+- prop `showOnline`: مؤشر أخضر في الزاوية السفلية
+- Fallback: gradient أحمر→أخضر مع حروف الاسم (2 حرف)
+- `next/image` مع `fill + sizes={px}px` للتحميل المحسَّن
+
+**استبدال Avatar في جميع المواقع:**
+- `post-card.tsx` — avatar الكاتب (`md`) + avatar التعليق المختصر (`xs`)
+- `comment-item.tsx` — avatar المعلّق (`xs`)
+- `artisan-card.tsx` — avatar الحرفي في بطاقة Explore (`lg`, `linkable=false`)
+- `user-menu.tsx` — avatar في dropdown المستخدم (`sm`, `linkable=false`)
+- `conversation-list-item.tsx` — avatar الشريك في قائمة المحادثات (`lg`, `linkable=false`)
+- `rating-card.tsx` — avatar الزبون في بطاقة التقييم (`sm`)
+
+**تنظيف الكود:**
+- حذف `import { Avatar, AvatarFallback, AvatarImage }` من كل الملفات أعلاه
+- حذف دوال `initials`/`getInitials` غير المستعملة من `post-card.tsx` و`chat-window.tsx`
+
+---
+
+### التحسين #9 — ChatHeader: النقر على الاسم/الصورة يفتح البروفايل ✅
+
+#### ما أُنجز
+
+**`src/components/messages/chat-window.tsx`**
+- Avatar الشريك في الـ header → `<UserAvatar user={partner} size="md" />` (linkable=true)
+- اسم + username الشريك في الـ header مُلفَّفان بـ `<Link href=/profile/username>` مع hover خفيف
+- Avatar في فقاعات الرسائل المستقبَلة → `<UserAvatar user={partner} size="xs" linkable={false} />`
+- حذف `Avatar/AvatarFallback/AvatarImage` imports + دالة `getInitials`
+
+#### نتائج `npm run build`
+```
+✓ Compiled successfully in 25.8s
+✓ Generating static pages (20/20)
+0 errors, 0 warnings
+```
+
+---
+
+## المرحلة التالية: 5.5 — التحسين #2 (Status Updates) أو #3 (Realtime Fix)

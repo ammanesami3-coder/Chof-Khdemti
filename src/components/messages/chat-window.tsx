@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client';
 import { sendMessage, markConversationRead } from '@/lib/actions/messages';
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status';
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/shared/user-avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -49,14 +49,6 @@ function formatTime(isoTimestamp: string): string {
   return format(parseISO(isoTimestamp), 'HH:mm');
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0] ?? '')
-    .join('')
-    .toUpperCase();
-}
 
 export function ChatWindow({
   conversationId,
@@ -196,14 +188,14 @@ export function ChatWindow({
         >
           <ArrowRight className="h-5 w-5" />
         </Link>
-        <Avatar className="h-10 w-10 shrink-0">
-          <AvatarImage src={partner.avatar_url ?? undefined} alt={partner.full_name} />
-          <AvatarFallback className="text-sm">{getInitials(partner.full_name)}</AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
+        <UserAvatar user={partner} size="md" />
+        <Link
+          href={`/profile/${partner.username}`}
+          className="min-w-0 flex-1 rounded-md px-1 transition-colors hover:bg-accent/50"
+        >
           <p className="truncate font-semibold leading-tight">{partner.full_name}</p>
           <p className="truncate text-xs text-muted-foreground">@{partner.username}</p>
-        </div>
+        </Link>
       </div>
 
       {/* Messages area */}
@@ -241,15 +233,7 @@ export function ChatWindow({
                 {!isSent && (
                   <div className="w-7 shrink-0 self-end">
                     {msg.isLastInGroup && (
-                      <Avatar className="h-7 w-7">
-                        <AvatarImage
-                          src={partner.avatar_url ?? undefined}
-                          alt={partner.full_name}
-                        />
-                        <AvatarFallback className="text-[10px]">
-                          {getInitials(partner.full_name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar user={partner} size="xs" linkable={false} />
                     )}
                   </div>
                 )}

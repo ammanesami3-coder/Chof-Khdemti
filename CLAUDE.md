@@ -1034,6 +1034,296 @@ export async function createPost(input: z.infer<typeof schema>) {
 
 ---
 
+### 🟠 المرحلة 5.5 — التحسينات قبل الإطلاق (أيام 26-29)
+
+**الهدف:** صقل تجربة المستخدم وإضافة مميزات اجتماعية أساسية قبل الإطلاق العام (status updates، browse-as-guest، sound notifications، video optimization، إلخ).
+
+**خلفية:** بعد اكتمال المراحل 1-5، تم اكتشاف فجوات UX وميزات اجتماعية ناقصة. هذه المرحلة تسدّها قبل الإطلاق.
+
+#### ما يجب على Claude Code أن يفعله
+
+##### 1. **Browse-as-Guest (تصفح بدون تسجيل) — جوهري**
+
+- **القاعدة الجديدة:** أي زائر (بدون حساب) يستطيع تصفح:
+  - `/` (Landing)
+  - `/explore` (قائمة الحرفيين)
+  - `/profile/[username]` (ملفات الحرفيين العامة)
+  - `/post/[id]` (منشور منفرد)
+  - **القراءة فقط** — لا يستطيع التفاعل
+- **عدّل `middleware.ts`:**
+  - أزِل `/explore` و `/profile/[username]` من المسارات المحمية
+  - أبقِ `/feed`, `/messages`, `/settings`, `/profile/edit` محمية فقط
+- **مكوّن `<AuthGate />`:** يلفّ كل زر تفاعلي (like, comment, follow, message):
+  ```tsx
+  <AuthGate redirectTo={postUrl} action="like">
+    <LikeButton onClick={handleLike} />
+  </AuthGate>
+  ```
+  - إذا غير مسجل: عند الضغط، يحفظ `redirectTo` في sessionStorage ويوجّه لـ `/login?next=<url>&action=<like|comment|follow>`
+  - بعد التسجيل/الدخول: يقرأ `next` من URL ويعيد للصفحة، ثم يُشغّل الفعل تلقائياً (إذا أمكن — مثل like)
+- **CTAs للزوار:**
+  - في navbar للزوار: "تسجيل دخول" + "إنشاء حساب"
+  - في كل صفحة عامة: banner علوي خفيف "سجّل لتتفاعل"
+- **SEO:** صفحات الحرفيين تصبح public — يجب أن يفهرسها Google
+
+##### 2. **نظام الحالة (Status Updates) — مثل Facebook**
+
+- **جدول جديد `status_updates`:**
+  ```sql
+  create table public.status_updates (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references public.users(id) on delete cascade,
+    content text not null check (char_length(content) <= 500),
+    background_color text default '#FFFFFF',  -- لون خلفية الحالة
+    created_at timestamptz default now() not null,
+    expires_at timestamptz not null default (now() + interval '24 hours'),
+    views_count int default 0 not null
+  );
+
+  create index status_user_idx on status_updates(user_id);
+  create index status_active_idx on status_updates(expires_at) where expires_at > now();
+  ```
+- **RLS:** SELECT للجميع (إذا `expires_at > now()`)، INSERT/DELETE فقط للمالك
+- **مدة الحياة:** 24 ساعة فقط (Facebook-style stories) — cron job يحذف القديمة
+- **الواجهة:**
+  - شريط أعلى الفيد فيه avatars الحالات النشطة (دائرة بحدود حمراء/خضراء = جديدة)
+  - "+ أضف حالتك" أول دائرة
+  - النقر على دائرة → modal كامل الشاشة بالحالة + auto-progress 5 ثوانٍ + التالي/السابق
+- **مكوّنات:**
+  - `<StatusBar />` فوق الفيد
+  - `<StatusViewer />` modal للعرض
+  - `<StatusComposer />` لإنشاء حالة (نص + اختيار خلفية ملونة من 8 ألوان)
+- **عدّاد المشاهدات:** trigger يزيد `views_count` عند فتح الحالة
+- **عرض في البروفايل:** قسم "الحالة الحالية" تحت header إذا له حالة نشطة
+
+##### 3. **الرسائل اللحظية (Realtime Messages Fix)**
+
+- **المشكلة الحالية:** الرسائل لا تظهر فوراً عند إرسالها/استقبالها
+- **الحل:**
+  - تأكد أن **Supabase Realtime مفعّل** على جدول `messages` (Database → Replication)
+  - استعمل `supabase.channel('messages:${conversationId}').on('postgres_changes', ...)` بدل polling
+  - في `<ChatWindow />`:
+    ```tsx
+    useEffect(() => {
+      const channel = supabase
+        .channel(`conv:${conversationId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        }, (payload) => {
+          setMessages(prev => [...prev, payload.new]);
+          playMessageSound();  // 👇 الميزة 4
+        })
+        .subscribe();
+      return () => { supabase.removeChannel(channel); };
+    }, [conversationId]);
+    ```
+- **Optimistic update:** الرسالة تظهر فوراً عند إرسالها (قبل تأكيد السيرفر)
+- **Indicator "يكتب الآن...":** اختياري — استعمل Realtime broadcast channel
+
+##### 4. **أصوات الإشعارات والرسائل**
+
+- **مكتبة:** استعمل HTML5 Audio API (لا حاجة لمكتبة)
+- **ملفات الصوت:**
+  - `public/sounds/message.mp3` — صوت قصير (200-300ms) عند رسالة جديدة
+  - `public/sounds/notification.mp3` — صوت مختلف للإشعارات (likes/comments/follows)
+- **Hook `useNotificationSound`:**
+  ```ts
+  export function useNotificationSound() {
+    const audioRef = useRef<HTMLAudioElement>();
+    useEffect(() => { audioRef.current = new Audio('/sounds/message.mp3'); }, []);
+    return useCallback(() => audioRef.current?.play().catch(() => {}), []);
+  }
+  ```
+- **متى يُشغَّل:**
+  - رسالة جديدة (وليس لي)
+  - إشعار جديد (like, comment, follow)
+- **إعدادات المستخدم:**
+  - في `/settings`: toggle "تفعيل أصوات الإشعارات" (افتراضي: مفعّل)
+  - يُحفظ في `localStorage` + جدول `user_preferences` (إذا أنشأناه)
+- **مهم:** Browsers تحجب autoplay قبل تفاعل المستخدم — تأكد أن الصوت يعمل بعد أول click
+
+##### 5. **عدّاد الرسائل في Navbar**
+
+- أيقونة messages في navbar مع badge أحمر يعرض العدد
+- **Hook `useUnreadMessagesCount`:**
+  ```ts
+  export function useUnreadMessagesCount() {
+    return useQuery({
+      queryKey: ['unread-messages-count'],
+      queryFn: () => supabase.rpc('get_unread_count'),
+      refetchInterval: 30_000  // كل 30 ثانية كـ fallback
+    });
+  }
+  ```
+- **Realtime update:** عند رسالة جديدة، invalidate الـ query فوراً
+- **Function في DB:**
+  ```sql
+  create or replace function public.get_unread_count()
+  returns int language sql security definer as $$
+    select count(*)::int from public.messages m
+    join public.conversations c on c.id = m.conversation_id
+    where (c.artisan_id = auth.uid() or c.customer_id = auth.uid())
+      and m.sender_id != auth.uid()
+      and m.is_read = false;
+  $$;
+  ```
+- نفس المنطق للإشعارات (likes/comments على منشورك): badge منفصل
+
+##### 6. **تحسين تشغيل الفيديو**
+
+- **المشكلة الحالية:** الفيديوهات بطيئة جداً
+- **الحلول:**
+  - **Cloudinary HLS streaming:**
+    ```
+    https://res.cloudinary.com/{cloud}/video/upload/sp_auto/{public_id}.m3u8
+    ```
+    استعمل HLS adaptive bitrate بدل MP4 الكامل
+  - **Lazy loading:** فيديوهات لا تُحمَّل حتى تظهر في الـ viewport (IntersectionObserver)
+  - **Preload poster فقط:** `<video preload="none" poster={thumbnail}>`
+  - **Auto-play غير مفعّل** افتراضياً — المستخدم يضغط play
+  - **Compress on upload:** Cloudinary transformation `q_auto:eco` للجودة المتوسطة (أصغر حجم)
+  - **CDN warmup:** أول طلب لفيديو جديد بطيء — اقبل ذلك ولا تعتبره bug
+- **Component جديد `<OptimizedVideo />`:**
+  ```tsx
+  <OptimizedVideo
+    src={cloudinaryUrl}
+    poster={thumbnailUrl}
+    duration={45}
+  />
+  ```
+  - يستعمل `hls.js` للـ streaming
+  - يعرض loading spinner أثناء التحميل
+  - يدعم playsinline على iOS
+
+##### 7. **التعليقات بأسلوب Facebook**
+
+- **المشاكل الحالية:** التعليقات لا تعمل بشكل سليم + التصميم القديم
+- **التصميم الجديد:**
+  - فقاعة رمادية (#F0F2F5) مع corners مدوّرة كثيراً (16px)
+  - الاسم بخط أوزن 600 + التعليق بخط عادي
+  - الـ avatar صغير (32px) على اليمين (RTL) منفصل عن الفقاعة
+  - أزرار "إعجاب · رد · 5 د" تحت الفقاعة بخط رفيع
+  - عدد الإعجابات على التعليق يظهر داخل الفقاعة في الزاوية
+- **الميزات:**
+  - **Replies (ردود متداخلة):** كل تعليق يمكن أن يُرَدّ عليه (تداخل مستوى واحد فقط)
+  - **Like على التعليق:** نفس آلية like المنشور
+  - **عرض تدريجي:** أول تعليقَين فقط ظاهرين، "عرض الـ X تعليق المتبقي"
+  - **حذف:** zsصاحب التعليق + صاحب المنشور
+  - **تعديل خلال 15 دقيقة:** بعدها مغلق
+- **Migration `0009_comment_likes_replies.sql`:**
+  ```sql
+  -- ردود التعليقات
+  alter table public.comments add column parent_comment_id uuid
+    references public.comments(id) on delete cascade;
+  
+  -- إعجابات التعليقات
+  create table public.comment_likes (
+    id uuid primary key default gen_random_uuid(),
+    comment_id uuid not null references public.comments(id) on delete cascade,
+    user_id uuid not null references public.users(id) on delete cascade,
+    created_at timestamptz default now() not null,
+    unique (comment_id, user_id)
+  );
+  
+  -- عدّاد إعجابات التعليق
+  alter table public.comments add column likes_count int default 0 not null;
+  
+  -- triggers لـ likes_count
+  create trigger trg_inc_comment_likes after insert on public.comment_likes
+    for each row execute function public.inc_comment_likes_count();
+  -- (ودالة مماثلة للحذف)
+  ```
+
+##### 8. **روابط الـ Avatar للبروفايل (في كل مكان)**
+
+- **القاعدة:** كل مكان فيه avatar لمستخدم → النقر يفتح `/profile/[username]`
+- **الأماكن المُتأثرة:**
+  - PostCard (avatar الكاتب)
+  - CommentItem (avatar المعلّق)
+  - ChatHeader (avatar الشريك)
+  - ConversationListItem (avatar الشريك)
+  - StatusBar (avatar صاحب الحالة)
+  - NotificationItem (avatar فاعل الإشعار)
+  - RatingCard (avatar المقيِّم)
+  - ArtisanCard في explore
+- **Component جديد `<UserAvatar />`:**
+  ```tsx
+  interface UserAvatarProps {
+    user: { username: string; full_name: string; avatar_url?: string };
+    size?: 'sm' | 'md' | 'lg' | 'xl';
+    linkable?: boolean;  // افتراضي true
+    showOnline?: boolean;
+  }
+  ```
+  يلفّ بـ `<Link href={`/profile/${user.username}`}>` تلقائياً
+
+##### 9. **في صفحة المحادثة: نقر الاسم/الصورة → بروفايل**
+
+- في `<ChatHeader />`:
+  - النقر على avatar الشريك → `/profile/[username]`
+  - النقر على اسمه → نفس الشيء
+  - أضف cursor pointer + hover effect
+  - لا يؤثر على الأزرار الأخرى (call, video, close)
+
+##### 10. **فتح صورة البروفايل والبانر**
+
+- **عند النقر على avatar البروفايل (في ProfileHeader):**
+  - يفتح Dialog/lightbox بالصورة بحجمها الكامل
+  - زر إغلاق X في الزاوية
+  - النقر خارج الصورة يغلقها
+  - دعم keyboard (ESC للإغلاق)
+- **نفس الشيء للـ cover image (banner):**
+  - النقر يفتحها بالحجم الكامل
+- **Component `<ImageLightbox />`:**
+  ```tsx
+  <ImageLightbox src={url} alt={name} onClose={() => setOpen(false)} />
+  ```
+  - max-width 90vw, max-height 90vh
+  - object-fit: contain
+  - background ظلال أسود شفاف
+
+##### 11. **النقر على عدد التقييمات → فتح القائمة**
+
+- في `<RatingDisplay />` على ProfileHeader:
+  - "4.7 (3 تقييم)" → النص قابل للنقر
+  - يفتح Dialog يعرض قائمة كل التقييمات
+  - أو scroll مباشر إلى tab "التقييمات" في البروفايل
+- **الخيار الأفضل:** انتقال scroll smooth إلى قسم التقييمات + activate tab تلقائياً
+
+##### 12. **إكمال الأزرار في الموبايل والحاسوب**
+
+- **مراجعة شاملة:** افتح كل صفحة على viewport 375px (iPhone SE) و 1280px (desktop)
+- **نقاط مشتركة للمراجعة:**
+  - زر "+" floating (FAB) للنشر السريع — يجب أن يظهر في الموبايل
+  - Bottom navigation bar في الموبايل (5 أيقونات: home, explore, +, messages, profile)
+  - زر "Back" في صفحات داخلية (`router.back()`)
+  - أيقونة الإشعارات في navbar (موجودة في desktop، يجب إضافتها في mobile)
+  - زر تبديل الـ theme (light/dark) — اختياري لكن مفيد
+- **استعمل `useMediaQuery` hook** للتمييز بين الموبايل والديسكتوب
+- **اختبار حقيقي:** افتح المنصة على هاتف فعلي (ليس devtools فقط)
+
+#### معايير الاكتمال (DoD)
+
+- [ ] الزائر (غير مسجّل) يستطيع تصفح landing/explore/profile بدون مشاكل
+- [ ] محاولة like/comment/follow تُعيد توجيه لـ login مع `next` param
+- [ ] بعد التسجيل، يعود تلقائياً للمنشور الذي كان فيه
+- [ ] الحالة (status) تظهر في bar أعلى الفيد + تنتهي بعد 24 ساعة
+- [ ] الرسائل تظهر فوراً (< 1 ثانية) بدون تحديث
+- [ ] صوت رسالة جديدة يُشغَّل (إذا الـ tab غير نشط)
+- [ ] صوت إشعار جديد (like/comment) يُشغَّل
+- [ ] badge عدد الرسائل غير المقروءة دقيق ومتحدّث realtime
+- [ ] فيديو يبدأ التشغيل في < 2 ثانية على Wi-Fi جيد
+- [ ] التعليقات بتصميم Facebook الجديد + ردود + إعجابات
+- [ ] كل avatar في المنصة يفتح البروفايل عند النقر
+- [ ] صورة البروفايل والبانر تفتحان في lightbox
+- [ ] النقر على متوسط التقييمات يفتح قائمة التقييمات
+- [ ] جميع الأزرار تعمل في موبايل (375px) وديسكتوب (1280px+)
+
+---
+
 ### 🔴 المرحلة 6 — الإطلاق والمراقبة (أيام 28-31)
 
 **الهدف:** Production، نطاق مخصص، مراقبة، إطلاق Beta.

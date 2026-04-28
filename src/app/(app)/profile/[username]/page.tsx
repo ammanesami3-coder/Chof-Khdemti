@@ -6,6 +6,7 @@ import { ProfileClient } from '@/components/profile/profile-client';
 import { FeedList } from '@/components/feed/feed-list';
 import { RatingCard } from '@/components/rating/rating-card';
 import { AddEditRating } from '@/components/rating/add-edit-rating';
+import { GuestBanner } from '@/components/shared/guest-banner';
 import { createClient } from '@/lib/supabase/server';
 import { fetchUserPosts } from '@/lib/queries/posts';
 import type { Rating } from '@/lib/validations/rating';
@@ -180,6 +181,8 @@ export default async function ProfilePage({ params }: Props) {
   const joinedAt = format(new Date(profileUser.created_at), 'MMMM yyyy', { locale: ar });
 
   return (
+    <>
+      {!authUser && <GuestBanner />}
     <main className="mx-auto max-w-2xl">
       <ProfileClient
         user={profileUser}
@@ -281,5 +284,6 @@ export default async function ProfilePage({ params }: Props) {
         )}
       </Tabs>
     </main>
+    </>
   );
 }

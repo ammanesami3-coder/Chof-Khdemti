@@ -4,17 +4,9 @@ import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { Trash2 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { useDeleteComment } from "@/hooks/use-comments";
 import type { RecentComment } from "@/lib/validations/post";
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0] ?? "")
-    .slice(0, 2)
-    .join("");
-}
 
 type Props = {
   comment: RecentComment;
@@ -61,15 +53,7 @@ export function CommentItem({
     <div
       className={`group flex gap-2.5 ${isPending ? "opacity-60" : ""}`}
     >
-      <Avatar size="sm" className="mt-0.5 shrink-0">
-        {comment.author.avatar_url && (
-          <AvatarImage
-            src={comment.author.avatar_url}
-            alt={comment.author.full_name}
-          />
-        )}
-        <AvatarFallback>{initials(comment.author.full_name)}</AvatarFallback>
-      </Avatar>
+      <UserAvatar user={comment.author} size="xs" className="mt-0.5" />
 
       <div className="min-w-0 flex-1">
         <p className="text-sm leading-relaxed">

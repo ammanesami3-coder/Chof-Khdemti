@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { ExploreClient } from '@/components/explore/explore-client';
 import { ArtisanGridSkeleton } from '@/components/explore/artisan-grid';
+import { GuestBanner } from '@/components/shared/guest-banner';
 import type { SearchParams, ArtisanListItem } from '@/lib/queries/artisans';
 
 export const metadata = { title: 'اكتشف الحرفيين — Chof Khdemti' };
@@ -97,23 +98,26 @@ export default async function ExplorePage({ searchParams }: Props) {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">اكتشف الحرفيين</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          ابحث عن الحرفيين والمهنيين في منطقتك
-        </p>
-      </div>
+    <>
+      {!authUserId && <GuestBanner />}
+      <main className="mx-auto max-w-5xl px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">اكتشف الحرفيين</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            ابحث عن الحرفيين والمهنيين في منطقتك
+          </p>
+        </div>
 
-      <Suspense fallback={<ArtisanGridSkeleton />}>
-        <ExploreClient
-          initialArtisans={initialArtisans}
-          initialCraft={craft}
-          initialCity={city}
-          initialQ={q}
-          currentUserId={currentUserId}
-        />
-      </Suspense>
-    </main>
+        <Suspense fallback={<ArtisanGridSkeleton />}>
+          <ExploreClient
+            initialArtisans={initialArtisans}
+            initialCraft={craft}
+            initialCity={city}
+            initialQ={q}
+            currentUserId={currentUserId}
+          />
+        </Suspense>
+      </main>
+    </>
   );
 }

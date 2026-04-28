@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { BadgeCheck, MapPin, Briefcase, Clock, MessageCircle, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AuthGate } from '@/components/shared/auth-gate';
 import { RatingDisplay } from '@/components/rating/rating-display';
 import { getCraftById } from '@/lib/constants/crafts';
 import { CITIES } from '@/lib/constants/cities';
@@ -34,6 +35,7 @@ type Props = {
   avgRating: number | null;
   totalRatingsCount: number;
   currentUser: CurrentUser;
+  isAuthenticated: boolean;
   isFollowing: boolean;
   isPending: boolean;
   onToggleFollow: () => void;
@@ -45,6 +47,7 @@ export function ProfileHeader({
   avgRating,
   totalRatingsCount,
   currentUser,
+  isAuthenticated,
   isFollowing,
   isPending,
   onToggleFollow,
@@ -56,12 +59,9 @@ export function ProfileHeader({
     ? (CITIES.find((c) => c.id === profile.city)?.name_ar ?? profile.city)
     : null;
 
-  const showFollowBtn = !!currentUser && !isOwnProfile;
-  const showMessageBtn =
-    !!currentUser &&
-    !isOwnProfile &&
-    currentUser.account_type === 'customer' &&
-    user.account_type === 'artisan';
+  // نُظهر الأزرار للزوار أيضاً — AuthGate يعترض النقر ويوجّه لتسجيل الدخول
+  const showFollowBtn = !isOwnProfile;
+  const showMessageBtn = !isOwnProfile && user.account_type === 'artisan';
 
   const initials = user.full_name
     .split(' ')
@@ -137,23 +137,35 @@ export function ProfileHeader({
           {/* Buttons */}
           <div className="flex shrink-0 gap-2">
             {showMessageBtn && (
-              <Link href={`/messages/new?to=${user.username}`}>
-                <Button size="sm" variant="outline" className="min-h-10 gap-1.5">
-                  <MessageCircle className="size-4" />
-                  مراسلة
-                </Button>
-              </Link>
+              <AuthGate
+                isAuthenticated={isAuthenticated}
+                action="message"
+                redirectTo={`/profile/${user.username}`}
+              >
+                <Link href={`/messages/new?to=${user.username}`}>
+                  <Button size="sm" variant="outline" className="min-h-10 gap-1.5">
+                    <MessageCircle className="size-4" />
+                    مراسلة
+                  </Button>
+                </Link>
+              </AuthGate>
             )}
             {showFollowBtn && (
-              <Button
-                size="sm"
-                variant={isFollowing ? 'outline' : 'default'}
-                onClick={onToggleFollow}
-                disabled={isPending}
-                className="min-h-10 min-w-20"
+              <AuthGate
+                isAuthenticated={isAuthenticated}
+                action="follow"
+                redirectTo={`/profile/${user.username}`}
               >
-                {isPending ? '...' : isFollowing ? 'متابَع' : 'متابعة'}
-              </Button>
+                <Button
+                  size="sm"
+                  variant={isFollowing ? 'outline' : 'default'}
+                  onClick={onToggleFollow}
+                  disabled={isPending}
+                  className="min-h-10 min-w-20"
+                >
+                  {isPending ? '...' : isFollowing ? 'متابَع' : 'متابعة'}
+                </Button>
+              </AuthGate>
             )}
           </div>
         </div>

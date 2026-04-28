@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
+// مسارات تتطلب تسجيل الدخول — /explore و /profile/[username] عامة متعمداً
 const PROTECTED_PATHS = ["/feed", "/messages", "/settings", "/profile/me", "/onboarding"];
 const AUTH_PATHS = ["/login", "/signup"];
 
@@ -30,7 +31,7 @@ export async function middleware(request: NextRequest) {
   // المستخدم غير مسجّل → /login
   if (isProtected && !user) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirectTo", pathname);
+    loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
