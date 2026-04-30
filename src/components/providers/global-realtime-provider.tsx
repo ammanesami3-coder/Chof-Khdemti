@@ -24,8 +24,14 @@ export function GlobalRealtimeProvider({ currentUserId }: Props) {
   useEffect(() => {
     const supabase = supabaseRef.current;
 
-    // RLS ensures this channel only delivers messages from conversations
-    // the current user is a party to.
+    // Two listeners on a single channel:
+    // 1. messages INSERT  → sound + title flash
+    // 2. conversations UPDATE → badge refresh (fired by trg_update_last_message_at trigger)
+    //
+    // Both run in GlobalRealtimeProvider (mounted once) so there is only ever
+    // one Realtime channel for these events — avoids the "cannot add callbacks
+    // after subscribe()" error that occurs when the same channel name is
+    // created by multiple hook instances.
     const channel = supabase
       .channel('global-realtime-notifications')
       .on(
@@ -54,8 +60,15 @@ export function GlobalRealtimeProvider({ currentUserId }: Props) {
               document.addEventListener('visibilitychange', restoreTitle);
             }
           }
-
-          // Always refresh unread badge regardless of sender
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'conversations' },
+        () => {
+          // Refresh unread badge. conversations UPDATE is triggered by
+          // trg_update_last_message_at on every new message, so this fires
+          // reliably for both incoming and outgoing messages.
           queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
         },
       )

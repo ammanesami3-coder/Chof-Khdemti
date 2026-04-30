@@ -8,23 +8,21 @@ import { cn } from '@/lib/utils';
 
 type Props = { username: string };
 
+const ICON_CLASS = 'h-5 w-5';
+const LINK_BASE =
+  'relative flex flex-col items-center justify-center gap-0.5 rounded-lg px-3 py-2 transition-colors min-w-[44px] min-h-[44px]';
+
 export function MobileBottomNav({ username }: Props) {
   const pathname = usePathname();
   const unreadCount = useUnreadMessagesCount();
 
-  const links = [
-    { href: '/feed', label: 'الرئيسية', icon: Home },
-    { href: '/explore', label: 'اكتشاف', icon: Search },
-    { href: '/feed?compose=1', label: 'نشر', icon: PlusSquare, isAction: true },
-    { href: '/messages', label: 'رسائل', icon: MessageCircle, badge: unreadCount },
-    { href: `/profile/${username}`, label: 'ملفي', icon: User },
-  ];
-
   function isActive(href: string) {
-    const base = href.split('?')[0];
-    if (base === '/feed') return pathname === '/feed';
-    return pathname === base || pathname.startsWith(base + '/');
+    if (href === '/feed') return pathname === '/feed';
+    return pathname === href || pathname.startsWith(href + '/');
   }
+
+  const activeClass = 'text-primary';
+  const inactiveClass = 'text-muted-foreground';
 
   return (
     <nav
@@ -32,31 +30,71 @@ export function MobileBottomNav({ username }: Props) {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="flex h-16 items-center justify-around">
-        {links.map(({ href, label, icon: Icon, badge, isAction }) => (
-          <Link
-            key={label}
-            href={href}
-            aria-label={label}
-            className={cn(
-              'relative flex flex-col items-center gap-0.5 rounded-lg px-3 py-2 transition-colors min-w-[44px] min-h-[44px] justify-center',
-              isAction
-                ? 'text-primary'
-                : isActive(href)
-                  ? 'text-primary'
-                  : 'text-muted-foreground',
+
+        {/* الرئيسية */}
+        <Link
+          href="/feed"
+          aria-label="الرئيسية"
+          className={cn(LINK_BASE, isActive('/feed') ? activeClass : inactiveClass)}
+        >
+          <Home className={ICON_CLASS} />
+          <span className="text-[10px] leading-none">الرئيسية</span>
+        </Link>
+
+        {/* اكتشاف */}
+        <Link
+          href="/explore"
+          aria-label="اكتشاف"
+          className={cn(LINK_BASE, isActive('/explore') ? activeClass : inactiveClass)}
+        >
+          <Search className={ICON_CLASS} />
+          <span className="text-[10px] leading-none">اكتشاف</span>
+        </Link>
+
+        {/* نشر */}
+        <Link
+          href="/feed?compose=1"
+          aria-label="نشر"
+          className={cn(LINK_BASE, 'text-primary')}
+        >
+          <PlusSquare className="h-6 w-6" />
+          <span className="text-[10px] leading-none">نشر</span>
+        </Link>
+
+        {/* رسائل — مع badge */}
+        <Link
+          href="/messages"
+          aria-label="رسائل"
+          className={cn(LINK_BASE, isActive('/messages') ? activeClass : inactiveClass)}
+        >
+          <div className="relative">
+            <MessageCircle className={ICON_CLASS} />
+            {unreadCount > 0 && (
+              <span
+                className={cn(
+                  'absolute -top-1.5 -right-1.5',
+                  'flex min-w-[18px] h-[18px] items-center justify-center px-1',
+                  'rounded-full bg-red-600 text-white text-[10px] font-bold leading-none',
+                  'ring-2 ring-background',
+                )}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
             )}
-          >
-            <span className="relative">
-              <Icon className={cn('h-5 w-5', isAction && 'h-6 w-6')} />
-              {badge !== undefined && badge > 0 && (
-                <span className="absolute -end-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-0.5 text-[10px] font-bold leading-none text-white">
-                  {badge > 99 ? '99+' : badge}
-                </span>
-              )}
-            </span>
-            <span className="text-[10px] leading-none">{label}</span>
-          </Link>
-        ))}
+          </div>
+          <span className="text-[10px] leading-none">رسائل</span>
+        </Link>
+
+        {/* ملفي */}
+        <Link
+          href={`/profile/${username}`}
+          aria-label="ملفي"
+          className={cn(LINK_BASE, isActive(`/profile/${username}`) ? activeClass : inactiveClass)}
+        >
+          <User className={ICON_CLASS} />
+          <span className="text-[10px] leading-none">ملفي</span>
+        </Link>
+
       </div>
     </nav>
   );
