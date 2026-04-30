@@ -2,36 +2,61 @@
 
 import { useRef, useEffect, useCallback } from 'react';
 
+// Web Audio API gives near-zero-latency playback once the buffer is decoded.
+// HTMLAudioElement.play() can add 50-300ms of latency from buffering.
+
+type AudioBuffers = {
+  message: AudioBuffer | null;
+  notification: AudioBuffer | null;
+};
+
+async function loadBuffer(ctx: AudioContext, url: string): Promise<AudioBuffer | null> {
+  try {
+    const res = await fetch(url);
+    const arrayBuffer = await res.arrayBuffer();
+    return await ctx.decodeAudioData(arrayBuffer);
+  } catch {
+    return null;
+  }
+}
+
+function playBuffer(ctx: AudioContext, buffer: AudioBuffer | null, volume = 0.5) {
+  if (!buffer) return;
+  const gain = ctx.createGain();
+  gain.gain.value = volume;
+  gain.connect(ctx.destination);
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(gain);
+  source.start(0);
+}
+
 export function useNotificationSound() {
-  const messageSoundRef = useRef<HTMLAudioElement | undefined>(undefined);
-  const notificationSoundRef = useRef<HTMLAudioElement | undefined>(undefined);
+  const ctxRef = useRef<AudioContext | null>(null);
+  const buffersRef = useRef<AudioBuffers>({ message: null, notification: null });
+  const unlockedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    messageSoundRef.current = new Audio('/sounds/message.mp3');
-    notificationSoundRef.current = new Audio('/sounds/notification.mp3');
-    messageSoundRef.current.volume = 0.5;
-    notificationSoundRef.current.volume = 0.5;
+    const ctx = new AudioContext();
+    ctxRef.current = ctx;
 
-    // iOS Safari requires an actual play() call during a user gesture to unlock
-    // audio context. We play silently (volume=0) then immediately pause.
+    // Load both buffers immediately — they'll be ready before the first message
+    void loadBuffer(ctx, '/sounds/message.mp3').then((b) => {
+      buffersRef.current.message = b;
+    });
+    void loadBuffer(ctx, '/sounds/notification.mp3').then((b) => {
+      buffersRef.current.notification = b;
+    });
+
+    // AudioContext starts suspended on most browsers until a user gesture.
+    // Resume it on first interaction so subsequent sounds are instant.
     function unlock() {
-      [messageSoundRef.current, notificationSoundRef.current].forEach((audio) => {
-        if (!audio) return;
-        const saved = audio.volume;
-        audio.volume = 0;
-        audio
-          .play()
-          .then(() => {
-            audio.pause();
-            audio.currentTime = 0;
-            audio.volume = saved;
-          })
-          .catch(() => {
-            audio.volume = saved;
-          });
-      });
+      if (unlockedRef.current) return;
+      ctx.resume().then(() => {
+        unlockedRef.current = true;
+      }).catch(() => {});
       document.removeEventListener('click', unlock, true);
       document.removeEventListener('touchstart', unlock, true);
       document.removeEventListener('keydown', unlock, true);
@@ -45,6 +70,7 @@ export function useNotificationSound() {
       document.removeEventListener('click', unlock, true);
       document.removeEventListener('touchstart', unlock, true);
       document.removeEventListener('keydown', unlock, true);
+      ctx.close().catch(() => {});
     };
   }, []);
 
@@ -56,11 +82,13 @@ export function useNotificationSound() {
   );
 
   const playMessage = useCallback(() => {
-    if (isEnabled()) messageSoundRef.current?.play().catch(() => {});
+    if (!isEnabled() || !ctxRef.current) return;
+    playBuffer(ctxRef.current, buffersRef.current.message);
   }, [isEnabled]);
 
   const playNotification = useCallback(() => {
-    if (isEnabled()) notificationSoundRef.current?.play().catch(() => {});
+    if (!isEnabled() || !ctxRef.current) return;
+    playBuffer(ctxRef.current, buffersRef.current.notification);
   }, [isEnabled]);
 
   return { playMessage, playNotification };

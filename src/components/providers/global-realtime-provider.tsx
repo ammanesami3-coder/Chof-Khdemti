@@ -41,14 +41,21 @@ export function GlobalRealtimeProvider({ currentUserId }: Props) {
           const msg = payload.new as { sender_id: string };
 
           if (msg.sender_id !== currentUserId) {
-            // Skip sound inside a specific conversation — ChatWindow handles it there.
-            // /messages (list page) still gets sound.
+            // 1. Optimistic badge increment — instant, no DB roundtrip
+            queryClient.setQueryData(
+              ['unread-messages-count'],
+              (old: number | undefined) => (old ?? 0) + 1,
+            );
+            // 2. Schedule a verify-refetch so the real count syncs in background
+            queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
+
+            // 3. Sound — skip inside a specific conversation (ChatWindow handles it there)
             const isInsideConversation = pathnameRef.current.startsWith('/messages/');
             if (!isInsideConversation) {
               playMessage();
             }
 
-            // Flash document.title when the tab is in the background
+            // 4. Flash document.title when the tab is in the background
             if (document.visibilityState === 'hidden') {
               document.title = '🔔 رسالة جديدة — Chof Khdemti';
               const restoreTitle = () => {
@@ -60,16 +67,6 @@ export function GlobalRealtimeProvider({ currentUserId }: Props) {
               document.addEventListener('visibilitychange', restoreTitle);
             }
           }
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'conversations' },
-        () => {
-          // Refresh unread badge. conversations UPDATE is triggered by
-          // trg_update_last_message_at on every new message, so this fires
-          // reliably for both incoming and outgoing messages.
-          queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
         },
       )
       .subscribe();
