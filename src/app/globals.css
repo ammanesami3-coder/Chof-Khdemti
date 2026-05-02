@@ -124,6 +124,11 @@
   100% { transform: scale(1); }
 }
 
+@keyframes statusProgress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

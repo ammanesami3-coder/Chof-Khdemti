@@ -416,6 +416,77 @@ export type Database = {
         }
         Relationships: []
       }
+      status_updates: {
+        Row: {
+          id: string
+          user_id: string
+          content: string
+          background_color: string
+          created_at: string
+          expires_at: string
+          views_count: number
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          content: string
+          background_color?: string
+          created_at?: string
+          expires_at?: string
+          views_count?: number
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          content?: string
+          background_color?: string
+          created_at?: string
+          expires_at?: string
+          views_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "status_updates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      status_views: {
+        Row: {
+          status_id: string
+          viewer_id: string
+          viewed_at: string
+        }
+        Insert: {
+          status_id: string
+          viewer_id: string
+          viewed_at?: string
+        }
+        Update: {
+          status_id?: string
+          viewer_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "status_views_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "status_updates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "status_views_viewer_id_fkey"
+            columns: ["viewer_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_events: {
         Row: {
           event_id: string

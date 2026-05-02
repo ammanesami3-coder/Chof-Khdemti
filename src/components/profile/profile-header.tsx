@@ -39,6 +39,8 @@ type Props = {
   isFollowing: boolean;
   isPending: boolean;
   onToggleFollow: () => void;
+  hasActiveStatus?: boolean;
+  onViewStatus?: () => void;
 };
 
 export function ProfileHeader({
@@ -51,6 +53,8 @@ export function ProfileHeader({
   isFollowing,
   isPending,
   onToggleFollow,
+  hasActiveStatus = false,
+  onViewStatus,
 }: Props) {
   const isOwnProfile = currentUser?.id === user.id;
 
@@ -101,21 +105,49 @@ export function ProfileHeader({
       {/* ── Avatar overlap ────────────────────────────────── */}
       <div className="relative px-4">
         <div className="-mt-16 mb-3 inline-block">
-          <div className="relative size-32 overflow-hidden rounded-full border-4 border-background bg-muted shadow-md">
-            {profile.avatar_url ? (
-              <Image
-                src={profile.avatar_url}
-                alt={user.full_name}
-                fill
-                className="object-cover"
-                sizes="128px"
-              />
-            ) : (
-              <div className="flex size-full items-center justify-center bg-gradient-to-br from-red-500 to-green-600 text-3xl font-bold text-white">
-                {initials}
+          {hasActiveStatus && onViewStatus ? (
+            /* Gradient ring — user has an active status */
+            <button
+              onClick={onViewStatus}
+              aria-label="عرض الحالة"
+              className="rounded-full bg-gradient-to-tr from-red-600 via-orange-400 to-green-500 p-[3px] transition-opacity hover:opacity-90"
+            >
+              <div className="rounded-full border-4 border-background bg-muted shadow-md">
+                <div className="relative size-32 overflow-hidden rounded-full">
+                  {profile.avatar_url ? (
+                    <Image
+                      src={profile.avatar_url}
+                      alt={user.full_name}
+                      fill
+                      className="object-cover"
+                      sizes="128px"
+                    />
+                  ) : (
+                    <div className="flex size-full items-center justify-center bg-gradient-to-br from-red-500 to-green-600 text-3xl font-bold text-white">
+                      {initials}
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            </button>
+          ) : (
+            /* No active status — plain avatar */
+            <div className="relative size-32 overflow-hidden rounded-full border-4 border-background bg-muted shadow-md">
+              {profile.avatar_url ? (
+                <Image
+                  src={profile.avatar_url}
+                  alt={user.full_name}
+                  fill
+                  className="object-cover"
+                  sizes="128px"
+                />
+              ) : (
+                <div className="flex size-full items-center justify-center bg-gradient-to-br from-red-500 to-green-600 text-3xl font-bold text-white">
+                  {initials}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

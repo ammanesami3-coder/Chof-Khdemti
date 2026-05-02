@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server';
 import { fetchUserPosts } from '@/lib/queries/posts';
 import type { Rating } from '@/lib/validations/rating';
 import type { RatingCardData } from '@/components/rating/rating-card';
+import type { StatusWithUser } from '@/lib/actions/status';
 
 type Props = {
   params: Promise<{ username: string }>;
@@ -60,6 +61,7 @@ export default async function ProfilePage({ params }: Props) {
     currentUserRes,
     isFollowingRes,
     initialPostsPage,
+    profileStatusRes,
   ] = await Promise.all([
     supabase
       .from('posts')
@@ -107,6 +109,15 @@ export default async function ProfilePage({ params }: Props) {
           .eq('following_id', profileUser.id)
       : Promise.resolve({ count: 0 }),
     fetchUserPosts(profileUser.id, authUser?.id),
+    // حالة المستخدم النشطة (إن وجدت)
+    supabase
+      .from('status_updates')
+      .select('id, content, background_color, created_at, expires_at, views_count, user_id')
+      .eq('user_id', profileUser.id)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const currentUser = currentUserRes.data
@@ -180,6 +191,38 @@ export default async function ProfilePage({ params }: Props) {
   const initialIsFollowing = (isFollowingRes.count ?? 0) > 0;
   const joinedAt = format(new Date(profileUser.created_at), 'MMMM yyyy', { locale: ar });
 
+  // ── حالة البروفايل ─────────────────────────────────────────────────────
+  let profileStatus: StatusWithUser | null = null;
+  if (profileStatusRes.data) {
+    const raw = profileStatusRes.data;
+    let viewed = authUser?.id === profileUser.id; // المالك دائماً "شاهد"
+    if (authUser && !viewed) {
+      const { data: viewRow } = await supabase
+        .from('status_views')
+        .select('status_id')
+        .eq('status_id', raw.id)
+        .eq('viewer_id', authUser.id)
+        .maybeSingle();
+      viewed = !!viewRow;
+    }
+    profileStatus = {
+      id: raw.id,
+      user_id: raw.user_id,
+      content: raw.content,
+      background_color: raw.background_color,
+      created_at: raw.created_at,
+      expires_at: raw.expires_at,
+      views_count: raw.views_count,
+      viewed,
+      user: {
+        id: profileUser.id,
+        username: profileUser.username,
+        full_name: profileUser.full_name,
+        avatar_url: profile.avatar_url,
+      },
+    };
+  }
+
   return (
     <>
       {!authUser && <GuestBanner />}
@@ -194,6 +237,7 @@ export default async function ProfilePage({ params }: Props) {
         postsCount={postsRes.count ?? 0}
         initialFollowersCount={followersRes.count ?? 0}
         followingCount={followingRes.count ?? 0}
+        profileStatus={profileStatus}
       />
 
       {/* ── Tabs ─────────────────────────────────────────────────────────── */}

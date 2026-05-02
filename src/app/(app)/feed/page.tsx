@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchFollowingFeed } from "@/lib/queries/posts";
+import { getActiveStatuses } from "@/lib/actions/status";
 import { FeedTabs } from "@/components/feed/feed-tabs";
+import { StatusBar } from "@/components/status/status-bar";
 
 export const metadata = { title: "الفيد — Chof Khdemti" };
 
@@ -12,7 +14,7 @@ export default async function FeedPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [userRes, profileRes, initialFeed] = await Promise.all([
+  const [userRes, profileRes, initialFeed, initialStatuses] = await Promise.all([
     supabase
       .from("users")
       .select("id, username, full_name")
@@ -24,6 +26,7 @@ export default async function FeedPage() {
       .eq("user_id", user.id)
       .single(),
     fetchFollowingFeed(user.id),
+    getActiveStatuses(),
   ]);
 
   if (!userRes.data) redirect("/login");
@@ -37,6 +40,7 @@ export default async function FeedPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
+      <StatusBar currentUser={currentUser} initialStatuses={initialStatuses} />
       <FeedTabs currentUser={currentUser} initialFollowingFeed={initialFeed} />
     </main>
   );

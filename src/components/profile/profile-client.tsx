@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { ProfileHeader } from './profile-header';
 import { ProfileStats } from './profile-stats';
 import { followUser, unfollowUser } from '@/lib/actions/follow';
+import { StatusViewer } from '@/components/status/status-viewer';
+import type { StatusWithUser } from '@/lib/actions/status';
 
 type ProfileUser = {
   id: string;
@@ -38,6 +40,7 @@ type Props = {
   postsCount: number;
   initialFollowersCount: number;
   followingCount: number;
+  profileStatus: StatusWithUser | null;
 };
 
 export function ProfileClient({
@@ -50,10 +53,13 @@ export function ProfileClient({
   postsCount,
   initialFollowersCount,
   followingCount,
+  profileStatus,
 }: Props) {
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [followersCount, setFollowersCount] = useState(initialFollowersCount);
   const [isPending, startTransition] = useTransition();
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [localStatus, setLocalStatus] = useState<StatusWithUser | null>(profileStatus);
 
   function toggleFollow() {
     const wasFollowing = isFollowing;
@@ -85,12 +91,31 @@ export function ProfileClient({
         isFollowing={isFollowing}
         isPending={isPending}
         onToggleFollow={toggleFollow}
+        hasActiveStatus={!!localStatus}
+        onViewStatus={localStatus ? () => setStatusOpen(true) : undefined}
       />
       <ProfileStats
         postsCount={postsCount}
         followersCount={followersCount}
         followingCount={followingCount}
       />
+
+      {localStatus && (
+        <StatusViewer
+          open={statusOpen}
+          onOpenChange={setStatusOpen}
+          statuses={[localStatus]}
+          initialIndex={0}
+          currentUserId={currentUser?.id ?? ''}
+          onViewed={(id) =>
+            setLocalStatus((s) => (s?.id === id ? { ...s, viewed: true } : s))
+          }
+          onDeleted={() => {
+            setLocalStatus(null);
+            setStatusOpen(false);
+          }}
+        />
+      )}
     </>
   );
 }
