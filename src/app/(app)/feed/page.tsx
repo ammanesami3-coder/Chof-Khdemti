@@ -14,7 +14,7 @@ export default async function FeedPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [userRes, profileRes, initialFeed, initialStatuses] = await Promise.all([
+  const [userRes, profileRes, initialFeed, initialGroups] = await Promise.all([
     supabase
       .from("users")
       .select("id, username, full_name")
@@ -40,7 +40,7 @@ export default async function FeedPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
-      <StatusBar currentUser={currentUser} initialStatuses={initialStatuses} />
+      <StatusBar currentUser={currentUser} initialGroups={initialGroups} />
       <FeedTabs currentUser={currentUser} initialFollowingFeed={initialFeed} />
     </main>
   );

@@ -6,7 +6,7 @@ import { ProfileHeader } from './profile-header';
 import { ProfileStats } from './profile-stats';
 import { followUser, unfollowUser } from '@/lib/actions/follow';
 import { StatusViewer } from '@/components/status/status-viewer';
-import type { StatusWithUser } from '@/lib/actions/status';
+import type { StatusWithUser, StatusGroup } from '@/lib/actions/status';
 
 type ProfileUser = {
   id: string;
@@ -100,22 +100,29 @@ export function ProfileClient({
         followingCount={followingCount}
       />
 
-      {localStatus && (
-        <StatusViewer
-          open={statusOpen}
-          onOpenChange={setStatusOpen}
-          statuses={[localStatus]}
-          initialIndex={0}
-          currentUserId={currentUser?.id ?? ''}
-          onViewed={(id) =>
-            setLocalStatus((s) => (s?.id === id ? { ...s, viewed: true } : s))
-          }
-          onDeleted={() => {
-            setLocalStatus(null);
-            setStatusOpen(false);
-          }}
-        />
-      )}
+      {localStatus && (() => {
+        const group: StatusGroup = {
+          user: localStatus.user,
+          statuses: [localStatus],
+          hasUnviewed: !localStatus.viewed,
+        };
+        return (
+          <StatusViewer
+            open={statusOpen}
+            onOpenChange={setStatusOpen}
+            groups={[group]}
+            initialGroupIdx={0}
+            currentUserId={currentUser?.id ?? ''}
+            onViewed={(id) =>
+              setLocalStatus((s) => (s?.id === id ? { ...s, viewed: true } : s))
+            }
+            onDeleted={() => {
+              setLocalStatus(null);
+              setStatusOpen(false);
+            }}
+          />
+        );
+      })()}
     </>
   );
 }

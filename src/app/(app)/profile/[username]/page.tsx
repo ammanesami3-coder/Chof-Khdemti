@@ -112,7 +112,7 @@ export default async function ProfilePage({ params }: Props) {
     // حالة المستخدم النشطة (إن وجدت)
     supabase
       .from('status_updates')
-      .select('id, content, background_color, created_at, expires_at, views_count, user_id')
+      .select('id, user_id, content_type, content, media_url, thumbnail_url, background_color, text_color, font_style, duration, created_at, expires_at, views_count, likes_count')
       .eq('user_id', profileUser.id)
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
@@ -208,12 +208,20 @@ export default async function ProfilePage({ params }: Props) {
     profileStatus = {
       id: raw.id,
       user_id: raw.user_id,
-      content: raw.content,
-      background_color: raw.background_color,
+      content_type: (raw.content_type ?? 'text') as import('@/lib/actions/status').StatusContentType,
+      content: raw.content ?? null,
+      media_url: raw.media_url ?? null,
+      thumbnail_url: raw.thumbnail_url ?? null,
+      background_color: raw.background_color ?? '#1877F2',
+      text_color: raw.text_color ?? '#FFFFFF',
+      font_style: raw.font_style ?? 'default',
+      duration: raw.duration ?? 5,
       created_at: raw.created_at,
       expires_at: raw.expires_at,
-      views_count: raw.views_count,
+      views_count: raw.views_count ?? 0,
+      likes_count: raw.likes_count ?? 0,
       viewed,
+      my_reaction: null,
       user: {
         id: profileUser.id,
         username: profileUser.username,
