@@ -1,6 +1,7 @@
 import { Bell, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
+import { BackButton } from '@/components/shared/back-button';
 import { SoundSettings } from '@/components/settings/sound-settings';
 
 export const metadata = { title: 'الإعدادات — Chof Khdemti' };
@@ -8,7 +9,10 @@ export const metadata = { title: 'الإعدادات — Chof Khdemti' };
 export default function SettingsPage() {
   return (
     <main className="mx-auto max-w-lg px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold">الإعدادات</h1>
+      <div className="mb-6 flex items-center gap-2">
+        <BackButton fallback="/feed" />
+        <h1 className="text-2xl font-bold">الإعدادات</h1>
+      </div>
 
       {/* Notifications section */}
       <section className="mb-8">

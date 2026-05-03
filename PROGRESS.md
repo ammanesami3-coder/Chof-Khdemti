@@ -1,6 +1,6 @@
 # PROGRESS.md — Chof Khdemti
 
-## المرحلة الحالية: ✅ 4 مكتملة — بدء المرحلة 5
+## المرحلة الحالية: ✅ 5.5 مكتملة — جاهز للمرحلة 6 (الإطلاق)
 
 ---
 
@@ -395,4 +395,96 @@
 
 ---
 
-## المرحلة التالية: 5.5 — التحسين #2 (Status Updates) أو #3 (Realtime Fix)
+---
+
+## ✅ المرحلة 5.5 — التحسينات قبل الإطلاق (مكتملة — مايو 2026)
+
+> **الهدف:** صقل تجربة المستخدم وإضافة 12 ميزة اجتماعية وUX أساسية قبل الإطلاق العام
+
+### DoD Checklist ✅ (12/12)
+
+- [x] **#1 — Browse-as-Guest:** الزوار يتصفحون `/explore` و `/profile/[username]` بدون تسجيل — `<AuthGate />` يعترض التفاعل ويوجّه لـ `/login?next=<url>`
+- [x] **#2 — Status Updates:** نظام حالات 24 ساعة بأسلوب Facebook (نص + وسائط + خلفيات ملونة) — `status_updates` table، `StatusBar`، `StatusViewer`، `StatusComposer`
+- [x] **#3 — Realtime Messages Fix:** الرسائل تظهر فوراً عبر Supabase Realtime channel مع filter — unread badge يُحدَّث في الوقت الفعلي
+- [x] **#4 — أصوات الإشعارات:** صوتا رسالة جديدة وإشعار، `useNotificationSound` hook، إعداد تفعيل/إيقاف في localStorage + DB، `SoundSettings` component
+- [x] **#5 — عدّاد الرسائل في Navbar:** badge أحمر دقيق مع `99+` للأعداد الكبيرة، Realtime update فوري
+- [x] **#6 — تحسين تشغيل الفيديو:** `OptimizedVideo` component مع lazy loading، poster قبل التشغيل، HLS streaming عبر Cloudinary (`sp_auto`)، `IntersectionObserver`
+- [x] **#7 — تعليقات بأسلوب Facebook:** فقاعة رمادية، ردود متداخلة (مستوى واحد)، إعجاب التعليق، حذف، عرض تدريجي، migration `0017_comment_likes_replies.sql`
+- [x] **#8 — `<UserAvatar />`:** مكوّن موحّد (5 أحجام، `linkable`, `showOnline`) يستبدل كل `<Avatar>` في المنصة — كل avatar يفتح البروفايل
+- [x] **#9 — ChatHeader → البروفايل:** النقر على اسم/صورة الشريك في المحادثة يفتح ملفه الشخصي
+- [x] **#10 — Lightbox:** `<ImageLightbox />` للصور الفردية، `<MediaLightbox />` للوسائط المتعددة — avatar + cover في البروفايل، وسائط المنشور
+- [x] **#11 — Rating Clickable:** "4.7 (3 تقييم)" قابل للنقر في ProfileHeader — scroll smooth + activate tab
+- [x] **#12 — UX Review:** ThemeToggle (sun/moon) في navbar، FAB يتجنب المحادثات على موبايل (`bottom-[4.5rem] sm:bottom-6`) + يختفي عند scroll لأسفل، زر "نشر" في BottomNav يفتح PostComposer مباشرة، BackButton في `/profile/edit` + `/settings` + `/settings/subscription`
+
+---
+
+### ما أُنجز تفصيلاً
+
+#### أسلوب Facebook للحالات (#2)
+- Migration `0015_status_updates.sql` + `0016_status_extended.sql` — إضافة `content_type`, `media_url`, `thumbnail_url`, `background_color`, `text_color`, `font_style`, `duration`, `likes_count` + جداول `status_views` و`status_reactions`
+- `src/lib/actions/status.ts` — `getActiveStatuses`, `getActiveStatusForUser`, `createStatus`, `viewStatus`, `deleteStatus`, `likeStatus`
+- `src/components/status/status-bar.tsx` — شريط أعلى الفيد مع avatars
+- `src/components/status/status-viewer.tsx` — modal كامل الشاشة، auto-progress 5 ثوانٍ، التالي/السابق، عرض صورة الغلاف عند النقر على Avatar
+- `src/components/status/status-composer.tsx` — إنشاء حالة (نص + صور + ألوان)
+
+#### حالة في البروفايل
+- `src/components/shared/status-aware-avatar.tsx` — يستعلم عن الحالة عبر React Query، يُظهر ring متدرج (لم تُشاهَد) أو رمادي (شُوهدت)، يشترك في نفس cache entry → كل الـ instances تتحدث فوراً
+- صفحة البروفايل: `handleAvatarAreaClick` — إذا توجد حالة + صورة → `<Dialog>` اختيار (مشاهدة الحالة / صورة الملف الشخصي)
+- Avatar choice dialog: `[&>button:last-child]:hidden` + `<div>` wrapper لمنع shadcn من إخفاء أزرار الاختيار
+
+#### Lightboxes (#10)
+- `src/components/shared/image-lightbox.tsx` — portal-based، keyboard ESC، تحميل/إغلاق بـ X أو نقر خارج
+- `src/components/shared/media-lightbox.tsx` — carousel متعدد الوسائط لمنشورات الفيد
+- PostCard: `<MediaLightboxLazy>` عند النقر على صورة أي منشور
+
+#### التعليقات Facebook-style (#7)
+- `src/lib/actions/comments.ts` — إضافة `getCommentReplies`, `addReply`, `likeComment`, `unlikeComment`
+- `src/hooks/use-comments.ts` — hooks للردود + إعجاب التعليقات
+- `src/components/feed/comment-item.tsx` — فقاعة رمادية `bg-[#F0F2F5] dark:bg-muted`, replies collapse، like count
+- Migration `0017_comment_likes_replies.sql` — `parent_comment_id`, `comment_likes` table، `likes_count` counter، RLS
+
+#### UX Review (#12)
+- `src/components/layout/theme-toggle.tsx` — `useTheme` من next-themes، mounted guard لمنع hydration mismatch
+- `src/components/providers.tsx` — `ThemeProvider` مضاف
+- `src/app/layout.tsx` — `suppressHydrationWarning` على `<html>`
+- `src/components/feed/post-composer.tsx` — FAB: `bottom-[4.5rem] sm:bottom-6` + scroll-hide بـ `window.addEventListener('scroll')`
+- `src/components/feed/feed-tabs.tsx` — `composeOnMountRef` يستجيب لـ `?compose=1` من BottomNav
+- `src/components/shared/back-button.tsx` — `router.back()` مع fallback URL
+
+---
+
+### مشاكل واجهتها وكيف حُلّت
+
+| المشكلة | السبب | الحل |
+|---------|-------|------|
+| choice dialog لا يُظهر شيئاً (ضباب فقط) | `[&>button]:hidden` في shadcn `DialogContent` أخفى أزرار الاختيار لأنها children مباشرة | تغيير إلى `[&>button:last-child]:hidden` + لفّ الأزرار في `<div>` لمنع استهدافها |
+| `git stash pop` لم يُنفَّذ عند مقارنة Bundle | `&&` operator في bash لا يستمر بعد فشل أي أمر | تشغيل stash pop بشكل مستقل فوراً بعد الخطأ |
+| `react-hooks/exhaustive-deps` warning في FeedTabs | `composeOnMount` في deps array يُعيد التشغيل عند كل render | استعمال `useRef` لحفظ القيمة الأولية بدل إضافتها للـ deps |
+| ThemeToggle يُظهر icon خاطئ عند أول تحميل | Hydration mismatch بين server (لا يعرف theme) وclient | إضافة `mounted` state + `suppressHydrationWarning` على `<html>` |
+
+---
+
+### حجم Bundle قبل وبعد المرحلة 5.5
+
+| المقياس | قبل المرحلة 5.5 | بعد المرحلة 5.5 |
+|---------|-----------------|-----------------|
+| First Load JS shared | 247 kB | 102 kB |
+| `/feed` | 368 kB | 257 kB |
+| `/profile/[username]` | 425 kB | 342 kB |
+| `.next/static` | ~2.4 MB | ~2.7 MB |
+
+> **ملاحظة:** الانخفاض الكبير في الأرقام (mismatch واضح) مرتبط بتحسين code-splitting في Next.js بين البنايات — المقارنة الدقيقة تتطلب نفس الإصدار على نفس الجهاز. الزيادة الفعلية في `.next/static` هي ~300 KB لكل الميزات المضافة (Status, Comments, Lightbox, ThemeToggle, BackButton).
+
+### نتائج الفحوصات النهائية
+
+```
+✓ npm run build    → 0 errors, 0 warnings
+✓ npm run test     → 56 tests passed (4 files)
+✓ npm run lint     → 0 errors, 1 pre-existing warning (validations.test.ts)
+```
+
+### ملاحظات هامة
+- **أصوات الإشعارات:** تم رفع `public/sounds/message.mp3` + `public/sounds/notification.mp3` ✅
+- **Supabase Realtime:** مفعّل على جداول `messages`, `conversations`, `status_updates` ✅
+- **HLS streaming:** Cloudinary `sp_auto` transformation يعمل للفيديوهات الجديدة (الفيديوهات القديمة تحتاج re-upload) ✅
+- **Migrations جاهزة للتطبيق:** `0015`, `0016`, `0017` — تُطبَّق عبر Supabase SQL Editor

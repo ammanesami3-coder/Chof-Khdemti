@@ -16,12 +16,25 @@ import { UserAvatar } from '@/components/shared/user-avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+export type RepliedStatus = {
+  content_type: 'text' | 'image' | 'video';
+  content: string | null;
+  media_url: string | null;
+  thumbnail_url: string | null;
+  background_color: string;
+  text_color: string;
+  user_username: string;
+  user_full_name: string;
+} | null;
+
 type MessageData = {
   id: string;
   sender_id: string;
   content: string;
   is_read: boolean;
   created_at: string;
+  reply_to_status_id?: string | null;
+  replied_status?: RepliedStatus;
   is_optimistic?: boolean;
 };
 
@@ -40,6 +53,53 @@ type Props = {
   initialMessages: MessageData[];
   initialCanReply: boolean;
 };
+
+function StatusReplyPreview({
+  replied_status,
+  isSent,
+}: {
+  replied_status: NonNullable<RepliedStatus>;
+  isSent: boolean;
+}) {
+  const hasThumb =
+    replied_status.content_type !== 'text' && !!replied_status.thumbnail_url;
+
+  return (
+    <div
+      className={cn(
+        'mb-2 flex overflow-hidden rounded-xl text-xs',
+        isSent ? 'bg-white/20' : 'bg-black/10',
+      )}
+    >
+      {replied_status.content_type === 'text' ? (
+        <div className="w-1 shrink-0" style={{ background: replied_status.background_color }} />
+      ) : hasThumb ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={replied_status.thumbnail_url!}
+          alt=""
+          className="h-14 w-14 shrink-0 object-cover"
+        />
+      ) : (
+        <div className="w-1 shrink-0 bg-current opacity-20" />
+      )}
+      <div className="min-w-0 flex-1 px-2.5 py-1.5">
+        <p className={cn('font-semibold', isSent ? 'text-white/80' : 'text-foreground/70')}>
+          @{replied_status.user_username}
+        </p>
+        {replied_status.content ? (
+          <p className={cn('line-clamp-2 leading-snug', isSent ? 'text-white/60' : 'text-foreground/50')}>
+            {replied_status.content}
+          </p>
+        ) : (
+          <p className={cn('italic', isSent ? 'text-white/60' : 'text-foreground/50')}>
+            {replied_status.content_type === 'video' ? '🎬 فيديو' : '📷 صورة'}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function getDateLabel(isoTimestamp: string): string {
   const date = parseISO(isoTimestamp);
@@ -68,6 +128,30 @@ export function ChatWindow({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
+
+  const fetchRepliedStatusById = useCallback(async (statusId: string): Promise<RepliedStatus> => {
+    const { data: st } = await supabase
+      .from('status_updates')
+      .select('content_type, content, media_url, thumbnail_url, background_color, text_color, user_id')
+      .eq('id', statusId)
+      .maybeSingle();
+    if (!st) return null;
+    const { data: u } = await supabase
+      .from('users')
+      .select('username, full_name')
+      .eq('id', st.user_id)
+      .maybeSingle();
+    return {
+      content_type: st.content_type as 'text' | 'image' | 'video',
+      content: st.content ?? null,
+      media_url: st.media_url ?? null,
+      thumbnail_url: st.thumbnail_url ?? null,
+      background_color: (st.background_color as string) ?? '#1877F2',
+      text_color: (st.text_color as string) ?? '#FFFFFF',
+      user_username: u?.username ?? '',
+      user_full_name: u?.full_name ?? '',
+    };
+  }, [supabase]);
 
   const { data: subStatus } = useSubscriptionStatus();
   const { playMessage } = useNotificationSound();
@@ -99,7 +183,9 @@ export function ChatWindow({
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          const newMsg = payload.new as MessageData;
+          const raw = payload.new as Omit<MessageData, 'replied_status'>;
+          const newMsg: MessageData = { ...raw };
+
           setMessages((prev) => {
             // Replace optimistic placeholder if id matches, else append
             const tempIdx = prev.findIndex(
@@ -114,6 +200,15 @@ export function ChatWindow({
             return [...prev, newMsg];
           });
 
+          // Enrich with replied status data asynchronously
+          if (raw.reply_to_status_id) {
+            fetchRepliedStatusById(raw.reply_to_status_id).then((replied_status) => {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === raw.id ? { ...m, replied_status } : m)),
+              );
+            });
+          }
+
           if (newMsg.sender_id !== currentUserId) {
             // GlobalRealtimeProvider skips sound inside /messages/ — play it here instead
             playMessage();
@@ -127,7 +222,7 @@ export function ChatWindow({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, conversationId, currentUserId, playMessage, queryClient]);
+  }, [supabase, conversationId, currentUserId, playMessage, queryClient, fetchRepliedStatusById]);
 
   // Scroll to bottom on mount (instant) and on new messages (smooth)
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -287,6 +382,9 @@ export function ChatWindow({
                         : 'rounded-es-sm bg-muted text-foreground',
                     )}
                   >
+                    {msg.replied_status && (
+                      <StatusReplyPreview replied_status={msg.replied_status} isSent={isSent} />
+                    )}
                     {msg.content}
                   </div>
 

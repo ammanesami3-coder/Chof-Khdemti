@@ -7,7 +7,10 @@ import { StatusBar } from "@/components/status/status-bar";
 
 export const metadata = { title: "الفيد — Chof Khdemti" };
 
-export default async function FeedPage() {
+type Props = { searchParams: Promise<{ compose?: string }> };
+
+export default async function FeedPage({ searchParams }: Props) {
+  const { compose } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -41,7 +44,7 @@ export default async function FeedPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
       <StatusBar currentUser={currentUser} initialGroups={initialGroups} />
-      <FeedTabs currentUser={currentUser} initialFollowingFeed={initialFeed} />
+      <FeedTabs currentUser={currentUser} initialFollowingFeed={initialFeed} composeOnMount={compose === '1'} />
     </main>
   );
 }

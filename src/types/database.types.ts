@@ -14,12 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      comment_likes: {
+        Row: {
+          id: string
+          comment_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          comment_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          comment_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_likes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           author_id: string
           content: string
           created_at: string
           id: string
+          likes_count: number
+          parent_comment_id: string | null
           post_id: string
         }
         Insert: {
@@ -27,6 +65,8 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          likes_count?: number
+          parent_comment_id?: string | null
           post_id: string
         }
         Update: {
@@ -34,6 +74,8 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          likes_count?: number
+          parent_comment_id?: string | null
           post_id?: string
         }
         Relationships: [
@@ -42,6 +84,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
             referencedColumns: ["id"]
           },
           {
@@ -166,6 +215,7 @@ export type Database = {
           id: string
           is_read: boolean
           sender_id: string
+          reply_to_status_id: string | null
         }
         Insert: {
           content: string
@@ -174,6 +224,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           sender_id: string
+          reply_to_status_id?: string | null
         }
         Update: {
           content?: string
@@ -182,6 +233,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           sender_id?: string
+          reply_to_status_id?: string | null
         }
         Relationships: [
           {
@@ -416,33 +468,93 @@ export type Database = {
         }
         Relationships: []
       }
+      status_likes: {
+        Row: {
+          id: string
+          status_id: string
+          user_id: string
+          reaction: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          status_id: string
+          user_id: string
+          reaction?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          status_id?: string
+          user_id?: string
+          reaction?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "status_likes_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "status_updates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "status_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       status_updates: {
         Row: {
           id: string
           user_id: string
-          content: string
+          content_type: Database["public"]["Enums"]["status_content_type"]
+          content: string | null
+          media_url: string | null
+          thumbnail_url: string | null
           background_color: string
+          text_color: string
+          font_style: string
+          duration: number
           created_at: string
           expires_at: string
           views_count: number
+          likes_count: number
         }
         Insert: {
           id?: string
           user_id: string
-          content: string
+          content_type?: Database["public"]["Enums"]["status_content_type"]
+          content?: string | null
+          media_url?: string | null
+          thumbnail_url?: string | null
           background_color?: string
+          text_color?: string
+          font_style?: string
+          duration?: number
           created_at?: string
           expires_at?: string
           views_count?: number
+          likes_count?: number
         }
         Update: {
           id?: string
           user_id?: string
-          content?: string
+          content_type?: Database["public"]["Enums"]["status_content_type"]
+          content?: string | null
+          media_url?: string | null
+          thumbnail_url?: string | null
           background_color?: string
+          text_color?: string
+          font_style?: string
+          duration?: number
           created_at?: string
           expires_at?: string
           views_count?: number
+          likes_count?: number
         }
         Relationships: [
           {
@@ -570,6 +682,10 @@ export type Database = {
         | "active"
         | "past_due"
         | "cancelled"
+      status_content_type:
+        | "text"
+        | "image"
+        | "video"
     }
     CompositeTypes: {
       [_ in never]: never

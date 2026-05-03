@@ -41,6 +41,9 @@ type Props = {
   onToggleFollow: () => void;
   hasActiveStatus?: boolean;
   onViewStatus?: () => void;
+  onAvatarClick?: () => void;
+  onCoverClick?: () => void;
+  onRatingClick?: () => void;
 };
 
 export function ProfileHeader({
@@ -55,6 +58,9 @@ export function ProfileHeader({
   onToggleFollow,
   hasActiveStatus = false,
   onViewStatus,
+  onAvatarClick,
+  onCoverClick,
+  onRatingClick,
 }: Props) {
   const isOwnProfile = currentUser?.id === user.id;
 
@@ -79,14 +85,21 @@ export function ProfileHeader({
       {/* ── Cover ─────────────────────────────────────────── */}
       <div className="relative h-44 w-full overflow-hidden bg-gradient-to-l from-red-600 to-green-600 sm:h-52">
         {profile.cover_url && (
-          <Image
-            src={profile.cover_url}
-            alt="غلاف الملف الشخصي"
-            fill
-            className="object-cover"
-            sizes="100vw"
-            priority
-          />
+          <button
+            type="button"
+            onClick={onCoverClick}
+            className="absolute inset-0 w-full cursor-zoom-in focus-visible:outline-none"
+            aria-label="عرض صورة الغلاف بالحجم الكامل"
+          >
+            <Image
+              src={profile.cover_url}
+              alt="غلاف الملف الشخصي"
+              fill
+              className="object-cover"
+              sizes="100vw"
+              priority
+            />
+          </button>
         )}
 
         {/* Edit button — top-left (RTL) */}
@@ -131,8 +144,13 @@ export function ProfileHeader({
               </div>
             </button>
           ) : (
-            /* No active status — plain avatar */
-            <div className="relative size-32 overflow-hidden rounded-full border-4 border-background bg-muted shadow-md">
+            /* No active status — clickable avatar (opens lightbox if photo exists) */
+            <button
+              type="button"
+              onClick={profile.avatar_url ? onAvatarClick : undefined}
+              aria-label={profile.avatar_url ? "عرض صورة الملف الشخصي" : undefined}
+              className={`relative size-32 overflow-hidden rounded-full border-4 border-background bg-muted shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${profile.avatar_url && onAvatarClick ? "cursor-zoom-in" : "cursor-default"}`}
+            >
               {profile.avatar_url ? (
                 <Image
                   src={profile.avatar_url}
@@ -146,7 +164,7 @@ export function ProfileHeader({
                   {initials}
                 </div>
               )}
-            </div>
+            </button>
           )}
         </div>
       </div>
@@ -223,7 +241,12 @@ export function ProfileHeader({
             </span>
           )}
           {user.account_type === 'artisan' && (
-            <RatingDisplay avgStars={avgRating} totalCount={totalRatingsCount} size="sm" />
+            <RatingDisplay
+              avgStars={avgRating}
+              totalCount={totalRatingsCount}
+              size="sm"
+              onClick={onRatingClick}
+            />
           )}
         </div>
 

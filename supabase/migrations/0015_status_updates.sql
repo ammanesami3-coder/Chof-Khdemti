@@ -17,8 +17,7 @@ create index if not exists status_user_idx
   on public.status_updates(user_id);
 
 create index if not exists status_active_idx
-  on public.status_updates(expires_at)
-  where expires_at > now();
+  on public.status_updates(expires_at);
 
 -- ── 2. جدول المشاهدات ────────────────────────────────────────────
 create table if not exists public.status_views (

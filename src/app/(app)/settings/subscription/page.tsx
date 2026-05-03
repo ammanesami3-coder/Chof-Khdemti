@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { format } from 'date-fns';
+import { BackButton } from '@/components/shared/back-button';
 import { ar } from 'date-fns/locale';
 import { Gift, CheckCircle, AlertTriangle, XCircle, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
@@ -163,8 +164,11 @@ export default async function SubscriptionPage() {
 
       {/* Page header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">الاشتراك</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <div className="mb-1 flex items-center gap-2">
+          <BackButton fallback="/settings" />
+          <h1 className="text-2xl font-bold">الاشتراك</h1>
+        </div>
+        <p className="text-sm text-muted-foreground">
           {SUBSCRIPTION_PRICE_DISPLAY} — الاشتراك الشهري لـ Chof Khdemti
         </p>
       </div>

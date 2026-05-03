@@ -33,11 +33,15 @@ export type RecentComment = {
   content: string;
   created_at: string;
   author_id: string;
+  likes_count?: number;
+  is_liked?: boolean;
+  parent_comment_id?: string | null;
   author: {
     username: string;
     full_name: string;
     avatar_url: string | null;
   };
+  replies?: RecentComment[];
 };
 
 export type PostWithAuthor = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeedList } from "@/components/feed/feed-list";
 import { PostComposer } from "@/components/feed/post-composer";
@@ -17,10 +17,20 @@ type CurrentUser = {
 type Props = {
   currentUser: CurrentUser;
   initialFollowingFeed: FeedPage;
+  composeOnMount?: boolean;
 };
 
-export function FeedTabs({ currentUser, initialFollowingFeed }: Props) {
+export function FeedTabs({ currentUser, initialFollowingFeed, composeOnMount = false }: Props) {
   const [newPosts, setNewPosts] = useState<PostWithAuthor[]>([]);
+  const [composeTrigger, setComposeTrigger] = useState(0);
+  const composeOnMountRef = useRef(composeOnMount);
+
+  useEffect(() => {
+    if (composeOnMountRef.current) {
+      setComposeTrigger(1);
+      window.history.replaceState({}, '', '/feed');
+    }
+  }, []);
 
   function handlePostCreating(tempPost: PostWithAuthor) {
     setNewPosts((prev) => [tempPost, ...prev]);
@@ -81,6 +91,7 @@ export function FeedTabs({ currentUser, initialFollowingFeed }: Props) {
         onPostCreating={handlePostCreating}
         onPostCreated={handlePostCreated}
         onPostError={handlePostError}
+        openTrigger={composeTrigger}
       />
     </>
   );

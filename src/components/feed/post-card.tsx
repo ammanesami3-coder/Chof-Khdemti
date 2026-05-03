@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,8 +8,16 @@ import useEmblaCarousel from "embla-carousel-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
-const CommentsDialogLazy = dynamic(
-  () => import("@/components/feed/comments-dialog").then((m) => m.CommentsDialog),
+const InlineCommentsLazy = dynamic(
+  () => import("@/components/feed/inline-comments").then((m) => m.InlineComments),
+  { ssr: false }
+);
+const OptimizedVideoLazy = dynamic(
+  () => import("@/components/feed/optimized-video").then((m) => m.OptimizedVideo),
+  { ssr: false }
+);
+const MediaLightboxLazy = dynamic(
+  () => import("@/components/shared/media-lightbox").then((m) => m.MediaLightbox),
   { ssr: false }
 );
 import {
@@ -35,6 +43,7 @@ import {
 import { useLikePost } from "@/hooks/use-like-post";
 import { AuthGate } from "@/components/shared/auth-gate";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { StatusAwareAvatar } from "@/components/shared/status-aware-avatar";
 import type { PostMedia, PostWithAuthor } from "@/lib/validations/post";
 
 type CurrentUser = {
@@ -44,80 +53,42 @@ type CurrentUser = {
   avatar_url: string | null;
 };
 
-// ── Lazy video: preload="none" until in viewport ──────────────────────────────
-
-function VideoSlide({
-  item,
-  className = "",
-}: {
-  item: PostMedia;
-  className?: string;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          setInView(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "300px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div ref={containerRef} className={`bg-black ${className}`}>
-      <video
-        ref={videoRef}
-        controls
-        playsInline
-        poster={item.thumbnail}
-        preload={inView ? "metadata" : "none"}
-        className="h-full w-full object-contain"
-        aria-label="مقطع فيديو"
-      >
-        {inView && <source src={item.url} />}
-        متصفحك لا يدعم تشغيل الفيديو
-      </video>
-    </div>
-  );
-}
-
 // ── Single-media display (no carousel) ───────────────────────────────────────
 
 function SingleMedia({
   item,
   priority = false,
+  onImageClick,
 }: {
   item: PostMedia;
   priority?: boolean;
+  onImageClick?: () => void;
 }) {
   if (item.type === "video") {
     return (
       <div className="overflow-hidden rounded-xl">
-        <VideoSlide item={item} className="aspect-video" />
+        <OptimizedVideoLazy item={item} className="aspect-video" />
       </div>
     );
   }
   return (
-    <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
-      <Image
-        src={item.url}
-        alt=""
-        fill
-        priority={priority}
-        className="object-cover"
-        sizes="(max-width: 672px) calc(100vw - 32px), 640px"
-      />
-    </div>
+    <button
+      type="button"
+      onClick={onImageClick}
+      className="relative block w-full cursor-zoom-in overflow-hidden rounded-xl bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label="عرض الصورة بالحجم الكامل"
+    >
+      <div className="aspect-[4/3]">
+        <Image
+          src={item.url}
+          alt=""
+          fill
+          priority={priority}
+          className="object-cover"
+          sizes="(max-width: 672px) calc(100vw - 32px), 640px"
+        />
+      </div>
+    </button>
   );
 }
 
@@ -126,9 +97,11 @@ function SingleMedia({
 function MediaCarousel({
   media,
   priority = false,
+  onImageClick,
 }: {
   media: PostMedia[];
   priority?: boolean;
+  onImageClick?: (imageIndex: number) => void;
 }) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -172,9 +145,21 @@ function MediaCarousel({
               aria-label={`${i + 1} من ${media.length}`}
             >
               {item.type === "video" ? (
-                <VideoSlide item={item} className="aspect-square" />
+                <OptimizedVideoLazy item={item} className="aspect-square" />
               ) : (
-                <div className="relative aspect-square bg-muted">
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Find this image's index among images-only
+                    let imgIdx = 0;
+                    for (let j = 0; j < i; j++) {
+                      if (media[j]?.type === "image") imgIdx++;
+                    }
+                    onImageClick?.(imgIdx);
+                  }}
+                  className="relative block aspect-square w-full cursor-zoom-in bg-muted focus-visible:outline-none"
+                  aria-label="عرض الصورة بالحجم الكامل"
+                >
                   <Image
                     src={item.url}
                     alt=""
@@ -183,7 +168,7 @@ function MediaCarousel({
                     className="object-cover"
                     sizes="(max-width: 672px) calc(100vw - 32px), 640px"
                   />
-                </div>
+                </button>
               )}
             </div>
           ))}
@@ -307,7 +292,14 @@ export function PostCard({
 }: PostCardProps) {
   const [bouncing, setBouncing] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentAutoFocus, setCommentAutoFocus] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const likeMutation = useLikePost();
+
+  const lightboxImages = post.media
+    .filter((m) => m.type === "image")
+    .map((m) => ({ src: m.url }));
 
   const liked = post.is_liked ?? false;
   const likesCount = post.likes_count;
@@ -347,7 +339,7 @@ export function PostCard({
 
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="flex items-start gap-3 p-4 pb-0">
-        <UserAvatar user={post.author} size="md" />
+        <StatusAwareAvatar user={post.author} size="md" currentUserId={currentUserId} />
 
         <div className="min-w-0 flex-1 pt-0.5">
           <div className="flex items-center gap-1">
@@ -422,9 +414,21 @@ export function PostCard({
       {post.media.length > 0 && (
         <div className={post.content ? "mt-3" : "mt-4"}>
           {post.media.length === 1 ? (
-            <SingleMedia item={post.media[0]!} priority={priority} />
+            <SingleMedia
+              item={post.media[0]!}
+              priority={priority}
+              onImageClick={
+                post.media[0]?.type === "image"
+                  ? () => { setLightboxIndex(0); setLightboxOpen(true); }
+                  : undefined
+              }
+            />
           ) : (
-            <MediaCarousel media={post.media} priority={priority} />
+            <MediaCarousel
+              media={post.media}
+              priority={priority}
+              onImageClick={(idx) => { setLightboxIndex(idx); setLightboxOpen(true); }}
+            />
           )}
         </div>
       )}
@@ -464,12 +468,24 @@ export function PostCard({
         <AuthGate isAuthenticated={!!currentUserId} action="comment">
           <button
             type="button"
-            onClick={() => setCommentsOpen(true)}
+            onClick={() => {
+              if (commentsOpen) {
+                setCommentsOpen(false);
+              } else {
+                setCommentAutoFocus(true);
+                setCommentsOpen(true);
+              }
+            }}
             disabled={isPending}
             aria-label="تعليق"
-            className="flex items-center gap-1.5 rounded-full px-2 py-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:pointer-events-none"
+            aria-pressed={commentsOpen}
+            className={`flex items-center gap-1.5 rounded-full px-2 py-1.5 transition-colors disabled:pointer-events-none ${
+              commentsOpen
+                ? "text-primary"
+                : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+            }`}
           >
-            <MessageCircle className="size-5" />
+            <MessageCircle className={`size-5 ${commentsOpen ? "fill-primary/20" : ""}`} />
             {post.comments_count > 0 && (
               <span className="text-xs font-medium">{post.comments_count}</span>
             )}
@@ -487,34 +503,36 @@ export function PostCard({
         </button>
       </div>
 
-      {/* ── Comments preview ────────────────────────────────────────── */}
-      {post.recent_comments && post.recent_comments.length > 0 && (
-        <div className="space-y-2 border-t px-4 pb-4 pt-3">
-          {post.recent_comments.map((comment) => (
-            <div key={comment.id} className="flex gap-2">
-              <UserAvatar user={comment.author} size="xs" className="mt-0.5" />
-              <p className="min-w-0 text-xs leading-relaxed">
-                <span className="font-semibold">{comment.author.full_name}</span>
-                {" "}
-                <span className="text-foreground/90">{comment.content}</span>
-              </p>
+      {/* ── Comments preview (when collapsed) ──────────────────── */}
+      {!commentsOpen && post.recent_comments && post.recent_comments.length > 0 && (
+        <div className="space-y-2 border-t px-4 pb-3 pt-3">
+          {post.recent_comments.slice(0, 2).map((comment) => (
+            <div key={comment.id} className="flex items-start gap-2">
+              <UserAvatar user={comment.author} size="xs" className="mt-0.5 shrink-0" />
+              <div className="inline-block max-w-[calc(100%-2.5rem)] rounded-2xl bg-muted px-3 py-1.5 text-xs leading-relaxed">
+                <span className="font-semibold text-foreground">
+                  {comment.author.full_name}
+                </span>{" "}
+                <span className="text-foreground/80">{comment.content}</span>
+              </div>
             </div>
           ))}
 
-          {post.comments_count > post.recent_comments.length && (
+          {post.comments_count > 2 && (
             <button
               type="button"
               onClick={() => setCommentsOpen(true)}
               className="text-xs text-muted-foreground transition-colors hover:text-primary"
             >
-              عرض كل التعليقات ({post.comments_count})
+              عرض الـ {post.comments_count - 2} تعليق المتبقي
             </button>
           )}
         </div>
       )}
 
-      {/* View-comments link when no preview data but count > 0 */}
-      {(!post.recent_comments || post.recent_comments.length === 0) &&
+      {/* View-comments link when no preview but count > 0 */}
+      {!commentsOpen &&
+        (!post.recent_comments || post.recent_comments.length === 0) &&
         post.comments_count > 0 && (
           <div className="border-t px-4 pb-3 pt-2.5">
             <button
@@ -527,13 +545,24 @@ export function PostCard({
           </div>
         )}
 
-      {/* ── Comments dialog (lazy-loaded) ───────────────────────── */}
+      {/* ── Inline comments (lazy-loaded, expands below the post) ── */}
       {commentsOpen && (
-        <CommentsDialogLazy
-          open={commentsOpen}
-          onOpenChange={setCommentsOpen}
-          post={post}
+        <InlineCommentsLazy
+          postId={post.id}
+          postAuthorId={post.author_id}
           currentUser={currentUser}
+          isAuthenticated={!!currentUserId}
+          autoFocus={commentAutoFocus}
+        />
+      )}
+
+      {/* ── Media Lightbox ───────────────────────────────────────── */}
+      {lightboxImages.length > 0 && (
+        <MediaLightboxLazy
+          images={lightboxImages}
+          initialIndex={lightboxIndex}
+          open={lightboxOpen}
+          onClose={() => setLightboxOpen(false)}
         />
       )}
     </article>

@@ -189,8 +189,16 @@ export function MediaUpload({
     return () => urls.forEach(URL.revokeObjectURL);
   }, []);
 
-  // Notify parent when uploading state changes
+  // Notify parent when uploading state changes.
+  // Skip the initial mount call — parent already starts with isUploading=false,
+  // and calling the setter during the first render cycle triggers React 19's
+  // "Cannot update a component while rendering" warning.
+  const hasMountedRef = useRef(false);
   useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
     onUploadingChange?.(uploadStates.some((s) => s.status === "uploading"));
   }, [uploadStates, onUploadingChange]);
 

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { X, Trash2, Eye, ChevronRight, ChevronLeft, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import { ImageLightbox } from '@/components/shared/image-lightbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -43,7 +44,7 @@ type Props = {
   onDeleted: (statusId: string) => void;
 };
 
-type Viewer = { username: string; full_name: string; avatar_url: string | null };
+type Viewer = { username: string; full_name: string; avatar_url: string | null; reaction: string | null };
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
@@ -59,12 +60,14 @@ export function StatusViewer({
   const [groupIdx, setGroupIdx] = useState(initialGroupIdx);
   const [storyIdx, setStoryIdx] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [isReplyFocused, setIsReplyFocused] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [showReactions, setShowReactions] = useState(false);
   const [localReaction, setLocalReaction] = useState<string | null>(null);
   const [viewers, setViewers] = useState<Viewer[]>([]);
   const [showViewers, setShowViewers] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [coverOpen, setCoverOpen] = useState(false);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const storyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,6 +93,7 @@ export function StatusViewer({
     setShowReactions(false);
     setShowViewers(false);
     setReplyText('');
+    setIsReplyFocused(false);
 
     if (!story.viewed) {
       viewStatus(story.id)
@@ -113,13 +117,13 @@ export function StatusViewer({
   }, [group, storyIdx, groupIdx, groups.length, onOpenChange]);
 
   useEffect(() => {
-    if (!open || paused || !story) return;
+    if (!open || paused || isReplyFocused || !story) return;
     const ms = (story.duration ?? 5) * 1000;
     storyTimer.current = setTimeout(advance, ms);
     return () => {
       if (storyTimer.current) clearTimeout(storyTimer.current);
     };
-  }, [open, paused, story?.id, advance]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, paused, isReplyFocused, story?.id, advance]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Navigation ─────────────────────────────────────────────────────────────
 
@@ -242,7 +246,7 @@ export function StatusViewer({
                   className="h-full rounded-full bg-white"
                   style={{
                     animation: `statusProgress ${durationMs}ms linear forwards`,
-                    animationPlayState: paused ? 'paused' : 'running',
+                    animationPlayState: (paused || isReplyFocused) ? 'paused' : 'running',
                   }}
                 />
               ) : (
@@ -254,7 +258,14 @@ export function StatusViewer({
 
         {/* ── Header ────────────────────────────────────────────────────── */}
         <div className="absolute inset-x-0 top-5 z-20 flex items-center gap-3 px-3 py-2">
-          <UserAvatar user={story.user} size="sm" linkable={false} />
+          <button
+            type="button"
+            onClick={() => story.user.cover_url && setCoverOpen(true)}
+            aria-label={story.user.cover_url ? 'عرض صورة الغلاف' : undefined}
+            className={story.user.cover_url ? 'cursor-pointer rounded-full ring-2 ring-white/40 transition-opacity hover:opacity-80' : 'cursor-default'}
+          >
+            <UserAvatar user={story.user} size="sm" linkable={false} />
+          </button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white drop-shadow">
               {story.user.full_name}
@@ -392,7 +403,12 @@ export function StatusViewer({
                 {viewers.map((v) => (
                   <div key={v.username} className="flex items-center gap-2">
                     <UserAvatar user={v} size="sm" linkable={false} />
-                    <span className="text-sm text-white">{v.full_name}</span>
+                    <span className="flex-1 text-sm text-white">{v.full_name}</span>
+                    {v.reaction && (
+                      <span className="text-base leading-none">
+                        {REACTIONS.find((r) => r.key === v.reaction)?.emoji}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -430,11 +446,13 @@ export function StatusViewer({
               )}
             </div>
 
-            {/* Reply input */}
+            {/* Reply input — focuses pause the story automatically */}
             <Input
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleReply(); }}
+              onFocus={() => setIsReplyFocused(true)}
+              onBlur={() => setIsReplyFocused(false)}
               placeholder="ردّ على الحالة..."
               className="h-9 flex-1 rounded-full border-white/20 bg-white/10 text-sm text-white placeholder:text-white/50 focus-visible:ring-white/30"
               dir="rtl"
@@ -452,6 +470,17 @@ export function StatusViewer({
           </div>
         )}
       </DialogContent>
+
+      {/* Cover photo lightbox — z-[300] to sit above the Dialog */}
+      {story.user.cover_url && (
+        <ImageLightbox
+          src={story.user.cover_url}
+          alt={`غلاف ${story.user.full_name}`}
+          open={coverOpen}
+          onClose={() => setCoverOpen(false)}
+          allowDownload
+        />
+      )}
     </Dialog>
   );
 }

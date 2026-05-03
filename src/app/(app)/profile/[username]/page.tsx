@@ -227,6 +227,7 @@ export default async function ProfilePage({ params }: Props) {
         username: profileUser.username,
         full_name: profileUser.full_name,
         avatar_url: profile.avatar_url,
+        cover_url: profile.cover_url,
       },
     };
   }
@@ -249,7 +250,7 @@ export default async function ProfilePage({ params }: Props) {
       />
 
       {/* ── Tabs ─────────────────────────────────────────────────────────── */}
-      <Tabs defaultValue="posts" className="mt-2">
+      <Tabs defaultValue="posts" className="mt-2" id="profile-tabs">
         <TabsList className="w-full rounded-none border-b bg-transparent p-0">
           <TabsTrigger
             value="posts"
@@ -265,6 +266,7 @@ export default async function ProfilePage({ params }: Props) {
           </TabsTrigger>
           {isArtisan && totalRatingsCount >= 1 && (
             <TabsTrigger
+              id="profile-ratings-tab"
               value="ratings"
               className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-primary data-active:shadow-none"
             >

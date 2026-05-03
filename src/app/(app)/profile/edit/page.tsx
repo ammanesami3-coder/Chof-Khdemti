@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { EditProfileForm } from './edit-profile-form';
+import { BackButton } from '@/components/shared/back-button';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: 'تعديل الملف الشخصي — Chof Khdemti' };
@@ -43,7 +44,10 @@ export default async function EditProfilePage() {
 
   return (
     <main className="mx-auto max-w-lg px-4 py-6">
-      <h1 className="mb-6 text-xl font-bold">تعديل الملف الشخصي</h1>
+      <div className="mb-6 flex items-center gap-2">
+        <BackButton fallback={`/profile/${username}`} />
+        <h1 className="text-xl font-bold">تعديل الملف الشخصي</h1>
+      </div>
       <EditProfileForm
         defaultValues={defaultValues}
         accountType={account_type}

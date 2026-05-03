@@ -135,8 +135,9 @@ export function CommentsDialog({ open, onOpenChange, post, currentUser }: Props)
                 key={comment.id}
                 comment={comment}
                 postId={post.id}
-                currentUserId={currentUser?.id}
+                currentUser={currentUser}
                 postAuthorId={post.author_id}
+                isAuthenticated={!!currentUser}
                 isPending={comment.id.startsWith("temp-")}
               />
             ))}

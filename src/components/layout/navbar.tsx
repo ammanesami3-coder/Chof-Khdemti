@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { TrialIndicator } from '@/components/subscription/trial-indicator';
 import { UserMenu } from './user-menu';
 import { NavMessagesLink } from './nav-messages-link';
+import { ThemeToggle } from './theme-toggle';
 import { buttonVariants } from '@/components/ui/button';
 
 async function getNavUser() {
@@ -58,7 +59,8 @@ export async function Navbar() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
             <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
               دخول
             </Link>
@@ -91,9 +93,10 @@ export async function Navbar() {
           <NavMessagesLink />
         </div>
 
-        {/* يسار (end في RTL) — مؤشر الاشتراك + الأفاتار */}
-        <div className="flex items-center gap-2">
+        {/* يسار (end في RTL) — مؤشر الاشتراك + تبديل الثيم + الأفاتار */}
+        <div className="flex items-center gap-1">
           <TrialIndicator />
+          <ThemeToggle />
           <UserMenu user={navUser} />
         </div>
       </nav>

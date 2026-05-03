@@ -1,6 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { ThemeProvider } from 'next-themes';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -48,8 +49,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthWatcher />
-      {children}
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <AuthWatcher />
+        {children}
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

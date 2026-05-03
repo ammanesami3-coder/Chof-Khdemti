@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useEffect, useTransition } from "react";
 import { Loader2, Plus, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ type Props = {
   onPostCreating?: (tempPost: PostWithAuthor) => void;
   onPostCreated?: (realPost: PostWithAuthor, tempId: string) => void;
   onPostError?: (tempId: string) => void;
+  openTrigger?: number;
 };
 
 export function PostComposer({
@@ -37,13 +39,32 @@ export function PostComposer({
   onPostCreating,
   onPostCreated,
   onPostError,
+  openTrigger,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState("");
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [fabVisible, setFabVisible] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Open when triggered externally (e.g. BottomNav + button).
+  useEffect(() => {
+    if (openTrigger) handleOpen();
+  }, [openTrigger]);
+
+  // Hide FAB on scroll-down, show on scroll-up
+  useEffect(() => {
+    let lastY = window.scrollY;
+    function onScroll() {
+      const y = window.scrollY;
+      setFabVisible(y < lastY || y < 80);
+      lastY = y;
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const isDirty = content.trim() !== "" || media.length > 0;
   const canPublish = isDirty && !isUploading && !isPending;
@@ -141,7 +162,13 @@ export function PostComposer({
         type="button"
         onClick={handleOpen}
         aria-label="إنشاء منشور جديد"
-        className="fixed bottom-6 start-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:bg-primary/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className={cn(
+          "fixed z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg",
+          "bottom-[4.5rem] start-6 sm:bottom-6",
+          "transition-all duration-300 hover:bg-primary/90 active:scale-95",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          fabVisible ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none",
+        )}
       >
         <Plus className="size-6" aria-hidden="true" />
       </button>
