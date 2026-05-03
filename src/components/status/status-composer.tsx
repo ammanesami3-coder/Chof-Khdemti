@@ -230,7 +230,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                     className="size-8 shrink-0 rounded-full shadow-sm transition-transform hover:scale-110"
                     style={{
                       background: value,
-                      outline: bgValue === value ? '2px solid #000' : '2px solid transparent',
+                      outline: bgValue === value ? '2px solid var(--foreground)' : '2px solid transparent',
                       outlineOffset: '2px',
                     }}
                     aria-label={id}

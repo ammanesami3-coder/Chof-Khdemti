@@ -37,7 +37,7 @@ export default async function ConversationPage({ params }: Props) {
       supabase.from('profiles').select('avatar_url').eq('user_id', partnerId).maybeSingle(),
       supabase
         .from('messages')
-        .select('id, sender_id, content, is_read, created_at, reply_to_status_id')
+        .select('id, sender_id, content, is_read, created_at, message_type, voice_url, voice_duration, reply_to_status_id')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
         .limit(50),
@@ -89,6 +89,9 @@ export default async function ConversationPage({ params }: Props) {
     content: m.content,
     is_read: m.is_read,
     created_at: m.created_at,
+    message_type: (m.message_type ?? 'text') as 'text' | 'voice',
+    voice_url: m.voice_url ?? null,
+    voice_duration: m.voice_duration ?? null,
     reply_to_status_id: m.reply_to_status_id ?? null,
     replied_status: m.reply_to_status_id ? (statusDataMap.get(m.reply_to_status_id) ?? null) : null,
   }));

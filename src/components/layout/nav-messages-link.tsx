@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
 import { useUnreadMessagesCount } from '@/hooks/use-unread-messages-count';
 
-export function NavMessagesLink() {
+type Props = { showLabel?: boolean };
+
+export function NavMessagesLink({ showLabel = true }: Props) {
   const count = useUnreadMessagesCount();
 
   return (
@@ -20,7 +22,7 @@ export function NavMessagesLink() {
           </span>
         )}
       </span>
-      رسائل
+      {showLabel && 'رسائل'}
     </Link>
   );
 }

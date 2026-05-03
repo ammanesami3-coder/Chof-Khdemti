@@ -178,7 +178,7 @@ export function ProfileHeader({
             <div className="flex items-center gap-1.5">
               <h1 className="truncate text-xl font-bold">{user.full_name}</h1>
               {profile.is_verified && (
-                <BadgeCheck className="size-5 shrink-0 text-blue-500" aria-label="موثّق" />
+                <BadgeCheck className="size-5 shrink-0 text-blue-500 dark:text-blue-400" aria-label="موثّق" />
               )}
             </div>
             <p className="text-sm text-muted-foreground">@{user.username}</p>

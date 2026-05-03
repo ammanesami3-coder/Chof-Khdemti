@@ -9,10 +9,13 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { sendMessage, markConversationRead } from '@/lib/actions/messages';
+import type { SentMessage } from '@/lib/actions/messages';
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status';
 import { useNotificationSound } from '@/hooks/use-notification-sound';
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import { VoiceRecorder } from '@/components/messages/voice-recorder';
+import { VoiceMessageBubble } from '@/components/messages/voice-message-bubble';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -30,9 +33,12 @@ export type RepliedStatus = {
 type MessageData = {
   id: string;
   sender_id: string;
-  content: string;
+  content: string | null;
   is_read: boolean;
   created_at: string;
+  message_type?: 'text' | 'voice';
+  voice_url?: string | null;
+  voice_duration?: number | null;
   reply_to_status_id?: string | null;
   replied_status?: RepliedStatus;
   is_optimistic?: boolean;
@@ -68,7 +74,7 @@ function StatusReplyPreview({
     <div
       className={cn(
         'mb-2 flex overflow-hidden rounded-xl text-xs',
-        isSent ? 'bg-white/20' : 'bg-black/10',
+        isSent ? 'bg-primary-foreground/20' : 'bg-black/10',
       )}
     >
       {replied_status.content_type === 'text' ? (
@@ -84,15 +90,15 @@ function StatusReplyPreview({
         <div className="w-1 shrink-0 bg-current opacity-20" />
       )}
       <div className="min-w-0 flex-1 px-2.5 py-1.5">
-        <p className={cn('font-semibold', isSent ? 'text-white/80' : 'text-foreground/70')}>
+        <p className={cn('font-semibold', isSent ? 'text-primary-foreground/80' : 'text-foreground/70')}>
           @{replied_status.user_username}
         </p>
         {replied_status.content ? (
-          <p className={cn('line-clamp-2 leading-snug', isSent ? 'text-white/60' : 'text-foreground/50')}>
+          <p className={cn('line-clamp-2 leading-snug', isSent ? 'text-primary-foreground/60' : 'text-foreground/50')}>
             {replied_status.content}
           </p>
         ) : (
-          <p className={cn('italic', isSent ? 'text-white/60' : 'text-foreground/50')}>
+          <p className={cn('italic', isSent ? 'text-primary-foreground/60' : 'text-foreground/50')}>
             {replied_status.content_type === 'video' ? '🎬 فيديو' : '📷 صورة'}
           </p>
         )}
@@ -123,6 +129,7 @@ export function ChatWindow({
   const [messages, setMessages] = useState<MessageData[]>(initialMessages);
   const [content, setContent] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -164,10 +171,12 @@ export function ChatWindow({
         ? subStatus.canReply
         : initialCanReply;
 
-  // Mark as read on mount + invalidate unread badge
+  // Mark as read on mount — await the server action BEFORE invalidating the badge
+  // so the refetch sees is_read = true and the count drops correctly.
   useEffect(() => {
-    markConversationRead(conversationId);
-    queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
+    markConversationRead(conversationId).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
+    });
   }, [conversationId, queryClient]);
 
   // Realtime: listen for new messages in this conversation
@@ -210,10 +219,12 @@ export function ChatWindow({
           }
 
           if (newMsg.sender_id !== currentUserId) {
-            // GlobalRealtimeProvider skips sound inside /messages/ — play it here instead
+            // GlobalRealtimeProvider skips sound inside this conversation — play it here.
             playMessage();
-            markConversationRead(conversationId);
-            queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
+            // Await mark-as-read before invalidating so the refetch sees is_read = true.
+            markConversationRead(conversationId).then(() => {
+              queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
+            });
           }
         },
       )
@@ -244,6 +255,13 @@ export function ChatWindow({
     ta.style.height = 'auto';
     ta.style.height = `${Math.min(ta.scrollHeight, 96)}px`;
   };
+
+  const handleVoiceSent = useCallback((msg: SentMessage) => {
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === msg.id)) return prev;
+      return [...prev, msg as MessageData];
+    });
+  }, []);
 
   const handleSend = async () => {
     const trimmed = content.trim();
@@ -376,16 +394,29 @@ export function ChatWindow({
                 <div className={cn('flex max-w-[75%] flex-col gap-0.5', isSent ? 'items-end' : 'items-start')}>
                   <div
                     className={cn(
-                      'rounded-2xl px-3.5 py-2 text-sm leading-relaxed break-words',
+                      'rounded-2xl text-sm leading-relaxed break-words',
+                      msg.message_type === 'voice'
+                        ? 'px-3 py-2.5'
+                        : 'px-3.5 py-2',
                       isSent
                         ? 'rounded-ee-sm bg-primary text-primary-foreground'
                         : 'rounded-es-sm bg-muted text-foreground',
                     )}
                   >
-                    {msg.replied_status && (
-                      <StatusReplyPreview replied_status={msg.replied_status} isSent={isSent} />
+                    {msg.message_type === 'voice' && msg.voice_url ? (
+                      <VoiceMessageBubble
+                        url={msg.voice_url}
+                        duration={msg.voice_duration ?? 0}
+                        isSent={isSent}
+                      />
+                    ) : (
+                      <>
+                        {msg.replied_status && (
+                          <StatusReplyPreview replied_status={msg.replied_status} isSent={isSent} />
+                        )}
+                        {msg.content}
+                      </>
                     )}
-                    {msg.content}
                   </div>
 
                   {/* Timestamp + read receipt (last in group only) */}
@@ -396,7 +427,7 @@ export function ChatWindow({
                         <span
                           className={cn(
                             'flex items-center',
-                            msg.is_read && 'text-blue-400',
+                            msg.is_read && 'text-blue-500 dark:text-blue-400',
                           )}
                         >
                           <Check className="-me-1.5 h-3 w-3" />
@@ -421,27 +452,42 @@ export function ChatWindow({
       {canReply ? (
         <div className="shrink-0 border-t bg-background px-4 py-3">
           <div className="flex items-end gap-2">
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onInput={handleTextareaInput}
-              onKeyDown={handleKeyDown}
-              placeholder="اكتب رسالة..."
-              rows={1}
-              disabled={isSending}
-              className="flex-1 resize-none rounded-2xl border bg-muted/50 px-4 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-              style={{ maxHeight: '96px', overflowY: 'auto' }}
-            />
-            <Button
-              size="icon"
-              className="h-10 w-10 shrink-0 rounded-full"
-              onClick={handleSend}
-              disabled={!content.trim() || isSending}
-              aria-label="إرسال الرسالة"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
+            {/* Textarea — hidden while recording to free space */}
+            {!isVoiceRecording && (
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                onInput={handleTextareaInput}
+                onKeyDown={handleKeyDown}
+                placeholder="اكتب رسالة..."
+                rows={1}
+                disabled={isSending}
+                className="flex-1 resize-none rounded-2xl border bg-muted/50 px-4 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                style={{ maxHeight: '96px', overflowY: 'auto' }}
+              />
+            )}
+
+            {/* Send button (text present) OR VoiceRecorder (no text / recording) */}
+            {content.trim() && !isVoiceRecording ? (
+              <Button
+                size="icon"
+                className="h-10 w-10 shrink-0 rounded-full"
+                onClick={handleSend}
+                disabled={!content.trim() || isSending}
+                aria-label="إرسال الرسالة"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            ) : (
+              <VoiceRecorder
+                conversationId={conversationId}
+                onRecordingChange={setIsVoiceRecording}
+                onSent={handleVoiceSent}
+                disabled={isSending}
+                className={isVoiceRecording ? 'flex-1' : ''}
+              />
+            )}
           </div>
         </div>
       ) : (

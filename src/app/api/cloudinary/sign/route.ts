@@ -4,7 +4,7 @@ import { cloudinary, CLOUDINARY_FOLDERS, type UploadPreset } from "@/lib/cloudin
 import { z } from "zod";
 
 const bodySchema = z.object({
-  preset: z.enum(["avatar", "cover", "post_image", "post_video"]),
+  preset: z.enum(["avatar", "cover", "post_image", "post_video", "voice_message"]),
 });
 
 export async function POST(request: Request) {

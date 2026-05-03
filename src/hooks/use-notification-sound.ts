@@ -22,13 +22,27 @@ async function loadBuffer(ctx: AudioContext, url: string): Promise<AudioBuffer |
 
 function playBuffer(ctx: AudioContext, buffer: AudioBuffer | null, volume = 0.5) {
   if (!buffer) return;
-  const gain = ctx.createGain();
-  gain.gain.value = volume;
-  gain.connect(ctx.destination);
-  const source = ctx.createBufferSource();
-  source.buffer = buffer;
-  source.connect(gain);
-  source.start(0);
+
+  const doPlay = () => {
+    try {
+      const gain = ctx.createGain();
+      gain.gain.value = volume;
+      gain.connect(ctx.destination);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(gain);
+      source.start(0);
+    } catch {
+      // Silently ignore if context is in a bad state
+    }
+  };
+
+  // AudioContext starts suspended until a user gesture — resume then play.
+  if (ctx.state === 'suspended') {
+    ctx.resume().then(doPlay).catch(() => {});
+  } else {
+    doPlay();
+  }
 }
 
 export function useNotificationSound() {

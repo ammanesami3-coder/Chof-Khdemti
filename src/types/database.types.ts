@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          actor_id: string
+          type: "like" | "comment" | "comment_reply" | "comment_like" | "follow"
+          post_id: string | null
+          comment_id: string | null
+          is_read: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          actor_id: string
+          type: "like" | "comment" | "comment_reply" | "comment_like" | "follow"
+          post_id?: string | null
+          comment_id?: string | null
+          is_read?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          actor_id?: string
+          type?: "like" | "comment" | "comment_reply" | "comment_like" | "follow"
+          post_id?: string | null
+          comment_id?: string | null
+          is_read?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
       comment_likes: {
         Row: {
           id: string
@@ -209,29 +242,38 @@ export type Database = {
       }
       messages: {
         Row: {
-          content: string
+          content: string | null
           conversation_id: string
           created_at: string
           id: string
           is_read: boolean
+          message_type: string
+          voice_url: string | null
+          voice_duration: number | null
           sender_id: string
           reply_to_status_id: string | null
         }
         Insert: {
-          content: string
+          content?: string | null
           conversation_id: string
           created_at?: string
           id?: string
           is_read?: boolean
+          message_type?: string
+          voice_url?: string | null
+          voice_duration?: number | null
           sender_id: string
           reply_to_status_id?: string | null
         }
         Update: {
-          content?: string
+          content?: string | null
           conversation_id?: string
           created_at?: string
           id?: string
           is_read?: boolean
+          message_type?: string
+          voice_url?: string | null
+          voice_duration?: number | null
           sender_id?: string
           reply_to_status_id?: string | null
         }
@@ -674,8 +716,34 @@ export type Database = {
         Args: { p_conversation_id: string; p_reader_id: string }
         Returns: undefined
       }
+      get_notifications: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: {
+          id: string
+          type: string
+          is_read: boolean
+          created_at: string
+          post_id: string | null
+          comment_id: string | null
+          actor_id: string
+          actor_username: string
+          actor_full_name: string
+          actor_avatar_url: string | null
+          post_media: { type: string; url: string; thumbnail?: string }[] | null
+        }[]
+      }
+      get_unread_notifications_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
     }
     Enums: {
+      notification_type:
+        | "like"
+        | "comment"
+        | "comment_reply"
+        | "comment_like"
+        | "follow"
       subscription_status:
         | "trial"
         | "trial_ended"

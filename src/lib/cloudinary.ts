@@ -14,6 +14,7 @@ export const CLOUDINARY_FOLDERS = {
   cover: "chof-khdemti/covers",
   post_image: "chof-khdemti/posts/images",
   post_video: "chof-khdemti/posts/videos",
+  voice_message: "chof-khdemti/messages/voice",
 } as const;
 
 export type UploadPreset = keyof typeof CLOUDINARY_FOLDERS;

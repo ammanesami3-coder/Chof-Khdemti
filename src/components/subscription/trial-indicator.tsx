@@ -35,7 +35,7 @@ export function TrialIndicator() {
       );
     }
     return (
-      <span className={`${BASE} bg-green-100 text-green-700`}>
+      <span className={`${BASE} bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400`}>
         <CheckCircle className="h-3 w-3" />
         اشتراك نشط
       </span>
@@ -45,7 +45,7 @@ export function TrialIndicator() {
   if (status === 'trial') {
     if (daysLeft !== null && daysLeft <= 1) {
       return (
-        <Link href="/settings/subscription" className={`${BASE} bg-red-100 text-red-700 hover:bg-red-200`}>
+        <Link href="/settings/subscription" className={`${BASE} bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50`}>
           <Flame className="h-3 w-3" />
           ينتهي اليوم!
         </Link>
@@ -53,14 +53,14 @@ export function TrialIndicator() {
     }
     if (daysLeft !== null && daysLeft <= 5) {
       return (
-        <Link href="/settings/subscription" className={`${BASE} bg-yellow-100 text-yellow-700 hover:bg-yellow-200`}>
+        <Link href="/settings/subscription" className={`${BASE} bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50`}>
           <AlertTriangle className="h-3 w-3" />
           {daysLeft} يوم — اشترك الآن
         </Link>
       );
     }
     return (
-      <span className={`${BASE} bg-green-100 text-green-700`}>
+      <span className={`${BASE} bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400`}>
         <Gift className="h-3 w-3" />
         {daysLeft} يوم متبقي
       </span>
@@ -78,7 +78,7 @@ export function TrialIndicator() {
 
   if (status === 'past_due') {
     return (
-      <Link href="/settings/subscription" className={`${BASE} bg-red-100 text-red-700 hover:bg-red-200`}>
+      <Link href="/settings/subscription" className={`${BASE} bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50`}>
         <AlertTriangle className="h-3 w-3" />
         فشل الدفع — حدّث الدفع
       </Link>

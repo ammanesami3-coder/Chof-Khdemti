@@ -71,7 +71,7 @@ export function SignupForm({ next }: SignupFormProps) {
   const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md shadow-2xl">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">إنشاء حساب</CardTitle>
         <CardDescription>انضم إلى مجتمع الحرفيين في المغرب</CardDescription>

@@ -51,7 +51,21 @@
       "Bash(node *)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(npx vitest *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\amman\\\\OneDrive\\\\Desktop\\\\Chof Khdemti\\\\supabase\\\\migrations\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\amman\\\\OneDrive\\\\Desktop\\\\Chof Khdemti\" -Recurse -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 20)",
+      "Bash(Format-Table FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\amman\\\\OneDrive\\\\Desktop\\\\Chof Khdemti\" -Filter \"*.sql\" -Recurse -ErrorAction SilentlyContinue)",
+      "Bash(Get-ChildItem *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(npx next *)",
+      "Bash(du -sh .next/static)",
+      "Bash(powershell -Command \"\\(Get-ChildItem '.next/static' -Recurse | Measure-Object -Property Length -Sum\\).Sum / 1MB\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Select-String -Pattern \"\\(supabase|src\\)\")",
+      "PowerShell(head *)"
     ]
   }
 }

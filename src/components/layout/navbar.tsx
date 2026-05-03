@@ -5,6 +5,7 @@ import { TrialIndicator } from '@/components/subscription/trial-indicator';
 import { UserMenu } from './user-menu';
 import { NavMessagesLink } from './nav-messages-link';
 import { ThemeToggle } from './theme-toggle';
+import { NotificationsPopover } from '@/components/notifications/notifications-popover';
 import { buttonVariants } from '@/components/ui/button';
 
 async function getNavUser() {
@@ -91,11 +92,17 @@ export async function Navbar() {
             </Link>
           ))}
           <NavMessagesLink />
+          <NotificationsPopover />
         </div>
 
-        {/* يسار (end في RTL) — مؤشر الاشتراك + تبديل الثيم + الأفاتار */}
+        {/* يسار (end في RTL) — مؤشر الاشتراك + أيقونات الموبايل + الأفاتار */}
         <div className="flex items-center gap-1">
           <TrialIndicator />
+          {/* أيقونات الموبايل (مخفية في الديسكتوب) */}
+          <div className="flex items-center sm:hidden">
+            <NavMessagesLink showLabel={false} />
+            <NotificationsPopover showLabel={false} />
+          </div>
           <ThemeToggle />
           <UserMenu user={navUser} />
         </div>
