@@ -31,7 +31,7 @@ import { ReactionsDisplay } from '@/components/messages/reactions-display';
 import { ReplyPreviewBar } from '@/components/messages/reply-preview-bar';
 import { AttachmentBubble } from '@/components/messages/attachment-bubble';
 import { AttachmentPicker } from '@/components/messages/attachment-picker';
-import { LocationBubble } from '@/components/messages/location-bubble';
+import { LocationMessageCard } from '@/components/messages/location-message-card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { StatusGroup, StatusWithUser } from '@/lib/types/status.types';
@@ -862,7 +862,7 @@ export function ChatWindow({
 
                     if (msg.message_type === 'location') {
                       return (
-                        <LocationBubble
+                        <LocationMessageCard
                           content={msg.content}
                           isSent={isSent}
                           senderName={isSent ? 'أنت' : partner.full_name}
