@@ -75,6 +75,9 @@ export function GlobalRealtimeProvider({ currentUserId }: Props) {
           // Refetch list so new item appears immediately
           queryClient.invalidateQueries({ queryKey: ['notifications'] });
 
+          // Signal the notifications page (if open) to prepend the new item
+          window.dispatchEvent(new CustomEvent('chof:new-notification'));
+
           playNotification();
 
           if (document.visibilityState === 'hidden') {

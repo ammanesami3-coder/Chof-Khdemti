@@ -12,7 +12,7 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { StatusWithUser, StatusGroup } from '@/lib/actions/status';
+import type { StatusWithUser, StatusGroup } from '@/lib/types/status.types';
 
 type ProfileUser = {
   id: string;

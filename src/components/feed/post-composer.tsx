@@ -111,6 +111,7 @@ export function PostComposer({
       media: savedMedia,
       likes_count: 0,
       comments_count: 0,
+      shares_count: 0,
       created_at: new Date().toISOString(),
       author_id: currentUser.id,
       is_liked: false,

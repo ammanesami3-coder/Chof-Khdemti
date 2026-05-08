@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/server';
 import { fetchUserPosts } from '@/lib/queries/posts';
 import type { Rating } from '@/lib/validations/rating';
 import type { RatingCardData } from '@/components/rating/rating-card';
-import type { StatusWithUser } from '@/lib/actions/status';
+import type { StatusWithUser } from '@/lib/types/status.types';
 
 type Props = {
   params: Promise<{ username: string }>;
@@ -61,6 +61,7 @@ export default async function ProfilePage({ params }: Props) {
     currentUserRes,
     isFollowingRes,
     initialPostsPage,
+    currentUserAvatarRes,
     profileStatusRes,
   ] = await Promise.all([
     supabase
@@ -97,7 +98,7 @@ export default async function ProfilePage({ params }: Props) {
     authUser
       ? supabase
           .from('users')
-          .select('id, account_type')
+          .select('id, username, full_name, account_type')
           .eq('id', authUser.id)
           .single()
       : Promise.resolve({ data: null }),
@@ -109,6 +110,13 @@ export default async function ProfilePage({ params }: Props) {
           .eq('following_id', profileUser.id)
       : Promise.resolve({ count: 0 }),
     fetchUserPosts(profileUser.id, authUser?.id),
+    authUser
+      ? supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('user_id', authUser.id)
+          .single()
+      : Promise.resolve({ data: null }),
     // حالة المستخدم النشطة (إن وجدت)
     supabase
       .from('status_updates')
@@ -123,6 +131,15 @@ export default async function ProfilePage({ params }: Props) {
   const currentUser = currentUserRes.data
     ? { id: currentUserRes.data.id, account_type: currentUserRes.data.account_type }
     : null;
+
+  const feedCurrentUser = currentUserRes.data
+    ? {
+        id: currentUserRes.data.id,
+        username: currentUserRes.data.username,
+        full_name: currentUserRes.data.full_name,
+        avatar_url: currentUserAvatarRes?.data?.avatar_url ?? null,
+      }
+    : undefined;
 
   const isCustomerProfile =
     !!currentUser && currentUser.account_type === 'customer' && !isOwnProfile;
@@ -208,7 +225,7 @@ export default async function ProfilePage({ params }: Props) {
     profileStatus = {
       id: raw.id,
       user_id: raw.user_id,
-      content_type: (raw.content_type ?? 'text') as import('@/lib/actions/status').StatusContentType,
+      content_type: (raw.content_type ?? 'text') as import('@/lib/types/status.types').StatusContentType,
       content: raw.content ?? null,
       media_url: raw.media_url ?? null,
       thumbnail_url: raw.thumbnail_url ?? null,
@@ -222,6 +239,7 @@ export default async function ProfilePage({ params }: Props) {
       likes_count: raw.likes_count ?? 0,
       viewed,
       my_reaction: null,
+      shared_post_id: null,
       user: {
         id: profileUser.id,
         username: profileUser.username,
@@ -283,6 +301,7 @@ export default async function ProfilePage({ params }: Props) {
           <FeedList
             feedType="user"
             currentUserId={authUser?.id}
+            currentUser={feedCurrentUser}
             profileUserId={profileUser.id}
             ownerName={profileUser.full_name}
             isOwnProfile={isOwnProfile}

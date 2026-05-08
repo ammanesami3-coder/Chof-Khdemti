@@ -44,18 +44,38 @@ export type RecentComment = {
   replies?: RecentComment[];
 };
 
+/** Minimal embedded data for a shared (original) post */
+export type SharedPostData = {
+  id: string;
+  content: string | null;
+  media: PostMedia[];
+  created_at: string;
+  author: {
+    id: string;
+    username: string;
+    full_name: string;
+    avatar_url: string | null;
+    is_verified?: boolean;
+  };
+};
+
 export type PostWithAuthor = {
   id: string;
   content: string | null;
   media: PostMedia[];
   likes_count: number;
   comments_count: number;
+  shares_count: number;
   created_at: string;
   author_id: string;
   /** Whether the currently-authenticated user has liked this post */
   is_liked?: boolean;
   /** True while the post is being optimistically shown before server confirms */
   is_pending?: boolean;
+  /** Set when this post is a repost of another */
+  shared_post_id?: string | null;
+  /** Embedded original post data when shared_post_id is set */
+  shared_post?: SharedPostData | null;
   author: {
     id: string;
     username: string;
@@ -64,6 +84,6 @@ export type PostWithAuthor = {
     /** From profiles.is_verified */
     is_verified?: boolean;
   };
-  /** Last 2 comments, populated by the feed query (task 3) */
+  /** Last 2 comments, populated by the feed query */
   recent_comments?: RecentComment[];
 };

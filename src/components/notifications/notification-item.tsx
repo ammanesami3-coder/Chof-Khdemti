@@ -11,7 +11,7 @@ import type { NotificationItem } from '@/hooks/use-notifications';
 type Props = {
   notification: NotificationItem;
   onRead: (id: string) => void;
-  onClose: () => void;
+  onClose?: () => void;
 };
 
 const TYPE_CONFIG = {
@@ -44,7 +44,13 @@ const TYPE_CONFIG = {
 
 function getDestination(n: NotificationItem): string {
   if (n.type === 'follow') return `/profile/${n.actor.username}`;
-  if (n.post_id) return `/post/${n.post_id}`;
+  if (n.post_id) {
+    const commentTypes = new Set(['comment', 'comment_reply', 'comment_like']);
+    if (commentTypes.has(n.type) && n.comment_id) {
+      return `/post/${n.post_id}?comment=${n.comment_id}`;
+    }
+    return `/post/${n.post_id}`;
+  }
   return `/profile/${n.actor.username}`;
 }
 
@@ -63,7 +69,7 @@ export function NotificationItemCard({ notification: n, onRead, onClose }: Props
 
   function handleClick() {
     if (!n.is_read) onRead(n.id);
-    onClose();
+    onClose?.();
   }
 
   return (
@@ -110,7 +116,7 @@ export function NotificationItemCard({ notification: n, onRead, onClose }: Props
           {' '}
           <span className="text-foreground/80">{config.text}</span>
         </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{timeAgo}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground" suppressHydrationWarning>{timeAgo}</p>
       </div>
 
       {/* Post thumbnail */}

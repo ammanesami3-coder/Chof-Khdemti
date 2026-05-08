@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Plus } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { StatusComposer } from './status-composer';
 import { StatusViewer } from './status-viewer';
-import type { StatusGroup, StatusWithUser } from '@/lib/actions/status';
+import { cn } from '@/lib/utils';
+import type { StatusGroup, StatusWithUser } from '@/lib/types/status.types';
 
 type CurrentUser = {
   id: string;
@@ -29,7 +30,7 @@ export function StatusBar({ currentUser, initialGroups }: Props) {
   const ownGroup = groups.find((g) => g.user.id === currentUser.id) ?? null;
   const otherGroups = groups.filter((g) => g.user.id !== currentUser.id);
 
-  // All groups ordered: own first
+  // Viewer always starts with own group first
   const orderedGroups: StatusGroup[] = ownGroup
     ? [ownGroup, ...otherGroups]
     : otherGroups;
@@ -40,13 +41,14 @@ export function StatusBar({ currentUser, initialGroups }: Props) {
     setViewerOpen(true);
   }
 
-  function handleOwnClick() {
-    if (ownGroup) {
-      openViewerForGroup(currentUser.id);
-    } else {
-      setComposerOpen(true);
+  // Listen for story shares coming from post cards (cross-component)
+  useEffect(() => {
+    function onStoryCreated(e: Event) {
+      handleStatusCreated((e as CustomEvent<StatusWithUser>).detail);
     }
-  }
+    window.addEventListener('status:story-created', onStoryCreated);
+    return () => window.removeEventListener('status:story-created', onStoryCreated);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleStatusCreated(newStatus: StatusWithUser) {
     setGroups((prev) => {
@@ -79,89 +81,40 @@ export function StatusBar({ currentUser, initialGroups }: Props) {
         statuses: g.statuses.map((s) =>
           s.id === statusId ? { ...s, viewed: true } : s,
         ),
-        hasUnviewed: g.statuses.some(
-          (s) => !s.viewed && s.id !== statusId,
-        ),
+        hasUnviewed: g.statuses.some((s) => !s.viewed && s.id !== statusId),
       })),
     );
   }
 
   return (
     <>
-      {/* ── Scrollable story strip ─────────────────────────────── */}
       <div
-        className="mb-4 flex gap-2.5 overflow-x-auto pb-1"
+        className="mb-4 flex gap-2 overflow-x-auto pb-1"
         style={{ scrollbarWidth: 'none' }}
         dir="rtl"
       >
-        {/* ── Create / Own Story card ─────────────── */}
-        <button
-          onClick={handleOwnClick}
-          className="relative shrink-0 overflow-hidden rounded-2xl transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          style={{ width: 110, height: 196 }}
-          aria-label={ownGroup ? 'حالاتي' : 'إضافة حالة'}
-        >
-          {ownGroup ? (
-            /* Has own stories — show latest as card */
-            <StoryCardContent story={ownGroup.statuses[0]!} isOwn />
-          ) : (
-            /* No own stories — create card */
-            <div className="flex h-full w-full flex-col items-center justify-end bg-muted pb-3">
-              <div className="relative mb-auto mt-4">
-                <UserAvatar
-                  user={{
-                    username: currentUser.username,
-                    full_name: currentUser.full_name,
-                    avatar_url: currentUser.avatar_url,
-                  }}
-                  size="xl"
-                  linkable={false}
-                />
-                <span className="absolute -bottom-1 -end-1 flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
-                  <Plus className="size-4" strokeWidth={2.5} />
-                </span>
-              </div>
-              <span className="mt-auto text-[11px] font-medium text-foreground">
-                إضافة حالة
-              </span>
-            </div>
-          )}
-        </button>
+        {/* ── Create Story card — ALWAYS first ─────────────────────────── */}
+        <CreateStoryCard
+          currentUser={currentUser}
+          onClick={() => setComposerOpen(true)}
+        />
 
-        {/* ── Other users' story cards ────────────── */}
+        {/* ── Own story card — appears only when user has stories ───────── */}
+        {ownGroup && (
+          <StoryCard
+            group={ownGroup}
+            isOwn
+            onClick={() => openViewerForGroup(currentUser.id)}
+          />
+        )}
+
+        {/* ── Other users' story cards ──────────────────────────────────── */}
         {otherGroups.map((group) => (
-          <button
+          <StoryCard
             key={group.user.id}
+            group={group}
             onClick={() => openViewerForGroup(group.user.id)}
-            className="relative shrink-0 overflow-hidden rounded-2xl transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            style={{ width: 110, height: 196 }}
-            aria-label={`حالة ${group.user.full_name}`}
-          >
-            <StoryCardContent story={group.statuses[0]!} />
-
-            {/* Ring indicator */}
-            <div
-              className={[
-                'pointer-events-none absolute inset-0 rounded-2xl',
-                group.hasUnviewed
-                  ? 'ring-[3px] ring-inset ring-gradient-to-tr ring-green-500'
-                  : 'ring-2 ring-inset ring-white/30',
-              ].join(' ')}
-            />
-
-            {/* Avatar + username overlay */}
-            <div className="absolute inset-0 flex flex-col justify-between p-2">
-              {/* Avatar at top */}
-              <AvatarWithRing
-                user={group.user}
-                hasUnviewed={group.hasUnviewed}
-              />
-              {/* Username at bottom */}
-              <p className="truncate text-start text-[11px] font-semibold text-white drop-shadow">
-                {group.user.username}
-              </p>
-            </div>
-          </button>
+          />
         ))}
       </div>
 
@@ -186,74 +139,143 @@ export function StatusBar({ currentUser, initialGroups }: Props) {
   );
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── CreateStoryCard ───────────────────────────────────────────────────────────
 
-function StoryCardContent({
-  story,
-  isOwn = false,
+function CreateStoryCard({
+  currentUser,
+  onClick,
 }: {
-  story: StatusWithUser;
-  isOwn?: boolean;
+  currentUser: { username: string; full_name: string; avatar_url: string | null };
+  onClick: () => void;
 }) {
-  if (story.content_type === 'text') {
-    return (
-      <div
-        className="flex h-full w-full items-center justify-center p-2"
-        style={{ background: story.background_color }}
-      >
-        <p
-          className="line-clamp-4 text-center text-sm font-semibold leading-snug"
-          style={{ color: story.text_color, fontFamily: fontFamilyFromStyle(story.font_style) }}
-        >
-          {story.content}
-        </p>
-        {isOwn && (
-          <div className="absolute inset-0 flex flex-col justify-between p-2">
-            <span className="text-start text-[10px] font-medium text-white/80 drop-shadow">
-              حالتي
-            </span>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  const imgSrc = story.thumbnail_url ?? story.media_url ?? '';
-
   return (
-    <>
-      {imgSrc && (
-        <Image
-          src={imgSrc}
-          alt=""
-          fill
-          className="object-cover"
-          sizes="110px"
-        />
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="إنشاء قصة"
+      className={cn(
+        'group relative shrink-0 overflow-hidden rounded-xl',
+        'border border-border bg-card shadow-sm',
+        'transition-transform duration-150 hover:scale-[1.02] active:scale-[0.97]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
       )}
-      {/* Gradient overlays for readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
-    </>
+      style={{ width: 108, height: 192 }}
+    >
+      {/* Top section: avatar as background */}
+      <div className="relative overflow-hidden bg-muted" style={{ height: 138 }}>
+        {currentUser.avatar_url ? (
+          <Image
+            src={currentUser.avatar_url}
+            alt=""
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="108px"
+          />
+        ) : (
+          <div className="h-full w-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800" />
+        )}
+
+        {/* Plus badge at the bottom edge of the photo */}
+        <div className="absolute -bottom-[18px] left-1/2 -translate-x-1/2 z-10 flex size-9 items-center justify-center rounded-full bg-primary shadow-lg ring-[3px] ring-card">
+          <Plus className="size-5 text-primary-foreground" strokeWidth={2.5} />
+        </div>
+      </div>
+
+      {/* Bottom section: label */}
+      <div className="flex h-[54px] flex-col items-center justify-end pb-3 pt-5 bg-card">
+        <span className="text-center text-[11.5px] font-semibold text-foreground leading-tight">
+          إنشاء قصة
+        </span>
+      </div>
+    </button>
   );
 }
 
-function AvatarWithRing({
-  user,
-  hasUnviewed,
+// ── StoryCard ─────────────────────────────────────────────────────────────────
+
+function StoryCard({
+  group,
+  isOwn = false,
+  onClick,
 }: {
-  user: { id: string; username: string; full_name: string; avatar_url: string | null };
-  hasUnviewed: boolean;
+  group: StatusGroup;
+  isOwn?: boolean;
+  onClick: () => void;
 }) {
-  return hasUnviewed ? (
-    <span className="block rounded-full bg-gradient-to-tr from-red-600 via-orange-400 to-green-500 p-[2px] shadow">
-      <span className="block rounded-full bg-black/20 p-[1.5px]">
-        <UserAvatar user={user} size="sm" linkable={false} />
-      </span>
-    </span>
-  ) : (
-    <span className="block rounded-full border-2 border-white/60 p-[1.5px] shadow">
-      <UserAvatar user={user} size="sm" linkable={false} />
-    </span>
+  const story = group.statuses[0]!;
+  const { user, hasUnviewed } = group;
+  const hasRing = isOwn || hasUnviewed;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={isOwn ? 'قصتي' : `قصة ${user.full_name}`}
+      className={cn(
+        'group relative shrink-0 overflow-hidden rounded-xl shadow-sm',
+        'transition-transform duration-150 hover:scale-[1.02] active:scale-[0.97]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+      )}
+      style={{ width: 108, height: 192 }}
+    >
+      {/* ── Story background ─── */}
+      {story.content_type === 'text' ? (
+        <div
+          className="h-full w-full flex items-center justify-center p-3"
+          style={{ background: story.background_color }}
+        >
+          <p
+            className="line-clamp-5 text-center text-[11px] font-semibold leading-snug"
+            style={{
+              color: story.text_color,
+              fontFamily: fontFamilyFromStyle(story.font_style),
+            }}
+          >
+            {story.content}
+          </p>
+        </div>
+      ) : (
+        <>
+          {(story.thumbnail_url ?? story.media_url) && (
+            <Image
+              src={story.thumbnail_url ?? story.media_url ?? ''}
+              alt=""
+              fill
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              sizes="108px"
+            />
+          )}
+          {/* Gradient overlay for readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/20" />
+        </>
+      )}
+
+      {/* ── Avatar with ring at top-start ─── */}
+      <div className="absolute top-2.5 start-2.5 z-10">
+        <div
+          className={cn(
+            'rounded-full p-[2.5px] shadow-md',
+            hasRing ? 'bg-[#1877F2]' : 'bg-white/40',
+          )}
+        >
+          <div className="rounded-full overflow-hidden ring-[2px] ring-card">
+            <UserAvatar user={user} size="sm" linkable={false} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Name at bottom ─── */}
+      <div className="absolute bottom-0 inset-x-0 px-2.5 pb-3 z-10">
+        <p className="truncate text-start text-[11.5px] font-semibold text-white drop-shadow-md leading-tight">
+          {isOwn ? 'قصتي' : user.full_name}
+        </p>
+      </div>
+
+      {/* ── Unviewed border ring ─── */}
+      {hasRing && (
+        <div className="pointer-events-none absolute inset-0 rounded-xl ring-[2.5px] ring-inset ring-[#1877F2]/50" />
+      )}
+    </button>
   );
 }
 

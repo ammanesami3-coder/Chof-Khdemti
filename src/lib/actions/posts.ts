@@ -59,6 +59,7 @@ export async function createPost(
       media: ((post.media as unknown) ?? []) as PostMedia[],
       likes_count: (post.likes_count as number) ?? 0,
       comments_count: (post.comments_count as number) ?? 0,
+      shares_count: 0,
       created_at: post.created_at as string,
       author_id: user.id,
       author: {

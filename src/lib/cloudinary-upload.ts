@@ -6,6 +6,18 @@ export type MediaItem = {
   publicId?: string;
 };
 
+export type AttachmentUploadResult = {
+  url:           string;
+  resource_type: "image" | "video" | "raw";
+  filename:      string;
+  size:          number;
+  mime_type:     string;
+  width?:        number;
+  height?:       number;
+  duration?:     number;
+  thumbnail_url?: string;
+};
+
 type UploadPreset = "avatar" | "cover" | "post_image" | "post_video";
 
 /**
@@ -87,6 +99,97 @@ export async function uploadToCloudinary(
       "POST",
       `https://api.cloudinary.com/v1_1/${cloud_name}/${resourceType}/upload`
     );
+    xhr.send(formData);
+  });
+}
+
+/**
+ * Uploads a message attachment (image/video/document/audio) to Cloudinary.
+ */
+export async function uploadAttachmentToCloudinary(
+  file: File,
+  attachmentType: "image" | "video" | "document" | "audio",
+  onProgress?: (percent: number) => void,
+): Promise<AttachmentUploadResult> {
+  const presetMap = {
+    image:    "msg_image",
+    video:    "msg_video",
+    document: "msg_document",
+    audio:    "msg_audio",
+  } as const;
+
+  const signRes = await fetch("/api/cloudinary/sign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ preset: presetMap[attachmentType] }),
+  });
+  if (!signRes.ok) throw new Error("فشل الحصول على توقيع الرفع");
+
+  const { signature, timestamp, cloud_name, api_key, folder, resource_type } =
+    (await signRes.json()) as {
+      signature: string;
+      timestamp: number;
+      cloud_name: string;
+      api_key: string;
+      folder: string;
+      resource_type: string;
+    };
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("signature", signature);
+  formData.append("timestamp", String(timestamp));
+  formData.append("api_key", api_key);
+  formData.append("folder", folder);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const data = JSON.parse(xhr.responseText) as {
+          secure_url: string;
+          width?: number;
+          height?: number;
+          duration?: number;
+        };
+
+        const url = data.secure_url;
+        let thumbnail_url: string | undefined;
+
+        if (attachmentType === "video") {
+          thumbnail_url = url
+            .replace("/video/upload/", "/video/upload/so_0,f_jpg,c_thumb,w_400/")
+            .replace(/\.\w+$/, ".jpg");
+        } else if (attachmentType === "image") {
+          thumbnail_url = url.replace("/image/upload/", "/image/upload/w_400,q_auto/");
+        }
+
+        resolve({
+          url,
+          resource_type: resource_type as "image" | "video" | "raw",
+          filename:  file.name,
+          size:      file.size,
+          mime_type: file.type,
+          width:     data.width,
+          height:    data.height,
+          duration:  data.duration ? Math.round(data.duration) : undefined,
+          thumbnail_url,
+        });
+      } else {
+        reject(new Error("فشل رفع الملف إلى Cloudinary"));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("خطأ في الشبكة أثناء الرفع"));
+
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloud_name}/${resource_type}/upload`);
     xhr.send(formData);
   });
 }

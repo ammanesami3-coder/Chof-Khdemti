@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, Square, X, Loader2 } from 'lucide-react';
+import { Mic, Send, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { uploadVoiceToCloudinary } from '@/lib/cloudinary-upload';
@@ -9,8 +9,6 @@ import { sendVoiceMessage } from '@/lib/actions/messages';
 import type { SentMessage } from '@/lib/actions/messages';
 
 const MAX_SECONDS = 300; // 5 minutes
-
-type RecordingState = 'idle' | 'recording' | 'uploading';
 
 type Props = {
   conversationId: string;
@@ -33,27 +31,30 @@ export function VoiceRecorder({
   disabled,
   className,
 }: Props) {
-  const [state, setState] = useState<RecordingState>('idle');
+  const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
-  const [uploadProgress, setUploadProgress] = useState(0);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef   = useRef<Blob[]>([]);
   const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef   = useRef<MediaStream | null>(null);
+  const secondsRef  = useRef(0);
 
-  // Notify parent whenever recording state changes
+  // Keep secondsRef in sync with state for use inside callbacks
+  useEffect(() => { secondsRef.current = seconds; }, [seconds]);
+
+  // Notify parent when recording state changes
   useEffect(() => {
-    onRecordingChange(state === 'recording');
-  }, [state, onRecordingChange]);
+    onRecordingChange(recording);
+  }, [recording, onRecordingChange]);
 
   // Auto-stop at MAX_SECONDS
   useEffect(() => {
-    if (state === 'recording' && seconds >= MAX_SECONDS) {
+    if (recording && seconds >= MAX_SECONDS) {
       stopAndSend();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seconds, state]);
+  }, [seconds, recording]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -84,7 +85,7 @@ export function VoiceRecorder({
       };
 
       recorder.start(200);
-      setState('recording');
+      setRecording(true);
       setSeconds(0);
 
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -102,7 +103,7 @@ export function VoiceRecorder({
       timerRef.current = null;
     }
 
-    const duration = seconds;
+    const duration = secondsRef.current;
 
     // Stop recorder and collect final chunks
     await new Promise<void>((resolve) => {
@@ -114,42 +115,36 @@ export function VoiceRecorder({
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
 
-    if (chunksRef.current.length === 0) {
-      setState('idle');
-      setSeconds(0);
-      return;
-    }
+    // Go idle immediately — no "uploading" UI shown
+    const capturedChunks = [...chunksRef.current];
+    chunksRef.current = [];
+    setRecording(false);
+    setSeconds(0);
 
-    setState('uploading');
-    setUploadProgress(0);
+    if (capturedChunks.length === 0) return;
 
+    // Upload and send silently in background
     try {
-      const mimeType = chunksRef.current[0]?.type ?? 'audio/webm';
-      const blob = new Blob(chunksRef.current, { type: mimeType });
+      const mimeType = capturedChunks[0]?.type ?? 'audio/webm';
+      const blob = new Blob(capturedChunks, { type: mimeType });
 
-      const { url, duration: cloudDuration } = await uploadVoiceToCloudinary(
-        blob,
-        setUploadProgress,
-      );
-
+      const { url, duration: cloudDuration } = await uploadVoiceToCloudinary(blob, () => {});
       const finalDuration = cloudDuration > 0 ? cloudDuration : duration;
-
       const result = await sendVoiceMessage(conversationId, url, finalDuration);
 
       if (result.error || !result.data) {
-        toast.error(result.error === 'subscription_required' ? 'يجب الاشتراك للرد' : 'فشل إرسال الرسالة الصوتية');
+        toast.error(
+          result.error === 'subscription_required'
+            ? 'يجب الاشتراك للرد'
+            : 'فشل إرسال الرسالة الصوتية',
+        );
       } else {
         onSent(result.data);
       }
     } catch {
       toast.error('فشل رفع الرسالة الصوتية');
-    } finally {
-      setState('idle');
-      setSeconds(0);
-      setUploadProgress(0);
-      chunksRef.current = [];
     }
-  }, [conversationId, onSent, seconds]);
+  }, [conversationId, onSent]);
 
   const cancel = useCallback(() => {
     if (timerRef.current) {
@@ -164,12 +159,12 @@ export function VoiceRecorder({
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     chunksRef.current = [];
-    setState('idle');
+    setRecording(false);
     setSeconds(0);
   }, []);
 
-  /* ── Idle: just the mic button ─────────────────────────────── */
-  if (state === 'idle') {
+  /* ── Idle: mic button ──────────────────────────────────────── */
+  if (!recording) {
     return (
       <button
         type="button"
@@ -186,22 +181,6 @@ export function VoiceRecorder({
       >
         <Mic className="h-5 w-5" />
       </button>
-    );
-  }
-
-  /* ── Uploading ─────────────────────────────────────────────── */
-  if (state === 'uploading') {
-    return (
-      <div
-        className={cn(
-          'flex flex-1 items-center justify-center gap-2 rounded-2xl',
-          'bg-muted px-4 py-2 text-sm text-muted-foreground',
-          className,
-        )}
-      >
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span>جارٍ الرفع {uploadProgress > 0 ? `${uploadProgress}%` : ''}…</span>
-      </div>
     );
   }
 
@@ -238,14 +217,14 @@ export function VoiceRecorder({
         </span>
       </div>
 
-      {/* Stop & Send */}
+      {/* Send */}
       <button
         type="button"
         onClick={stopAndSend}
-        aria-label="إيقاف وإرسال"
+        aria-label="إرسال الرسالة الصوتية"
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:opacity-90"
       >
-        <Square className="h-4 w-4 fill-current" />
+        <Send className="h-4 w-4" />
       </button>
     </div>
   );

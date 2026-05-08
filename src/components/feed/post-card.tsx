@@ -8,8 +8,8 @@ import useEmblaCarousel from "embla-carousel-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
-const InlineCommentsLazy = dynamic(
-  () => import("@/components/feed/inline-comments").then((m) => m.InlineComments),
+const CommentsSheetLazy = dynamic(
+  () => import("@/components/feed/comments-sheet").then((m) => m.CommentsSheet),
   { ssr: false }
 );
 const OptimizedVideoLazy = dynamic(
@@ -20,6 +20,14 @@ const MediaLightboxLazy = dynamic(
   () => import("@/components/shared/media-lightbox").then((m) => m.MediaLightbox),
   { ssr: false }
 );
+const ShareSheetLazy = dynamic(
+  () => import("@/components/feed/share-sheet").then((m) => m.ShareSheet),
+  { ssr: false }
+);
+const SharedPostEmbedLazy = dynamic(
+  () => import("@/components/feed/shared-post-embed").then((m) => m.SharedPostEmbed),
+  { ssr: false, loading: () => <div className="mx-4 mt-3 h-20 animate-pulse rounded-xl bg-muted" /> }
+);
 import {
   BadgeCheck,
   Bookmark,
@@ -29,6 +37,7 @@ import {
   Heart,
   MessageCircle,
   MoreHorizontal,
+  Repeat2,
   Share2,
   Trash2,
 } from "lucide-react";
@@ -281,6 +290,8 @@ export type PostCardProps = {
   onDelete?: (postId: string) => void;
   /** Mark first above-the-fold image as priority for LCP */
   priority?: boolean;
+  /** Comment ID to highlight + auto-open the comments sheet */
+  initialCommentHighlight?: string;
 };
 
 export function PostCard({
@@ -289,12 +300,14 @@ export function PostCard({
   currentUser,
   onDelete,
   priority = false,
+  initialCommentHighlight,
 }: PostCardProps) {
   const [bouncing, setBouncing] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentAutoFocus, setCommentAutoFocus] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(!!initialCommentHighlight);
+  const [sheetAutoFocus, setSheetAutoFocus] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [shareOpen, setShareOpen] = useState(false);
   const likeMutation = useLikePost();
 
   const lightboxImages = post.media
@@ -317,18 +330,25 @@ export function PostCard({
     likeMutation.mutate(post.id);
   }
 
-  async function handleShare() {
-    const url = `${window.location.origin}/post/${post.id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("تم نسخ رابط المنشور");
-    } catch {
-      toast.error("تعذّر نسخ الرابط");
-    }
+  function handleShare() {
+    setShareOpen(true);
   }
 
   return (
     <article className={`rounded-xl border bg-card transition-opacity${post.is_pending ? " opacity-50" : ""}`}>
+      {/* ── Repost indicator ────────────────────────────────────────── */}
+      {post.shared_post_id && (
+        <div className="flex items-center gap-1.5 px-4 pt-3 pb-0 text-xs text-muted-foreground">
+          <Repeat2 className="size-3.5 shrink-0" />
+          <span>
+            <Link href={`/profile/${post.author.username}`} className="font-medium hover:underline">
+              {post.author.full_name}
+            </Link>
+            {" "}شارك منشوراً
+          </span>
+        </div>
+      )}
+
       {/* ── Pending indicator ───────────────────────────────────────── */}
       {post.is_pending && (
         <div className="flex items-center gap-1.5 px-4 pt-3 text-xs text-muted-foreground">
@@ -364,7 +384,7 @@ export function PostCard({
               @{post.author.username}
             </Link>
             {" · "}
-            <time dateTime={post.created_at} title={post.created_at}>
+            <time dateTime={post.created_at} title={post.created_at} suppressHydrationWarning>
               {timeAgo}
             </time>
           </p>
@@ -407,6 +427,13 @@ export function PostCard({
       {post.content && (
         <div className="px-4 pt-3">
           <PostContent content={post.content} />
+        </div>
+      )}
+
+      {/* ── Shared post embed (repost) ──────────────────────────────── */}
+      {post.shared_post && (
+        <div className="px-4 pt-3">
+          <SharedPostEmbedLazy post={post.shared_post} />
         </div>
       )}
 
@@ -469,23 +496,14 @@ export function PostCard({
           <button
             type="button"
             onClick={() => {
-              if (commentsOpen) {
-                setCommentsOpen(false);
-              } else {
-                setCommentAutoFocus(true);
-                setCommentsOpen(true);
-              }
+              setSheetAutoFocus(true);
+              setSheetOpen(true);
             }}
             disabled={isPending}
             aria-label="تعليق"
-            aria-pressed={commentsOpen}
-            className={`flex items-center gap-1.5 rounded-full px-2 py-1.5 transition-colors disabled:pointer-events-none ${
-              commentsOpen
-                ? "text-primary"
-                : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
-            }`}
+            className="flex items-center gap-1.5 rounded-full px-2 py-1.5 transition-colors disabled:pointer-events-none text-muted-foreground hover:bg-primary/10 hover:text-primary"
           >
-            <MessageCircle className={`size-5 ${commentsOpen ? "fill-primary/20" : ""}`} />
+            <MessageCircle className="size-5" />
             {post.comments_count > 0 && (
               <span className="text-xs font-medium">{post.comments_count}</span>
             )}
@@ -497,31 +515,39 @@ export function PostCard({
           type="button"
           onClick={handleShare}
           aria-label="مشاركة المنشور"
-          className="ms-auto rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="ms-auto flex items-center gap-1.5 rounded-full px-2 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Share2 className="size-4" />
+          {(post.shares_count ?? 0) > 0 && (
+            <span className="text-xs font-medium">{post.shares_count}</span>
+          )}
         </button>
       </div>
 
-      {/* ── Comments preview (when collapsed) ──────────────────── */}
-      {!commentsOpen && post.recent_comments && post.recent_comments.length > 0 && (
+      {/* ── Comments preview ────────────────────────────────────────── */}
+      {post.recent_comments && post.recent_comments.length > 0 && (
         <div className="space-y-2 border-t px-4 pb-3 pt-3">
           {post.recent_comments.slice(0, 2).map((comment) => (
-            <div key={comment.id} className="flex items-start gap-2">
-              <UserAvatar user={comment.author} size="xs" className="mt-0.5 shrink-0" />
+            <button
+              key={comment.id}
+              type="button"
+              onClick={() => setSheetOpen(true)}
+              className="flex w-full items-start gap-2 text-start"
+            >
+              <UserAvatar user={comment.author} size="xs" className="mt-0.5 shrink-0" linkable={false} />
               <div className="inline-block max-w-[calc(100%-2.5rem)] rounded-2xl bg-muted px-3 py-1.5 text-xs leading-relaxed">
                 <span className="font-semibold text-foreground">
                   {comment.author.full_name}
                 </span>{" "}
                 <span className="text-foreground/80">{comment.content}</span>
               </div>
-            </div>
+            </button>
           ))}
 
           {post.comments_count > 2 && (
             <button
               type="button"
-              onClick={() => setCommentsOpen(true)}
+              onClick={() => setSheetOpen(true)}
               className="text-xs text-muted-foreground transition-colors hover:text-primary"
             >
               عرض الـ {post.comments_count - 2} تعليق المتبقي
@@ -531,13 +557,12 @@ export function PostCard({
       )}
 
       {/* View-comments link when no preview but count > 0 */}
-      {!commentsOpen &&
-        (!post.recent_comments || post.recent_comments.length === 0) &&
+      {(!post.recent_comments || post.recent_comments.length === 0) &&
         post.comments_count > 0 && (
           <div className="border-t px-4 pb-3 pt-2.5">
             <button
               type="button"
-              onClick={() => setCommentsOpen(true)}
+              onClick={() => setSheetOpen(true)}
               className="text-xs text-muted-foreground transition-colors hover:text-primary"
             >
               عرض {post.comments_count} تعليق
@@ -545,16 +570,17 @@ export function PostCard({
           </div>
         )}
 
-      {/* ── Inline comments (lazy-loaded, expands below the post) ── */}
-      {commentsOpen && (
-        <InlineCommentsLazy
-          postId={post.id}
-          postAuthorId={post.author_id}
-          currentUser={currentUser}
-          isAuthenticated={!!currentUserId}
-          autoFocus={commentAutoFocus}
-        />
-      )}
+      {/* ── Comments sheet (bottom sheet overlay) ───────────────── */}
+      <CommentsSheetLazy
+        postId={post.id}
+        postAuthorId={post.author_id}
+        open={sheetOpen}
+        onClose={() => { setSheetOpen(false); setSheetAutoFocus(false); }}
+        currentUser={currentUser}
+        isAuthenticated={!!currentUserId}
+        autoFocus={sheetAutoFocus}
+        highlightCommentId={initialCommentHighlight}
+      />
 
       {/* ── Media Lightbox ───────────────────────────────────────── */}
       {lightboxImages.length > 0 && (
@@ -565,6 +591,14 @@ export function PostCard({
           onClose={() => setLightboxOpen(false)}
         />
       )}
+
+      {/* ── Share Sheet ──────────────────────────────────────────── */}
+      <ShareSheetLazy
+        post={post}
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        isAuthenticated={!!currentUserId}
+      />
     </article>
   );
 }

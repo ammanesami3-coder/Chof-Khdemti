@@ -1,25 +1,22 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { X, Trash2, Eye, ChevronRight, ChevronLeft, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/shared/user-avatar';
-import { ImageLightbox } from '@/components/shared/image-lightbox';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
   viewStatus,
   toggleStatusLike,
   replyToStatus,
   deleteStatus,
   getStatusViewers,
-  type StatusGroup,
-  type StatusWithUser,
 } from '@/lib/actions/status';
+import type { StatusGroup, StatusWithUser } from '@/lib/types/status.types';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -44,7 +41,12 @@ type Props = {
   onDeleted: (statusId: string) => void;
 };
 
-type Viewer = { username: string; full_name: string; avatar_url: string | null; reaction: string | null };
+type Viewer = {
+  username: string;
+  full_name: string;
+  avatar_url: string | null;
+  reaction: string | null;
+};
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
@@ -57,6 +59,38 @@ export function StatusViewer({
   onViewed,
   onDeleted,
 }: Props) {
+  // ── SSR guard ──────────────────────────────────────────────────────────────
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  // ── Animation state ────────────────────────────────────────────────────────
+  const [shouldRender, setShouldRender] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    if (open) {
+      clearTimeout(closeTimerRef.current);
+      setShouldRender(true);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setIsVisible(true))
+      );
+    } else {
+      setIsVisible(false);
+      closeTimerRef.current = setTimeout(() => setShouldRender(false), 280);
+    }
+    return () => clearTimeout(closeTimerRef.current);
+  }, [open]);
+
+  // ── Body scroll lock ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!shouldRender) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [shouldRender]);
+
+  // ── Story state ────────────────────────────────────────────────────────────
   const [groupIdx, setGroupIdx] = useState(initialGroupIdx);
   const [storyIdx, setStoryIdx] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -67,26 +101,38 @@ export function StatusViewer({
   const [viewers, setViewers] = useState<Viewer[]>([]);
   const [showViewers, setShowViewers] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [coverOpen, setCoverOpen] = useState(false);
 
-  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const storyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ── Refs ───────────────────────────────────────────────────────────────────
+  const containerRef = useRef<HTMLDivElement>(null);
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const storyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const longPressActiveRef = useRef(false);
 
+  // Swipe-to-dismiss state
+  const touchRef = useRef({ startX: 0, startY: 0, moved: false, isVertical: false });
+
+  // ── Derived ────────────────────────────────────────────────────────────────
   const group = groups[groupIdx] as StatusGroup | undefined;
   const story = group?.statuses[storyIdx] as StatusWithUser | undefined;
   const isOwn = story?.user_id === currentUserId;
+  const durationMs = (story?.duration ?? 5) * 1000;
+  const progressKey = `${groupIdx}-${storyIdx}`;
 
   // ── Reset on open ──────────────────────────────────────────────────────────
-
   useEffect(() => {
     if (open) {
       setGroupIdx(initialGroupIdx);
       setStoryIdx(0);
+      setPaused(false);
+      setIsReplyFocused(false);
+      setShowReactions(false);
+      setShowViewers(false);
+      setReplyText('');
     }
   }, [open, initialGroupIdx]);
 
-  // ── Per-story side effects ─────────────────────────────────────────────────
-
+  // ── Per-story reset ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!story) return;
     setLocalReaction(story.my_reaction);
@@ -94,6 +140,7 @@ export function StatusViewer({
     setShowViewers(false);
     setReplyText('');
     setIsReplyFocused(false);
+    setPaused(false);
 
     if (!story.viewed) {
       viewStatus(story.id)
@@ -102,8 +149,7 @@ export function StatusViewer({
     }
   }, [story?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Auto-advance ───────────────────────────────────────────────────────────
-
+  // ── Advance ────────────────────────────────────────────────────────────────
   const advance = useCallback(() => {
     if (!group) return;
     if (storyIdx < group.statuses.length - 1) {
@@ -116,17 +162,35 @@ export function StatusViewer({
     }
   }, [group, storyIdx, groupIdx, groups.length, onOpenChange]);
 
+  // ── Auto-advance timer ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (!open || paused || isReplyFocused || !story) return;
-    const ms = (story.duration ?? 5) * 1000;
-    storyTimer.current = setTimeout(advance, ms);
+    if (!open || paused || isReplyFocused || !story || showViewers) return;
+    storyTimerRef.current = setTimeout(advance, durationMs);
     return () => {
-      if (storyTimer.current) clearTimeout(storyTimer.current);
+      if (storyTimerRef.current) clearTimeout(storyTimerRef.current);
     };
-  }, [open, paused, isReplyFocused, story?.id, advance]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, paused, isReplyFocused, story?.id, advance, showViewers, durationMs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Video play/pause sync ──────────────────────────────────────────────────
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    if (paused || isReplyFocused || showViewers) {
+      vid.pause();
+    } else {
+      vid.play().catch(() => {});
+    }
+  }, [paused, isReplyFocused, showViewers]);
+
+  // Reset video when navigating to a different story
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    vid.currentTime = 0;
+    if (!paused) vid.play().catch(() => {});
+  }, [story?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Navigation ─────────────────────────────────────────────────────────────
-
   function goPrev() {
     if (storyIdx > 0) {
       setStoryIdx((i) => i - 1);
@@ -142,31 +206,111 @@ export function StatusViewer({
   }
 
   // ── Keyboard ───────────────────────────────────────────────────────────────
-
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { onOpenChange(false); return; }
       if (e.key === 'ArrowRight') goPrev();
       if (e.key === 'ArrowLeft') goNext();
-      if (e.key === 'Escape') onOpenChange(false);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, groupIdx, storyIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Long-press pause ───────────────────────────────────────────────────────
-
-  function handlePointerDown() {
-    pressTimer.current = setTimeout(() => setPaused(true), 180);
+  function startPressTimer() {
+    longPressActiveRef.current = false;
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    pressTimerRef.current = setTimeout(() => {
+      pressTimerRef.current = null;
+      longPressActiveRef.current = true;
+      setPaused(true);
+    }, 200);
   }
 
-  function handlePointerUp() {
-    if (pressTimer.current) clearTimeout(pressTimer.current);
+  function clearPressTimer() {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+    longPressActiveRef.current = false;
     setPaused(false);
   }
 
-  // ── Reactions ──────────────────────────────────────────────────────────────
+  // ── Swipe-to-dismiss (touch) ───────────────────────────────────────────────
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0]!;
+    touchRef.current = { startX: t.clientX, startY: t.clientY, moved: false, isVertical: false };
+    startPressTimer();
+  }
 
+  function onTouchMove(e: React.TouchEvent) {
+    const t = e.touches[0]!;
+    const dx = t.clientX - touchRef.current.startX;
+    const dy = t.clientY - touchRef.current.startY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (!touchRef.current.moved && dist > 10) {
+      touchRef.current.moved = true;
+      touchRef.current.isVertical = Math.abs(dy) > Math.abs(dx);
+      // Cancel the press timer on movement, but only if long press hasn't activated yet.
+      // If longPressActiveRef is true, keep paused so the user can hold and pan without unpausing.
+      if (pressTimerRef.current) {
+        clearTimeout(pressTimerRef.current);
+        pressTimerRef.current = null;
+      }
+    }
+
+    if (!touchRef.current.isVertical || dy <= 0) return;
+
+    // Vertical swipe down → dismiss
+    setPaused(true);
+    if (containerRef.current) {
+      containerRef.current.style.transform = `translateY(${dy}px)`;
+      containerRef.current.style.opacity = `${Math.max(0.2, 1 - dy / 280)}`;
+    }
+  }
+
+  function onTouchEnd(e: React.TouchEvent) {
+    const t = e.changedTouches[0]!;
+    const dy = t.clientY - touchRef.current.startY;
+
+    clearPressTimer();
+
+    if (!touchRef.current.isVertical || dy <= 0) {
+      // Regular tap or upward swipe — restore and resume
+      resetContainerTransform(true);
+      return;
+    }
+
+    const cont = containerRef.current;
+    if (!cont) return;
+
+    if (dy > 100) {
+      // Dismiss
+      cont.style.transition = 'transform 0.22s ease-out, opacity 0.22s ease-out';
+      cont.style.transform = 'translateY(100%)';
+      cont.style.opacity = '0';
+      setTimeout(() => onOpenChange(false), 220);
+    } else {
+      // Snap back
+      resetContainerTransform(true);
+    }
+  }
+
+  function resetContainerTransform(resume = false) {
+    const cont = containerRef.current;
+    if (!cont) return;
+    cont.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
+    cont.style.transform = '';
+    cont.style.opacity = '';
+    setTimeout(() => {
+      if (cont) cont.style.transition = '';
+      if (resume) setPaused(false);
+    }, 250);
+  }
+
+  // ── Reactions ──────────────────────────────────────────────────────────────
   async function handleReact(key: string) {
     if (!story) return;
     setShowReactions(false);
@@ -180,7 +324,6 @@ export function StatusViewer({
   }
 
   // ── Reply ──────────────────────────────────────────────────────────────────
-
   async function handleReply() {
     if (!story || !replyText.trim()) return;
     setIsSending(true);
@@ -191,12 +334,13 @@ export function StatusViewer({
     } else {
       toast.success('تم إرسال الرد');
       setReplyText('');
+      setIsReplyFocused(false);
+      setPaused(false);
     }
   }
 
-  // ── Owner: viewers ─────────────────────────────────────────────────────────
-
-  async function handleShowViewers() {
+  // ── Viewers ────────────────────────────────────────────────────────────────
+  async function handleToggleViewers() {
     if (!story) return;
     if (!showViewers) {
       const data = await getStatusViewers(story.id);
@@ -205,8 +349,7 @@ export function StatusViewer({
     setShowViewers((v) => !v);
   }
 
-  // ── Owner: delete ──────────────────────────────────────────────────────────
-
+  // ── Delete ─────────────────────────────────────────────────────────────────
   async function handleDelete() {
     if (!story) return;
     const result = await deleteStatus(story.id);
@@ -223,94 +366,177 @@ export function StatusViewer({
     }
   }
 
-  if (!group || !story) return null;
+  // ── Guard ──────────────────────────────────────────────────────────────────
+  if (!mounted || !shouldRender || !group || !story) return null;
 
-  const durationMs = (story.duration ?? 5) * 1000;
   const timeAgo = formatDistanceToNow(new Date(story.created_at), { addSuffix: true, locale: ar });
   const reactionEmoji = REACTIONS.find((r) => r.key === localReaction)?.emoji;
+  const isSuspended = paused || isReplyFocused || showViewers;
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col overflow-hidden border-none bg-black p-0 [&>button]:hidden"
-        style={{ borderRadius: 0 }}
+  return createPortal(
+    <div dir="rtl" className="fixed inset-0 z-[200] flex items-center justify-center">
+
+      {/* ── Backdrop ────────────────────────────────────────────────────────── */}
+      <div
+        className={cn(
+          'absolute inset-0 bg-black',
+          'transition-opacity duration-280',
+          isVisible ? 'opacity-100' : 'opacity-0',
+        )}
+        onClick={() => !showViewers && onOpenChange(false)}
+      />
+
+      {/* ── Desktop: prev-group arrow (RTL: right side = previous) ─────────── */}
+      {groupIdx > 0 && (
+        <button
+          type="button"
+          onClick={goPrev}
+          aria-label="المجموعة السابقة"
+          className={cn(
+            'absolute right-4 top-1/2 z-30 -translate-y-1/2',
+            'hidden sm:flex size-11 items-center justify-center',
+            'rounded-full bg-white/20 text-white backdrop-blur-sm',
+            'hover:bg-white/35 transition-colors',
+            'transition-opacity duration-280',
+            isVisible ? 'opacity-100' : 'opacity-0',
+          )}
+        >
+          <ChevronRight className="size-6" />
+        </button>
+      )}
+
+      {/* ── Desktop: next-group arrow (RTL: left side = next) ──────────────── */}
+      {groupIdx < groups.length - 1 && (
+        <button
+          type="button"
+          onClick={goNext}
+          aria-label="المجموعة التالية"
+          className={cn(
+            'absolute left-4 top-1/2 z-30 -translate-y-1/2',
+            'hidden sm:flex size-11 items-center justify-center',
+            'rounded-full bg-white/20 text-white backdrop-blur-sm',
+            'hover:bg-white/35 transition-colors',
+            'transition-opacity duration-280',
+            isVisible ? 'opacity-100' : 'opacity-0',
+          )}
+        >
+          <ChevronLeft className="size-6" />
+        </button>
+      )}
+
+      {/* ── Story container ─────────────────────────────────────────────────── */}
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`حالة ${story.user.full_name}`}
+        className={cn(
+          'relative w-full h-full overflow-hidden bg-black',
+          'sm:w-[430px] sm:h-[92dvh] sm:rounded-2xl sm:shadow-2xl',
+          'transition-opacity duration-280',
+          isVisible ? 'opacity-100' : 'opacity-0',
+        )}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onContextMenu={(e) => e.preventDefault()}
       >
-        {/* ── Progress bars ─────────────────────────────────────────────── */}
-        <div className="absolute inset-x-0 top-0 z-20 flex gap-1 px-2 pt-2">
+
+        {/* ── Progress bars ────────────────────────────────────────────────── */}
+        <div
+          className="absolute inset-x-0 top-0 z-20 flex gap-[3px] px-2"
+          style={{ paddingTop: 'max(env(safe-area-inset-top, 10px), 10px)' }}
+        >
           {group.statuses.map((s, i) => (
             <div key={s.id} className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/30">
               {i < storyIdx ? (
-                <div className="h-full w-full rounded-full bg-white" />
+                <div className="h-full w-full bg-white rounded-full" />
               ) : i === storyIdx ? (
                 <div
-                  className="h-full rounded-full bg-white"
+                  key={progressKey}
+                  className="h-full w-full rounded-full bg-white origin-left"
                   style={{
                     animation: `statusProgress ${durationMs}ms linear forwards`,
-                    animationPlayState: (paused || isReplyFocused) ? 'paused' : 'running',
+                    animationPlayState: isSuspended ? 'paused' : 'running',
                   }}
                 />
-              ) : (
-                <div className="h-full w-0 rounded-full bg-white" />
-              )}
+              ) : null}
             </div>
           ))}
         </div>
 
-        {/* ── Header ────────────────────────────────────────────────────── */}
-        <div className="absolute inset-x-0 top-5 z-20 flex items-center gap-3 px-3 py-2">
-          <button
-            type="button"
-            onClick={() => story.user.cover_url && setCoverOpen(true)}
-            aria-label={story.user.cover_url ? 'عرض صورة الغلاف' : undefined}
-            className={story.user.cover_url ? 'cursor-pointer rounded-full ring-2 ring-white/40 transition-opacity hover:opacity-80' : 'cursor-default'}
+        {/* ── Header ───────────────────────────────────────────────────────── */}
+        <div
+          className="absolute inset-x-0 z-20 flex items-center gap-2.5 px-3 py-2"
+          style={{ top: 'max(env(safe-area-inset-top, 10px) + 16px, 26px)' }}
+        >
+          {/* Avatar */}
+          <div
+            className="shrink-0 rounded-full ring-[2px] ring-white/60 shadow-md cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
           >
             <UserAvatar user={story.user} size="sm" linkable={false} />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white drop-shadow">
-              {story.user.full_name}
-            </p>
-            <p className="text-[11px] text-white/70">{timeAgo}</p>
           </div>
 
+          {/* Name + time */}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13.5px] font-semibold text-white leading-tight drop-shadow-sm">
+              {story.user.full_name}
+            </p>
+            <p className="text-[11px] text-white/70 leading-tight mt-0.5">{timeAgo}</p>
+          </div>
+
+          {/* Owner: viewers count button */}
           {isOwn && (
             <button
-              onClick={handleShowViewers}
-              className="flex items-center gap-1 rounded-full px-2 py-1 text-white/80 hover:bg-white/10 hover:text-white"
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleToggleViewers(); }}
+              className="flex items-center gap-1.5 rounded-full bg-black/30 px-2.5 py-1.5 text-white backdrop-blur-sm hover:bg-black/50 transition-colors"
+              aria-label="المشاهدون"
             >
-              <Eye className="size-4" />
-              <span className="text-xs">{story.views_count}</span>
+              <Eye className="size-3.5" />
+              <span className="text-xs font-medium">{story.views_count}</span>
             </button>
           )}
 
+          {/* Owner: delete button */}
           {isOwn && (
             <button
-              onClick={handleDelete}
-              className="rounded-full p-1 text-white/80 hover:bg-white/10 hover:text-red-400"
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+              className="rounded-full p-2 bg-black/30 text-white/80 backdrop-blur-sm hover:bg-red-500/40 hover:text-white transition-colors"
+              aria-label="حذف"
             >
               <Trash2 className="size-4" />
             </button>
           )}
 
+          {/* Close button */}
           <button
-            onClick={() => onOpenChange(false)}
-            className="rounded-full p-1 text-white/80 hover:bg-white/10 hover:text-white"
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
+            className="rounded-full p-2 bg-black/30 text-white/80 backdrop-blur-sm hover:bg-white/20 hover:text-white transition-colors"
+            aria-label="إغلاق"
           >
-            <X className="size-5" />
+            <X className="size-4.5" />
           </button>
         </div>
 
-        {/* ── Story content (with long-press area) ─────────────────────── */}
+        {/* ── Story content ─────────────────────────────────────────────────── */}
         <div
-          className="relative flex h-full w-full items-center justify-center select-none"
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
-          onContextMenu={(e) => e.preventDefault()}
+          key={`story-${groupIdx}-${storyIdx}`}
+          className="flex h-full w-full items-center justify-center select-none"
+          onPointerDown={(e) => {
+            const tag = (e.target as HTMLElement).tagName;
+            if (tag === 'BUTTON' || tag === 'INPUT') return;
+            startPressTimer();
+          }}
+          onPointerUp={clearPressTimer}
+          onPointerLeave={clearPressTimer}
         >
           {story.content_type === 'text' ? (
             <div
-              className="flex h-full w-full items-center justify-center px-10 py-24"
+              className="flex h-full w-full items-center justify-center px-10 py-28"
               style={{ background: story.background_color }}
             >
               <p
@@ -318,6 +544,7 @@ export function StatusViewer({
                 style={{
                   color: story.text_color,
                   fontFamily: fontFromStyle(story.font_style),
+                  textShadow: '0 1px 3px rgba(0,0,0,0.25)',
                 }}
               >
                 {story.content}
@@ -330,12 +557,12 @@ export function StatusViewer({
                 alt=""
                 fill
                 className="object-contain"
-                sizes="448px"
+                sizes="430px"
                 priority
               />
               {story.content && (
-                <div className="absolute inset-x-0 bottom-24 flex justify-center px-6">
-                  <p className="rounded-xl bg-black/60 px-4 py-2 text-center text-sm text-white">
+                <div className="absolute inset-x-0 bottom-28 z-10 flex justify-center px-6">
+                  <p className="max-w-xs rounded-2xl bg-black/60 px-4 py-2.5 text-center text-sm text-white backdrop-blur-sm leading-relaxed">
                     {story.content}
                   </p>
                 </div>
@@ -344,15 +571,17 @@ export function StatusViewer({
           ) : (
             <>
               <video
+                ref={videoRef}
                 src={story.media_url ?? ''}
                 className="h-full w-full object-contain"
                 autoPlay
                 playsInline
+                muted={false}
                 poster={story.thumbnail_url ?? undefined}
               />
               {story.content && (
-                <div className="absolute inset-x-0 bottom-24 flex justify-center px-6">
-                  <p className="rounded-xl bg-black/60 px-4 py-2 text-center text-sm text-white">
+                <div className="absolute inset-x-0 bottom-28 z-10 flex justify-center px-6">
+                  <p className="max-w-xs rounded-2xl bg-black/60 px-4 py-2.5 text-center text-sm text-white backdrop-blur-sm leading-relaxed">
                     {story.content}
                   </p>
                 </div>
@@ -360,84 +589,74 @@ export function StatusViewer({
             </>
           )}
 
-          {/* Tap zones — RTL: right = prev, left = next */}
+          {/* ── Tap zones (RTL: right = prev, left = next) ─────────────────── */}
           <button
-            className="absolute right-0 top-0 z-10 h-full w-1/3 focus-visible:outline-none"
+            className="absolute right-0 top-[80px] bottom-[80px] z-10 w-1/3 focus-visible:outline-none"
             onClick={(e) => { e.stopPropagation(); goPrev(); }}
             aria-label="السابق"
           />
           <button
-            className="absolute left-0 top-0 z-10 h-full w-1/3 focus-visible:outline-none"
+            className="absolute left-0 top-[80px] bottom-[80px] z-10 w-1/3 focus-visible:outline-none"
             onClick={(e) => { e.stopPropagation(); goNext(); }}
             aria-label="التالي"
           />
         </div>
 
-        {/* ── Group navigation arrows ───────────────────────────────────── */}
-        {groupIdx > 0 && (
-          <button
-            className="absolute right-1 top-1/2 z-30 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white shadow"
-            onClick={goPrev}
-            aria-label="المجموعة السابقة"
+        {/* ── Shared post card (only for story created from a post share) ─────── */}
+        {story.shared_post_id != null && (
+          <a
+            key={`shared-${story.id}`}
+            href={`/post/${story.shared_post_id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute inset-x-3 z-[25] rounded-2xl overflow-hidden backdrop-blur-md border border-white/20 hover:border-white/40 transition-colors"
+            style={{ bottom: isOwn ? '72px' : '88px' }}
           >
-            <ChevronRight className="size-5" />
-          </button>
-        )}
-        {groupIdx < groups.length - 1 && (
-          <button
-            className="absolute left-1 top-1/2 z-30 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white shadow"
-            onClick={goNext}
-            aria-label="المجموعة التالية"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
-        )}
-
-        {/* ── Viewers list (owner only) ─────────────────────────────────── */}
-        {showViewers && (
-          <div className="absolute inset-x-0 bottom-16 z-30 max-h-44 overflow-y-auto bg-black/85 px-4 py-3 backdrop-blur-sm">
-            {viewers.length === 0 ? (
-              <p className="text-center text-sm text-white/60">لا توجد مشاهدات بعد</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {viewers.map((v) => (
-                  <div key={v.username} className="flex items-center gap-2">
-                    <UserAvatar user={v} size="sm" linkable={false} />
-                    <span className="flex-1 text-sm text-white">{v.full_name}</span>
-                    {v.reaction && (
-                      <span className="text-base leading-none">
-                        {REACTIONS.find((r) => r.key === v.reaction)?.emoji}
-                      </span>
-                    )}
-                  </div>
-                ))}
+            <div className="bg-black/40 px-4 py-3 flex items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/20 text-lg">
+                📎
               </div>
-            )}
-          </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wide leading-none mb-0.5">منشور مشارَك</p>
+                <p className="text-sm font-semibold text-white leading-snug">اضغط لعرض المنشور الأصلي</p>
+              </div>
+              <svg viewBox="0 0 20 20" className="size-4 fill-none stroke-white/70 stroke-2 shrink-0" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 3H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5" />
+                <polyline points="13 3 17 3 17 7" />
+                <line x1="17" y1="3" x2="9" y2="11" />
+              </svg>
+            </div>
+          </a>
         )}
 
-        {/* ── Bottom bar: reactions + reply (non-owner only) ───────────── */}
+        {/* ── Non-owner bottom bar: reactions + reply ───────────────────────── */}
         {!isOwn && (
-          <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-5 pt-10">
+          <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-2 px-3 pt-12 bg-gradient-to-t from-black/75 via-black/30 to-transparent"
+            style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 16px), 16px)' }}
+          >
             {/* Reaction picker */}
             <div className="relative shrink-0">
               <button
-                onClick={() => setShowReactions((v) => !v)}
-                className="flex size-9 items-center justify-center rounded-full bg-white/10 text-xl transition-colors hover:bg-white/20"
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setShowReactions((v) => !v); setPaused((v) => !v || v); }}
+                className="flex size-10 items-center justify-center rounded-full bg-white/15 text-lg backdrop-blur-sm transition-colors hover:bg-white/25 active:scale-95"
               >
                 {reactionEmoji ?? '🤍'}
               </button>
+
               {showReactions && (
-                <div className="absolute bottom-full mb-2 flex gap-1.5 rounded-2xl bg-black/80 px-3 py-2 shadow-xl backdrop-blur-md">
+                <div
+                  className="absolute bottom-full start-0 mb-2 flex gap-1.5 rounded-2xl bg-zinc-900/90 px-3 py-2.5 shadow-2xl backdrop-blur-md"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {REACTIONS.map((r) => (
                     <button
                       key={r.key}
+                      type="button"
                       onClick={() => handleReact(r.key)}
-                      className={[
-                        'text-xl transition-transform hover:scale-125 active:scale-110',
-                        localReaction === r.key ? 'scale-125' : '',
-                      ].join(' ')}
-                      title={r.key}
+                      className={cn(
+                        'text-xl leading-none transition-transform duration-150 hover:scale-125 active:scale-110',
+                        localReaction === r.key && 'scale-[1.3]',
+                      )}
                     >
                       {r.emoji}
                     </button>
@@ -446,42 +665,114 @@ export function StatusViewer({
               )}
             </div>
 
-            {/* Reply input — focuses pause the story automatically */}
-            <Input
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleReply(); }}
-              onFocus={() => setIsReplyFocused(true)}
-              onBlur={() => setIsReplyFocused(false)}
-              placeholder="ردّ على الحالة..."
-              className="h-9 flex-1 rounded-full border-white/20 bg-white/10 text-sm text-white placeholder:text-white/50 focus-visible:ring-white/30"
-              dir="rtl"
-            />
-
-            <Button
-              size="icon"
-              variant="ghost"
-              disabled={!replyText.trim() || isSending}
-              onClick={handleReply}
-              className="shrink-0 rounded-full text-white hover:bg-white/10"
+            {/* Reply input */}
+            <div
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2.5 backdrop-blur-sm"
+              onClick={(e) => e.stopPropagation()}
             >
-              <Send className="size-4" />
-            </Button>
+              <input
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value.slice(0, 500))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(); }
+                }}
+                onFocus={() => { setIsReplyFocused(true); setPaused(true); setShowReactions(false); }}
+                onBlur={() => { setIsReplyFocused(false); setPaused(false); }}
+                placeholder="ردّ على الحالة..."
+                className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/50"
+                dir="rtl"
+              />
+              {replyText.trim() && (
+                <button
+                  type="button"
+                  onClick={handleReply}
+                  disabled={isSending}
+                  className="shrink-0 text-white/80 transition-colors hover:text-white disabled:opacity-50"
+                >
+                  <Send className="size-4" />
+                </button>
+              )}
+            </div>
           </div>
         )}
-      </DialogContent>
 
-      {/* Cover photo lightbox — z-[300] to sit above the Dialog */}
-      {story.user.cover_url && (
-        <ImageLightbox
-          src={story.user.cover_url}
-          alt={`غلاف ${story.user.full_name}`}
-          open={coverOpen}
-          onClose={() => setCoverOpen(false)}
-          allowDownload
-        />
-      )}
-    </Dialog>
+        {/* ── Owner bottom bar: views shortcut ─────────────────────────────── */}
+        {isOwn && !showViewers && (
+          <div
+            className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-center pt-8 bg-gradient-to-t from-black/60 to-transparent"
+            style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 20px), 20px)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={handleToggleViewers}
+              className="flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-white backdrop-blur-sm transition-colors hover:bg-white/25 active:scale-95"
+            >
+              <Eye className="size-4" />
+              <span className="text-sm font-medium">{story.views_count} مشاهدة</span>
+            </button>
+          </div>
+        )}
+
+        {/* ── Viewers bottom sheet (owner) ──────────────────────────────────── */}
+        {showViewers && (
+          <div
+            className="absolute inset-x-0 bottom-0 z-30 flex max-h-[56%] flex-col rounded-t-3xl bg-zinc-900/96 shadow-2xl backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle bar */}
+            <div className="flex justify-center pt-2.5 pb-1">
+              <div className="h-[4px] w-10 rounded-full bg-white/25" />
+            </div>
+
+            {/* Sheet header */}
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <Eye className="size-4 text-white/60" />
+                <span className="text-sm font-semibold text-white">
+                  {viewers.length > 0 ? `${viewers.length} مشاهدة` : 'المشاهدات'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowViewers(false)}
+                className="rounded-full p-1.5 text-white/50 transition-colors hover:text-white"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {/* Viewers list */}
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+              {viewers.length === 0 ? (
+                <div className="flex flex-col items-center py-10">
+                  <Eye className="size-8 text-white/20 mb-3" />
+                  <p className="text-sm text-white/40">لا توجد مشاهدات بعد</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {viewers.map((v) => (
+                    <div key={v.username} className="flex items-center gap-3">
+                      <UserAvatar user={v} size="sm" linkable={false} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-white leading-tight">{v.full_name}</p>
+                        <p className="truncate text-xs text-white/50 leading-tight">@{v.username}</p>
+                      </div>
+                      {v.reaction && (
+                        <span className="text-xl leading-none">
+                          {REACTIONS.find((r) => r.key === v.reaction)?.emoji ?? v.reaction}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
   );
 }
 

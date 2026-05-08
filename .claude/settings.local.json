@@ -65,7 +65,10 @@
       "Bash(powershell -Command \"\\(Get-ChildItem '.next/static' -Recurse | Measure-Object -Property Length -Sum\\).Sum / 1MB\")",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Select-String -Pattern \"\\(supabase|src\\)\")",
-      "PowerShell(head *)"
+      "PowerShell(head *)",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
+      "Bash(Wait-Event -Timeout 90)",
+      "Bash(Get-Content \"C:\\\\Users\\\\amman\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-amman-OneDrive-Desktop-Chof-Khdemti\\\\a54a6843-54d6-4270-af36-c80398dee139\\\\tasks\\\\bzcmi41se.output\" -Tail 20)"
     ]
   }
 }

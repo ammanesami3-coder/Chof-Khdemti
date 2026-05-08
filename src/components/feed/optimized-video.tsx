@@ -20,14 +20,48 @@ function buildFallbackUrl(publicId: string) {
   return `https://res.cloudinary.com/${CLOUD_NAME}/video/upload/q_auto:eco/${publicId}.mp4`;
 }
 
+// Custom event name for singleton video coordination
+const VIDEO_PLAYING_EVENT = "video:singleton-play";
+
 export function OptimizedVideo({ item, className = "" }: OptimizedVideoProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const wasPlayingRef = useRef(false);
+  // Stable ID to identify this instance among all mounted videos
+  const instanceId = useRef(`v-${Math.random().toString(36).slice(2)}`);
   const [inView, setInView] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // ── Lazy: only initialize when scrolled into viewport ──────────────────────
+  // ── Singleton: broadcast when this video starts playing ───────────────────
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    function onPlay() {
+      window.dispatchEvent(
+        new CustomEvent(VIDEO_PLAYING_EVENT, { detail: { id: instanceId.current } })
+      );
+    }
+    video.addEventListener("play", onPlay);
+    return () => video.removeEventListener("play", onPlay);
+  }, []);
+
+  // ── Singleton: pause this video when another one starts ───────────────────
+  useEffect(() => {
+    function onOtherVideoPlaying(e: Event) {
+      const { id } = (e as CustomEvent<{ id: string }>).detail;
+      if (id === instanceId.current) return;
+      const video = videoRef.current;
+      if (!video || video.paused) return;
+      video.pause();
+      // Don't restore on scroll-back; the user chose another video intentionally
+      wasPlayingRef.current = false;
+    }
+    window.addEventListener(VIDEO_PLAYING_EVENT, onOtherVideoPlaying);
+    return () => window.removeEventListener(VIDEO_PLAYING_EVENT, onOtherVideoPlaying);
+  }, []);
+
+  // ── Lazy init: trigger once when near viewport ─────────────────────────────
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -43,6 +77,32 @@ export function OptimizedVideo({ item, className = "" }: OptimizedVideoProps) {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // ── Auto pause/resume when scrolling in and out of viewport ───────────────
+  useEffect(() => {
+    if (!inView) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const video = videoRef.current;
+        if (!video) return;
+        if (entry?.isIntersecting) {
+          // Resume only if it was playing before scroll
+          if (wasPlayingRef.current) {
+            video.play().catch(() => {});
+          }
+        } else {
+          // Save play state then pause
+          wasPlayingRef.current = !video.paused;
+          video.pause();
+        }
+      },
+      { threshold: 0.3 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [inView]);
 
   // ── Initialize playback once in view ───────────────────────────────────────
   useEffect(() => {

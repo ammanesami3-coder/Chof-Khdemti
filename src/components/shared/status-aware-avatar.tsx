@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { getActiveStatusForUser } from '@/lib/actions/status';
 import type { AvatarSize } from './user-avatar';
-import type { StatusGroup } from '@/lib/actions/status';
+import type { StatusGroup } from '@/lib/types/status.types';
 
 const StatusViewerLazy = dynamic(
   () => import('@/components/status/status-viewer').then((m) => m.StatusViewer),

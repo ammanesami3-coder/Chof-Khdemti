@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 // مسارات تتطلب تسجيل الدخول — /explore و /profile/[username] عامة متعمداً
-const PROTECTED_PATHS = ["/feed", "/messages", "/settings", "/profile/me", "/onboarding"];
+const PROTECTED_PATHS = ["/feed", "/messages", "/settings", "/profile/me", "/onboarding", "/notifications"];
 const AUTH_PATHS = ["/login", "/signup"];
 
 async function getOnboardingComplete(

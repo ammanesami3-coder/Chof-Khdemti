@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { postSchema, ratingSchema as _ratingSchema } from '@/lib/validations/post';
+import { postSchema } from '@/lib/validations/post';
 import { ratingSchema } from '@/lib/validations/rating';
 import { signUpSchema } from '@/lib/validations/auth';
 

@@ -2,48 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export type StatusContentType = 'text' | 'image' | 'video';
-
-export type StatusWithUser = {
-  id: string;
-  user_id: string;
-  content_type: StatusContentType;
-  content: string | null;
-  media_url: string | null;
-  thumbnail_url: string | null;
-  background_color: string;
-  text_color: string;
-  font_style: string;
-  duration: number;
-  created_at: string;
-  expires_at: string;
-  views_count: number;
-  likes_count: number;
-  viewed: boolean;
-  my_reaction: string | null;
-  user: {
-    id: string;
-    username: string;
-    full_name: string;
-    avatar_url: string | null;
-    cover_url: string | null;
-  };
-};
-
-export type StatusGroup = {
-  user: {
-    id: string;
-    username: string;
-    full_name: string;
-    avatar_url: string | null;
-    cover_url: string | null;
-  };
-  statuses: StatusWithUser[];
-  hasUnviewed: boolean;
-};
+import type { StatusContentType, StatusWithUser, StatusGroup } from '@/lib/types/status.types';
 
 type CreateStatusInput = {
   content_type: StatusContentType;
@@ -60,6 +19,18 @@ type CreateStatusInput = {
 
 const STATUS_SELECT =
   'id, user_id, content_type, content, media_url, thumbnail_url, background_color, text_color, font_style, duration, created_at, expires_at, views_count, likes_count' as const;
+
+// Extended select that includes the new shared_post_id column (bypass stale generated types via as-any)
+const STATUS_SELECT_EXT =
+  'id, user_id, content_type, content, media_url, thumbnail_url, background_color, text_color, font_style, duration, created_at, expires_at, views_count, likes_count, shared_post_id';
+
+type RawStatusExt = {
+  id: string; user_id: string; content_type: string | null;
+  content: string | null; media_url: string | null; thumbnail_url: string | null;
+  background_color: string | null; text_color: string | null; font_style: string | null;
+  duration: number | null; created_at: string; expires_at: string;
+  views_count: number; likes_count: number; shared_post_id: string | null;
+};
 
 // ── getActiveStatuses ─────────────────────────────────────────────────────────
 
@@ -80,12 +51,14 @@ export async function getActiveStatuses(): Promise<StatusGroup[]> {
 
   const now = new Date().toISOString();
 
-  const { data: rawStatuses } = await supabase
+  // Use extended select (includes shared_post_id) with as-any to bypass stale generated types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rawStatuses } = await (supabase as any)
     .from('status_updates')
-    .select(STATUS_SELECT)
+    .select(STATUS_SELECT_EXT)
     .in('user_id', relevantIds)
     .gt('expires_at', now)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }) as { data: RawStatusExt[] | null };
 
   if (!rawStatuses || rawStatuses.length === 0) return [];
 
@@ -126,16 +99,17 @@ export async function getActiveStatuses(): Promise<StatusGroup[]> {
         content: s.content,
         media_url: s.media_url,
         thumbnail_url: s.thumbnail_url,
-        background_color: s.background_color,
-        text_color: s.text_color,
-        font_style: s.font_style,
-        duration: s.duration,
+        background_color: s.background_color ?? '#1877F2',
+        text_color: s.text_color ?? '#FFFFFF',
+        font_style: s.font_style ?? 'default',
+        duration: s.duration ?? 5,
         created_at: s.created_at,
         expires_at: s.expires_at,
         views_count: s.views_count,
         likes_count: s.likes_count,
         viewed: viewedIds.has(s.id) || s.user_id === user.id,
         my_reaction: reactionsMap.get(s.id) ?? null,
+        shared_post_id: s.shared_post_id ?? null,
         user: {
           id: u.id,
           username: u.username,
@@ -244,6 +218,7 @@ export async function createStatus(
       likes_count: 0,
       viewed: true,
       my_reaction: null,
+      shared_post_id: null,
       user: {
         id: userRes.data.id,
         username: userRes.data.username,
@@ -472,12 +447,13 @@ export async function getActiveStatusForUser(
 
   const now = new Date().toISOString();
 
-  const { data: rawStatuses } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rawStatuses } = await (supabase as any)
     .from('status_updates')
-    .select(STATUS_SELECT)
+    .select(STATUS_SELECT_EXT)
     .eq('user_id', userId)
     .gt('expires_at', now)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }) as { data: RawStatusExt[] | null };
 
   if (!rawStatuses || rawStatuses.length === 0) return null;
 
@@ -536,16 +512,17 @@ export async function getActiveStatusForUser(
     content: s.content,
     media_url: s.media_url,
     thumbnail_url: s.thumbnail_url,
-    background_color: s.background_color,
-    text_color: s.text_color,
-    font_style: s.font_style,
-    duration: s.duration,
+    background_color: s.background_color ?? '#1877F2',
+    text_color: s.text_color ?? '#FFFFFF',
+    font_style: s.font_style ?? 'default',
+    duration: s.duration ?? 5,
     created_at: s.created_at,
     expires_at: s.expires_at,
     views_count: s.views_count,
     likes_count: s.likes_count,
     viewed: viewedIds.has(s.id) || s.user_id === authUser?.id,
     my_reaction: reactionsMap.get(s.id) ?? null,
+    shared_post_id: s.shared_post_id ?? null,
     user: userProfile,
   }));
 

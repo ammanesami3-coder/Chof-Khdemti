@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { cloudinary, CLOUDINARY_FOLDERS, type UploadPreset } from "@/lib/cloudinary";
+import { cloudinary, CLOUDINARY_FOLDERS, CLOUDINARY_RESOURCE_TYPES, type UploadPreset } from "@/lib/cloudinary";
 import { z } from "zod";
 
 const bodySchema = z.object({
-  preset: z.enum(["avatar", "cover", "post_image", "post_video", "voice_message"]),
+  preset: z.enum([
+    "avatar", "cover", "post_image", "post_video", "voice_message",
+    "msg_image", "msg_video", "msg_document", "msg_audio",
+  ]),
 });
 
 export async function POST(request: Request) {
@@ -25,6 +28,7 @@ export async function POST(request: Request) {
 
   const preset = parsed.data.preset as UploadPreset;
   const folder = CLOUDINARY_FOLDERS[preset];
+  const resource_type = CLOUDINARY_RESOURCE_TYPES[preset];
   const timestamp = Math.round(Date.now() / 1000);
 
   const paramsToSign = { folder, timestamp };
@@ -39,5 +43,6 @@ export async function POST(request: Request) {
     cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     folder,
+    resource_type,
   });
 }
