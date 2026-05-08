@@ -64,7 +64,7 @@ export type SentMessage = {
   content:              string | null;
   is_read:              boolean;
   created_at:           string;
-  message_type:         'text' | 'voice' | 'post_share' | 'image' | 'video' | 'document' | 'audio';
+  message_type:         'text' | 'voice' | 'post_share' | 'image' | 'video' | 'document' | 'audio' | 'location';
   voice_url:            string | null;
   voice_duration:       number | null;
   shared_post_id:       string | null;
@@ -328,6 +328,60 @@ export async function deleteMessage(
   }
 
   return {};
+}
+
+// ── sendLocationMessage ───────────────────────────────────────────────────────
+
+const locationSchema = z.object({
+  conversationId: z.string().uuid(),
+  lat:            z.number().min(-90).max(90),
+  lng:            z.number().min(-180).max(180),
+  name:           z.string().max(200),
+});
+
+export async function sendLocationMessage(
+  conversationId: string,
+  lat:            number,
+  lng:            number,
+  name:           string,
+): Promise<{ data: SentMessage; error?: never } | { error: string; data?: never }> {
+  const parsed = locationSchema.safeParse({ conversationId, lat, lng, name });
+  if (!parsed.success) return { error: 'مدخلات غير صالحة' };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'يجب تسجيل الدخول' };
+
+  const { conv, isArtisan, isCustomer } = await verifyConversationMember(
+    supabase, parsed.data.conversationId, user.id,
+  );
+  if (!conv || (!isArtisan && !isCustomer)) return { error: 'غير مصرح' };
+
+  if (isArtisan) {
+    const { data: canReply } = await supabase.rpc('can_artisan_reply', { p_artisan_id: user.id });
+    if (!canReply) return { error: 'subscription_required' };
+  }
+
+  const locationJson = JSON.stringify({
+    lat: parsed.data.lat,
+    lng: parsed.data.lng,
+    name: parsed.data.name,
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: message, error: insertErr } = await (supabase as any)
+    .from('messages')
+    .insert({
+      conversation_id: parsed.data.conversationId,
+      sender_id:       user.id,
+      content:         locationJson,
+      message_type:    'location',
+    })
+    .select('id, sender_id, content, is_read, created_at, message_type, voice_url, voice_duration, shared_post_id, reply_to_message_id, deleted_for_everyone')
+    .single() as { data: Omit<SentMessage, 'reactions' | 'attachment_url' | 'attachment_metadata'> | null; error: { message: string } | null };
+
+  if (insertErr || !message) return { error: insertErr?.message ?? 'خطأ في الإرسال' };
+  return { data: { ...message, attachment_url: null, attachment_metadata: null, reactions: [] } };
 }
 
 // ── markConversationRead ──────────────────────────────────────────────────────

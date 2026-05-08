@@ -31,6 +31,7 @@ import { ReactionsDisplay } from '@/components/messages/reactions-display';
 import { ReplyPreviewBar } from '@/components/messages/reply-preview-bar';
 import { AttachmentBubble } from '@/components/messages/attachment-bubble';
 import { AttachmentPicker } from '@/components/messages/attachment-picker';
+import { LocationBubble } from '@/components/messages/location-bubble';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { StatusGroup, StatusWithUser } from '@/lib/types/status.types';
@@ -74,7 +75,7 @@ type MessageData = {
   content:              string | null;
   is_read:              boolean;
   created_at:           string;
-  message_type?:        'text' | 'voice' | 'post_share' | 'image' | 'video' | 'document' | 'audio';
+  message_type?:        'text' | 'voice' | 'post_share' | 'image' | 'video' | 'document' | 'audio' | 'location';
   voice_url?:           string | null;
   voice_duration?:      number | null;
   reply_to_status_id?:  string | null;
@@ -856,6 +857,16 @@ export function ChatWindow({
                             <p className={cn('text-xs font-medium', isSent ? 'text-primary-foreground' : 'text-foreground')}>اضغط لعرض المنشور</p>
                           </div>
                         </a>
+                      );
+                    }
+
+                    if (msg.message_type === 'location') {
+                      return (
+                        <LocationBubble
+                          content={msg.content}
+                          isSent={isSent}
+                          senderName={isSent ? 'أنت' : partner.full_name}
+                        />
                       );
                     }
 

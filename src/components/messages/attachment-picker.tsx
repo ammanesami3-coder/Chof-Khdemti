@@ -1,12 +1,13 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Plus, Image, Video, FileText, Music, X } from 'lucide-react';
+import { Plus, Image, Video, FileText, Music, MapPin, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { uploadAttachmentToCloudinary } from '@/lib/cloudinary-upload';
-import { sendAttachmentMessage } from '@/lib/actions/messages';
+import { sendAttachmentMessage, sendLocationMessage } from '@/lib/actions/messages';
 import type { SentMessage, AttachmentMetadata } from '@/lib/actions/messages';
+import { LocationPicker } from './location-picker';
 
 type Props = {
   conversationId: string;
@@ -25,9 +26,10 @@ const OPTIONS: { type: AttachmentType; label: string; icon: React.FC<{ className
 ];
 
 export function AttachmentPicker({ conversationId, replyToMessageId, onSent, disabled }: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen]           = useState(false);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress]   = useState(0);
+  const [locationOpen, setLocationOpen] = useState(false);
   const fileInputRefs = useRef<Record<AttachmentType, HTMLInputElement | null>>({
     image: null, video: null, document: null, audio: null,
   });
@@ -35,6 +37,22 @@ export function AttachmentPicker({ conversationId, replyToMessageId, onSent, dis
   const handleOptionClick = (type: AttachmentType) => {
     fileInputRefs.current[type]?.click();
     setOpen(false);
+  };
+
+  const handleLocationConfirm = async (loc: { lat: number; lng: number; name: string }) => {
+    setUploading(true);
+    try {
+      const res = await sendLocationMessage(conversationId, loc.lat, loc.lng, loc.name);
+      if ('error' in res) {
+        toast.error(res.error === 'subscription_required' ? 'يجب الاشتراك لإرسال الموقع' : res.error);
+      } else {
+        onSent(res.data);
+      }
+    } catch {
+      toast.error('فشل إرسال الموقع');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: AttachmentType) => {
@@ -142,9 +160,25 @@ export function AttachmentPicker({ conversationId, replyToMessageId, onSent, dis
                 <span>{label}</span>
               </button>
             ))}
+            {/* Location option */}
+            <button
+              type="button"
+              onClick={() => { setOpen(false); setLocationOpen(true); }}
+              className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-colors hover:bg-accent"
+            >
+              <MapPin className="h-5 w-5 shrink-0 text-rose-500" />
+              <span>موقع</span>
+            </button>
           </div>
         </>
       )}
+
+      {/* Location Picker dialog */}
+      <LocationPicker
+        open={locationOpen}
+        onOpenChange={setLocationOpen}
+        onConfirm={handleLocationConfirm}
+      />
     </div>
   );
 }
