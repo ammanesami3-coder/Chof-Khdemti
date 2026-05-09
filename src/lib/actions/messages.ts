@@ -314,10 +314,12 @@ export async function deleteMessage(
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
+    const { error: updateErr } = await (supabase as any)
       .from('messages')
       .update({ deleted_for_everyone: true, content: null, attachment_url: null, attachment_metadata: null })
       .eq('id', parsed.data.messageId);
+
+    if (updateErr) return { error: updateErr.message };
   } else {
     // Delete for me: any conversation party can delete from their own view
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

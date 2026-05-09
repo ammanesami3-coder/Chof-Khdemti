@@ -529,31 +529,26 @@ export function ChatWindow({
 
   // ── Delete handler ──────────────────────────────────────────
   const handleDeleteMessage = useCallback(async (messageId: string, forEveryone: boolean) => {
-    if (forEveryone) {
-      setMessages((prev) => prev.map((m) =>
-        m.id === messageId
-          ? { ...m, deleted_for_everyone: true, content: null, attachment_url: null, attachment_metadata: null }
-          : m,
-      ));
-    } else {
-      // Optimistic: mark as deleted for current user
-      setMessages((prev) => prev.map((m) =>
-        m.id === messageId
-          ? { ...m, deleted_by_user_ids: [...(m.deleted_by_user_ids ?? []), currentUserId] }
-          : m,
-      ));
-    }
+    // Snapshot for rollback
+    let snapshot: MessageData | undefined;
+    setMessages((prev) => {
+      snapshot = prev.find((m) => m.id === messageId);
+      return prev.map((m) => {
+        if (m.id !== messageId) return m;
+        if (forEveryone) {
+          return { ...m, deleted_for_everyone: true, content: null, attachment_url: null, attachment_metadata: null };
+        }
+        return { ...m, deleted_by_user_ids: [...(m.deleted_by_user_ids ?? []), currentUserId] };
+      });
+    });
 
     const result = await deleteMessage(messageId, forEveryone);
     if (result.error) {
       toast.error(result.error);
-      // Rollback delete-for-me optimistic update
-      if (!forEveryone) {
-        setMessages((prev) => prev.map((m) =>
-          m.id === messageId
-            ? { ...m, deleted_by_user_ids: (m.deleted_by_user_ids ?? []).filter((id) => id !== currentUserId) }
-            : m,
-        ));
+      // Rollback to original state
+      if (snapshot) {
+        const original = snapshot;
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? original : m)));
       }
     }
   }, [currentUserId]);
