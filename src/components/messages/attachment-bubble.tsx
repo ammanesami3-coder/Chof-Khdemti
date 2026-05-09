@@ -109,12 +109,15 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
     );
   }
 
-  // document
+  // document — route all file access through the proxy to fix cross-origin issues
   const isPdf = metadata.mime_type?.includes('pdf');
-  // For Cloudinary PDFs add fl_attachment:false so the server serves it inline
-  const viewUrl = isPdf && url.includes('cloudinary.com')
-    ? url.replace('/upload/', '/upload/fl_attachment:false/')
-    : url;
+  const filename = metadata.filename ?? (isPdf ? 'document.pdf' : 'document');
+
+  function proxyUrl(forDownload: boolean) {
+    const params = new URLSearchParams({ url, filename });
+    if (forDownload) params.set('download', '1');
+    return `/api/proxy-file?${params.toString()}`;
+  }
 
   if (isPdf) {
     return (
@@ -132,7 +135,7 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
             <FileText className="h-5 w-5 text-red-500" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium">{metadata.filename ?? 'ملف PDF'}</p>
+            <p className="truncate text-xs font-medium">{filename}</p>
             {metadata.size && (
               <p className="text-[10px] text-muted-foreground">{formatBytes(metadata.size)}</p>
             )}
@@ -145,14 +148,13 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
         {/* Inline PDF Dialog */}
         <Dialog open={pdfOpen} onOpenChange={setPdfOpen}>
           <DialogContent className="max-w-3xl w-[95vw] h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
-            <DialogTitle className="sr-only">{metadata.filename ?? 'PDF'}</DialogTitle>
+            <DialogTitle className="sr-only">{filename}</DialogTitle>
             {/* Toolbar */}
             <div className="flex shrink-0 items-center justify-between border-b bg-background px-4 py-2.5">
-              <span className="truncate text-sm font-medium">{metadata.filename ?? 'PDF'}</span>
+              <span className="truncate text-sm font-medium">{filename}</span>
               <div className="flex items-center gap-2">
                 <a
-                  href={viewUrl}
-                  download={metadata.filename}
+                  href={proxyUrl(true)}
                   className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-accent transition-colors"
                   aria-label="تنزيل"
                 >
@@ -168,11 +170,11 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
                 </button>
               </div>
             </div>
-            {/* PDF frame */}
+            {/* PDF frame — served via proxy with Content-Disposition: inline */}
             <iframe
-              src={viewUrl}
+              src={proxyUrl(false)}
               className="flex-1 w-full border-0"
-              title={metadata.filename ?? 'PDF'}
+              title={filename}
             />
           </DialogContent>
         </Dialog>
@@ -180,13 +182,11 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
     );
   }
 
+  // Other documents (DOCX, XLSX, etc.) — download via proxy to preserve original filename
   return (
     <div className="flex flex-col gap-1.5">
       <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        download={metadata.filename}
+        href={proxyUrl(true)}
         className={cn(
           'flex items-center gap-3 rounded-xl px-3 py-2.5 transition-opacity hover:opacity-80',
           isSent ? 'bg-primary-foreground/10' : 'bg-black/5',
@@ -196,7 +196,7 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
           <DocIcon mime={metadata.mime_type} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium">{metadata.filename ?? 'ملف'}</p>
+          <p className="truncate text-xs font-medium">{filename}</p>
           {metadata.size && (
             <p className="text-[10px] text-muted-foreground">{formatBytes(metadata.size)}</p>
           )}
