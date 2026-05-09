@@ -37,7 +37,7 @@ export default async function ConversationPage({ params }: Props) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
         .from('messages')
-        .select('id, sender_id, content, is_read, created_at, message_type, voice_url, voice_duration, reply_to_status_id, shared_post_id, reply_to_message_id, deleted_at, deleted_for_everyone, attachment_url, attachment_metadata')
+        .select('id, sender_id, content, is_read, created_at, message_type, voice_url, voice_duration, reply_to_status_id, shared_post_id, reply_to_message_id, deleted_at, deleted_for_everyone, deleted_by_user_ids, attachment_url, attachment_metadata')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
         .limit(50) as Promise<{ data: RawMessage[] | null }>,
@@ -125,7 +125,7 @@ export default async function ConversationPage({ params }: Props) {
     content:              m.content,
     is_read:              m.is_read,
     created_at:           m.created_at,
-    message_type:         (m.message_type ?? 'text') as 'text' | 'voice' | 'post_share' | 'image' | 'video' | 'document' | 'audio',
+    message_type:         (m.message_type ?? 'text') as 'text' | 'voice' | 'post_share' | 'image' | 'video' | 'document' | 'audio' | 'location',
     voice_url:            m.voice_url ?? null,
     voice_duration:       m.voice_duration ?? null,
     shared_post_id:       m.shared_post_id ?? null,
@@ -134,9 +134,10 @@ export default async function ConversationPage({ params }: Props) {
     reply_to_message_id:  m.reply_to_message_id ?? null,
     replied_message:      m.reply_to_message_id ? (repliedMsgMap.get(m.reply_to_message_id) ?? null) : null,
     reactions:            reactionsMap.get(m.id) ?? [],
-    deleted_at:           m.deleted_at ?? null,
-    deleted_for_everyone: m.deleted_for_everyone ?? false,
-    attachment_url:       m.attachment_url ?? null,
+    deleted_at:            m.deleted_at ?? null,
+    deleted_for_everyone:  m.deleted_for_everyone ?? false,
+    deleted_by_user_ids:   m.deleted_by_user_ids ?? [],
+    attachment_url:        m.attachment_url ?? null,
     attachment_metadata:  (m.attachment_metadata ?? null) as AttachmentMetadata | null,
   }));
 
@@ -178,8 +179,9 @@ type RawMessage = {
   reply_to_status_id:   string | null;
   shared_post_id:       string | null;
   reply_to_message_id:  string | null;
-  deleted_at:           string | null;
-  deleted_for_everyone: boolean;
-  attachment_url:       string | null;
+  deleted_at:            string | null;
+  deleted_for_everyone:  boolean;
+  deleted_by_user_ids:   string[];
+  attachment_url:        string | null;
   attachment_metadata:  Record<string, unknown> | null;
 };

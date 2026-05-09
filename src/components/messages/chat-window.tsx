@@ -84,9 +84,10 @@ type MessageData = {
   reply_to_message_id?: string | null;
   replied_message?:     RepliedMessage | null;
   reactions?:           MessageReaction[];
-  deleted_at?:          string | null;
-  deleted_for_everyone?: boolean;
-  attachment_url?:      string | null;
+  deleted_at?:            string | null;
+  deleted_for_everyone?:  boolean;
+  deleted_by_user_ids?:   string[] | null;
+  attachment_url?:        string | null;
   attachment_metadata?: AttachmentMetadata | null;
   is_optimistic?:       boolean;
 };
@@ -252,7 +253,11 @@ export function ChatWindow({
   const supabaseRef       = useRef(createClient());
   const supabase          = supabaseRef.current;
   const messageRefs        = useRef<Map<string, HTMLDivElement>>(new Map());
-  const bubbleLongPressRef = useRef<{ timer: ReturnType<typeof setTimeout>; rect: DOMRect } | null>(null);
+  const bubbleLongPressRef = useRef<{
+    timer:    ReturnType<typeof setTimeout>;
+    rect:     DOMRect;
+    startPos: { x: number; y: number };
+  } | null>(null);
 
   // ── Hooks ───────────────────────────────────────────────────
   const { data: subStatus } = useSubscriptionStatus();
@@ -526,18 +531,32 @@ export function ChatWindow({
   const handleDeleteMessage = useCallback(async (messageId: string, forEveryone: boolean) => {
     if (forEveryone) {
       setMessages((prev) => prev.map((m) =>
-        m.id === messageId ? { ...m, deleted_for_everyone: true, content: null } : m,
+        m.id === messageId
+          ? { ...m, deleted_for_everyone: true, content: null, attachment_url: null, attachment_metadata: null }
+          : m,
       ));
     } else {
-      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      // Optimistic: mark as deleted for current user
+      setMessages((prev) => prev.map((m) =>
+        m.id === messageId
+          ? { ...m, deleted_by_user_ids: [...(m.deleted_by_user_ids ?? []), currentUserId] }
+          : m,
+      ));
     }
 
     const result = await deleteMessage(messageId, forEveryone);
     if (result.error) {
       toast.error(result.error);
-      // Rollback not implemented for simplicity — next page reload restores
+      // Rollback delete-for-me optimistic update
+      if (!forEveryone) {
+        setMessages((prev) => prev.map((m) =>
+          m.id === messageId
+            ? { ...m, deleted_by_user_ids: (m.deleted_by_user_ids ?? []).filter((id) => id !== currentUserId) }
+            : m,
+        ));
+      }
     }
-  }, []);
+  }, [currentUserId]);
 
   // ── Voice sent ──────────────────────────────────────────────
   const handleVoiceSent = useCallback((msg: SentMessage) => {
@@ -609,9 +628,13 @@ export function ChatWindow({
 
   // ── Display messages (grouping + date dividers) ─────────────
   const displayMessages = useMemo(() => {
-    const visible = messages.filter(
-      (m) => !(m.deleted_at && m.sender_id === currentUserId && !m.deleted_for_everyone),
-    );
+    const visible = messages.filter((m) => {
+      if (m.deleted_for_everyone) return true; // always show the "deleted" placeholder
+      if (m.deleted_by_user_ids?.includes(currentUserId)) return false;
+      // backward compat: old deleted_at soft-delete (sender only)
+      if (m.deleted_at && m.sender_id === currentUserId) return false;
+      return true;
+    });
     return visible.map((msg, i) => {
       const prev = visible[i - 1];
       const next = visible[i + 1];
@@ -737,9 +760,18 @@ export function ChatWindow({
                   onContextMenu={(e) => e.preventDefault()}
                   onTouchStart={(e) => {
                     if (msg.is_optimistic || msg.deleted_for_everyone) return;
-                    const rect = e.currentTarget.getBoundingClientRect();
+                    // Clear any existing timer (prevents multi-touch timer leak)
+                    if (bubbleLongPressRef.current) {
+                      clearTimeout(bubbleLongPressRef.current.timer);
+                      bubbleLongPressRef.current = null;
+                    }
+                    const rect      = e.currentTarget.getBoundingClientRect();
+                    const touch0    = e.touches[0];
+                    if (!touch0) return;
+                    const startPos  = { x: touch0.clientX, y: touch0.clientY };
                     bubbleLongPressRef.current = {
                       rect,
+                      startPos,
                       timer: setTimeout(() => {
                         navigator.vibrate?.(50);
                         setSheetMsg({
@@ -760,8 +792,19 @@ export function ChatWindow({
                       bubbleLongPressRef.current = null;
                     }
                   }}
-                  onTouchMove={() => {
+                  onTouchCancel={() => {
                     if (bubbleLongPressRef.current) {
+                      clearTimeout(bubbleLongPressRef.current.timer);
+                      bubbleLongPressRef.current = null;
+                    }
+                  }}
+                  onTouchMove={(e) => {
+                    if (!bubbleLongPressRef.current) return;
+                    const t  = e.touches[0];
+                    if (!t) return;
+                    const dx = Math.abs(t.clientX - bubbleLongPressRef.current.startPos.x);
+                    const dy = Math.abs(t.clientY - bubbleLongPressRef.current.startPos.y);
+                    if (dx > 10 || dy > 10) {
                       clearTimeout(bubbleLongPressRef.current.timer);
                       bubbleLongPressRef.current = null;
                     }

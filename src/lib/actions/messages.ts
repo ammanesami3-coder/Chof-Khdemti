@@ -297,34 +297,34 @@ export async function deleteMessage(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'يجب تسجيل الدخول' };
 
-  // Verify ownership
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: msg } = await (supabase as any)
-    .from('messages')
-    .select('sender_id, created_at')
-    .eq('id', parsed.data.messageId)
-    .maybeSingle() as { data: { sender_id: string; created_at: string } | null };
-
-  if (!msg || msg.sender_id !== user.id) return { error: 'غير مصرح' };
-
   if (parsed.data.forEveryone) {
-    // Only allowed within 60 minutes of sending
+    // Only the original sender can delete for everyone, within 60 minutes
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: msg } = await (supabase as any)
+      .from('messages')
+      .select('sender_id, created_at')
+      .eq('id', parsed.data.messageId)
+      .maybeSingle() as { data: { sender_id: string; created_at: string } | null };
+
+    if (!msg || msg.sender_id !== user.id) return { error: 'غير مصرح' };
+
     const sentAt = new Date(msg.created_at).getTime();
     if (Date.now() - sentAt > 60 * 60 * 1000) {
       return { error: 'انتهت مهلة حذف الرسالة للجميع (60 دقيقة)' };
     }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any)
       .from('messages')
-      .update({ deleted_for_everyone: true, content: null })
+      .update({ deleted_for_everyone: true, content: null, attachment_url: null, attachment_metadata: null })
       .eq('id', parsed.data.messageId);
   } else {
-    // Delete for me only (mark with timestamp)
+    // Delete for me: any conversation party can delete from their own view
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
-      .from('messages')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', parsed.data.messageId);
+    const { error } = await (supabase as any).rpc('mark_message_deleted_for_me', {
+      p_message_id: parsed.data.messageId,
+    });
+    if (error) return { error: (error as { message: string }).message };
   }
 
   return {};

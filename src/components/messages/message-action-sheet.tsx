@@ -147,7 +147,7 @@ export function MessageActionSheet({
     {
       key:     'delete-me',
       icon:    <Trash2 className="h-4 w-4" />,
-      label:   'حذف لي فقط',
+      label:   'حذف لدي',
       onClick: () => { onDeleteForMe(); handleClose(); },
       danger:  true,
       show:    true,
@@ -156,7 +156,7 @@ export function MessageActionSheet({
     {
       key:     'delete-all',
       icon:    <Trash2 className="h-4 w-4" />,
-      label:   'حذف للجميع',
+      label:   'حذف لدى الجميع',
       onClick: () => { onDeleteForEveryone(); handleClose(); },
       danger:  true,
       show:    active.canDeleteForEveryone,

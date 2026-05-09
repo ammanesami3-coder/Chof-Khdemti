@@ -488,3 +488,108 @@
 - **Supabase Realtime:** مفعّل على جداول `messages`, `conversations`, `status_updates` ✅
 - **HLS streaming:** Cloudinary `sp_auto` transformation يعمل للفيديوهات الجديدة (الفيديوهات القديمة تحتاج re-upload) ✅
 - **Migrations جاهزة للتطبيق:** `0015`, `0016`, `0017` — تُطبَّق عبر Supabase SQL Editor
+
+---
+
+---
+
+## إصلاحات ما بعد المرحلة 5.5 — مايو 2026
+
+> **الهدف:** إصلاح 3 مشاكل أُكتشفت في نظام الرسائل بعد التجربة الفعلية
+
+---
+
+### الإصلاح #1 — بطاقة الموقع (Location Card) ✅
+
+**المشكلة:** بطاقة الموقع كانت تعرض كادراً أبيض فارغاً بسبب Google Maps Static API
+(RefererNotAllowedMapError — مشكلة صلاحيات الـ API key مع النطاق المحلي + Vercel)
+
+**الحل:**
+- `src/components/messages/location-message-card.tsx` — استبدال `<Image src={staticMapUrl}>` بـ `<BubbleMap>` (Leaflet + OpenStreetMap، مجاني بدون API key)
+- Dynamic import لـ `BubbleMap` من `location-map-inner.tsx` (SSR:false + loading skeleton)
+- إعادة تصميم البطاقة:
+  - الخريطة تملأ كامل ارتفاع البطاقة (180px)
+  - شريط معلومات (📍 الاسم + الإحداثيات) أوفرلاي بخلفية سوداء شفافة `bg-black/50 backdrop-blur-sm`
+  - كامل البطاقة قابل للنقر لفتح الـ modal التفاعلي
+  - أُزيل زر `↗` (ExternalLink) وزر "عرض" المنفصلان
+- حُذف `getStaticMapUrl` و `getDirectionsUrl` من imports البطاقة
+
+**الملف المعدَّل:**
+- `src/components/messages/location-message-card.tsx`
+
+---
+
+### الإصلاح #2 — Long-press يظهر بدون ضغط ✅
+
+**المشكلة:** الـ ActionSheet (رد، نسخ، حذف) كان يظهر أحياناً بدون long-press فعلي
+
+**التشخيص:** 3 أسباب:
+1. **Multi-touch timer leak:** لمسة ثانية تُعيد تعيين `bubbleLongPressRef.current` بدون إلغاء الـ timer الأول → الـ timer الأول ينتهي ويفتح القائمة
+2. **لا onTouchCancel:** إذا النظام ألغى حدث اللمس (مثلاً notification من iOS)، الـ timer يستمر
+3. **لا threshold للحركة:** أي scroll يلغي مباشرة بدون السماح بـ 10px طبيعي
+
+**الحل** في `src/components/messages/chat-window.tsx`:
+```
+onTouchStart  → clear existing timer first + حفظ startPos
+onTouchMove   → threshold 10px بدل إلغاء فوري
+onTouchCancel → مضاف (مثل onTouchEnd)
+```
+
+**التفاصيل:**
+- تحديث نوع `bubbleLongPressRef`: إضافة `startPos: { x: number; y: number }`
+- في `onTouchStart`: `if (bubbleLongPressRef.current) clearTimeout(...)` قبل بدء timer جديد
+- في `onTouchMove`: يلغي فقط إذا `dx > 10 || dy > 10` (بدل الإلغاء الفوري)
+- إضافة `onTouchCancel` handler بنفس منطق `onTouchEnd`
+- null-safety على `e.touches[0]` لمنع TypeScript errors
+
+**الملف المعدَّل:**
+- `src/components/messages/chat-window.tsx`
+
+---
+
+### الإصلاح #3 — حذف الرسائل لا يعمل بشكل صحيح ✅
+
+**المشاكل:**
+1. "حذف لدي" يعمل للمرسل فقط (بسبب `deleted_at + sender_id = currentUser`) — المستلم لا يستطيع الحذف من جهته
+2. "حذف لدى الجميع": كان يُصفّر `content` فقط، لم يُصفّر `attachment_url/attachment_metadata`
+3. تسميات قديمة: "حذف لي فقط" / "حذف للجميع"
+
+**الحل:**
+
+**Migration `supabase/migrations/0028_message_delete_for_me.sql`:**
+- عمود جديد `deleted_by_user_ids uuid[] default '{}'` — يتتبع من حذف الرسالة من جهته
+- GIN index للأداء
+- دالة `mark_message_deleted_for_me(p_message_id)` (security definer) — تتحقق من عضوية المحادثة ثم تُلحق `auth.uid()` للمصفوفة (idempotent)
+
+**`src/lib/actions/messages.ts`:**
+- "حذف لدي": أي طرف في المحادثة يستطيع الحذف عبر RPC `mark_message_deleted_for_me`
+- "حذف لدى الجميع": المرسل فقط، خلال 60 دقيقة، يُصفّر `content + attachment_url + attachment_metadata`
+
+**`src/components/messages/chat-window.tsx`:**
+- إضافة `deleted_by_user_ids?: string[] | null` للنوع `MessageData`
+- `displayMessages` filter: `m.deleted_by_user_ids?.includes(currentUserId)` + backward-compat `deleted_at`
+- `handleDeleteMessage` optimistic: يُلحق `currentUserId` للمصفوفة + rollback عند الخطأ
+
+**`src/app/(app)/messages/[conversationId]/page.tsx`:**
+- select يشمل `deleted_by_user_ids`
+- `RawMessage` type + `initialMessages` assembly يشملان الحقل الجديد
+- إصلاح إضافي: `message_type` cast يشمل الآن `'location'`
+
+**`src/components/messages/message-action-sheet.tsx` + `message-action-bar.tsx`:**
+- "حذف لي فقط" → **"حذف لدي"**
+- "حذف للجميع" → **"حذف لدى الجميع"**
+
+**⚠️ يحتاج تطبيقاً يدوياً في Supabase SQL Editor:**
+```sql
+-- من ملف 0028_message_delete_for_me.sql
+alter table public.messages
+  add column if not exists deleted_by_user_ids uuid[] not null default '{}';
+-- ... (راجع الملف كاملاً)
+```
+
+### نتائج الفحوصات
+```
+✓ npx tsc --noEmit  → 0 errors
+✓ npm run build     → 0 errors, 0 warnings
+✓ npm run lint      → 0 errors, 1 pre-existing warning (post-card.tsx)
+```

@@ -138,7 +138,7 @@ export function MessageActionBar({
             onClick={onDeleteForMe}
           >
             <Trash2 className="me-2 h-4 w-4" />
-            حذف لي فقط
+            حذف لدي
           </DropdownMenuItem>
           {canDeleteForEveryone && (
             <DropdownMenuItem
@@ -146,7 +146,7 @@ export function MessageActionBar({
               onClick={onDeleteForEveryone}
             >
               <Trash2 className="me-2 h-4 w-4" />
-              حذف للجميع
+              حذف لدى الجميع
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
