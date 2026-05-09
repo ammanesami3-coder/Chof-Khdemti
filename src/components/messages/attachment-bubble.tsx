@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Download, Eye, FileText, FileSpreadsheet, Presentation, File as FileIcon, X } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Download, Eye, FileText, FileSpreadsheet, Presentation, File as FileIcon, X, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import type { AttachmentMetadata } from '@/lib/actions/messages';
@@ -29,9 +29,43 @@ function DocIcon({ mime }: { mime?: string }) {
   return <FileText className="h-5 w-5 text-blue-500" />;
 }
 
+// Fetch the file client-side and trigger a save-as dialog with the correct filename.
+// Avoids the cross-origin restriction that ignores the <a download> attribute.
+async function clientDownload(url: string, filename: string) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('fetch failed');
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    // If CORS blocks the fetch, open in a new tab so the user can save manually
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+
 export function AttachmentBubble({ messageType, url, metadata, isSent, caption }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfOpen, setPdfOpen]           = useState(false);
+  const [downloading, setDownloading]   = useState(false);
+
+  const filename = metadata.filename ?? (metadata.mime_type?.includes('pdf') ? 'document.pdf' : 'document');
+
+  const handleDownload = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDownloading(true);
+    await clientDownload(url, filename);
+    setDownloading(false);
+  }, [url, filename]);
+
+  // ── Image ─────────────────────────────────────────────────────────────────
 
   if (messageType === 'image') {
     const thumb = metadata.thumbnail_url ?? url;
@@ -67,14 +101,15 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
     );
   }
 
+  // ── Video ─────────────────────────────────────────────────────────────────
+
   if (messageType === 'video') {
-    const poster = metadata.thumbnail_url;
     return (
       <div className="flex flex-col gap-1.5">
         <div className="overflow-hidden rounded-xl">
-            <video
+          <video
             src={url}
-            poster={poster}
+            poster={metadata.thumbnail_url}
             controls
             preload="none"
             playsInline
@@ -85,6 +120,8 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
       </div>
     );
   }
+
+  // ── Audio ─────────────────────────────────────────────────────────────────
 
   if (messageType === 'audio') {
     return (
@@ -109,20 +146,17 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
     );
   }
 
-  // document — route all file access through the proxy to fix cross-origin issues
-  const isPdf = metadata.mime_type?.includes('pdf');
-  const filename = metadata.filename ?? (isPdf ? 'document.pdf' : 'document');
+  // ── PDF ───────────────────────────────────────────────────────────────────
 
-  function proxyUrl(forDownload: boolean) {
-    const params = new URLSearchParams({ url, filename });
-    if (forDownload) params.set('download', '1');
-    return `/api/proxy-file?${params.toString()}`;
-  }
+  const isPdf = metadata.mime_type?.includes('pdf');
 
   if (isPdf) {
+    // Google Docs Viewer fetches the PDF from its own servers — no CORS or
+    // Content-Disposition issues, works with any publicly accessible URL.
+    const viewerSrc = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+
     return (
       <div className="flex flex-col gap-1.5">
-        {/* PDF row — click to open inline viewer */}
         <button
           type="button"
           onClick={() => setPdfOpen(true)}
@@ -145,21 +179,23 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
 
         {caption && <p className="px-0.5 text-sm">{caption}</p>}
 
-        {/* Inline PDF Dialog */}
         <Dialog open={pdfOpen} onOpenChange={setPdfOpen}>
           <DialogContent className="max-w-3xl w-[95vw] h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
             <DialogTitle className="sr-only">{filename}</DialogTitle>
-            {/* Toolbar */}
             <div className="flex shrink-0 items-center justify-between border-b bg-background px-4 py-2.5">
               <span className="truncate text-sm font-medium">{filename}</span>
               <div className="flex items-center gap-2">
-                <a
-                  href={proxyUrl(true)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-accent transition-colors"
+                <button
+                  type="button"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-accent transition-colors disabled:opacity-50"
                   aria-label="تنزيل"
                 >
-                  <Download className="h-4 w-4 text-muted-foreground" />
-                </a>
+                  {downloading
+                    ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    : <Download className="h-4 w-4 text-muted-foreground" />}
+                </button>
                 <button
                   type="button"
                   onClick={() => setPdfOpen(false)}
@@ -170,9 +206,8 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
                 </button>
               </div>
             </div>
-            {/* PDF frame — served via proxy with Content-Disposition: inline */}
             <iframe
-              src={proxyUrl(false)}
+              src={viewerSrc}
               className="flex-1 w-full border-0"
               title={filename}
             />
@@ -182,27 +217,33 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
     );
   }
 
-  // Other documents (DOCX, XLSX, etc.) — download via proxy to preserve original filename
+  // ── Other documents (DOCX, XLSX, PPTX …) ─────────────────────────────────
+  // Client-side fetch → blob URL → programmatic click preserves original filename.
+
   return (
     <div className="flex flex-col gap-1.5">
-      <a
-        href={proxyUrl(true)}
+      <button
+        type="button"
+        onClick={handleDownload}
+        disabled={downloading}
         className={cn(
-          'flex items-center gap-3 rounded-xl px-3 py-2.5 transition-opacity hover:opacity-80',
+          'flex items-center gap-3 rounded-xl px-3 py-2.5 transition-opacity hover:opacity-80 disabled:opacity-60',
           isSent ? 'bg-primary-foreground/10' : 'bg-black/5',
         )}
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-background shadow-sm">
           <DocIcon mime={metadata.mime_type} />
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 text-start">
           <p className="truncate text-xs font-medium">{filename}</p>
           {metadata.size && (
             <p className="text-[10px] text-muted-foreground">{formatBytes(metadata.size)}</p>
           )}
         </div>
-        <Download className="h-4 w-4 shrink-0 text-muted-foreground" />
-      </a>
+        {downloading
+          ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+          : <Download className="h-4 w-4 shrink-0 text-muted-foreground" />}
+      </button>
       {caption && <p className="px-0.5 text-sm">{caption}</p>}
     </div>
   );
