@@ -8,6 +8,8 @@ const bodySchema = z.object({
     "avatar", "cover", "post_image", "post_video", "voice_message",
     "msg_image", "msg_video", "msg_document", "msg_audio",
   ]),
+  // Client can override resource_type (e.g. 'raw' for PDF/DOCX uploaded as documents)
+  resourceType: z.enum(["image", "video", "raw"]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -28,7 +30,8 @@ export async function POST(request: Request) {
 
   const preset = parsed.data.preset as UploadPreset;
   const folder = CLOUDINARY_FOLDERS[preset];
-  const resource_type = CLOUDINARY_RESOURCE_TYPES[preset];
+  // Prefer client-supplied resourceType so document uploads always use 'raw'
+  const resource_type = parsed.data.resourceType ?? CLOUDINARY_RESOURCE_TYPES[preset];
   const timestamp = Math.round(Date.now() / 1000);
 
   const paramsToSign = { folder, timestamp };

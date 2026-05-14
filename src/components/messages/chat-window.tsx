@@ -69,6 +69,13 @@ export type { MessageReaction };
 
 // ── Internal types ────────────────────────────────────────────────────────────
 
+type SharedPostData = {
+  content:          string | null;
+  media:            Array<{ type: string; url: string; thumbnail: string }>;
+  author_full_name: string;
+  author_username:  string;
+} | null;
+
 type MessageData = {
   id:                   string;
   sender_id:            string;
@@ -81,6 +88,7 @@ type MessageData = {
   reply_to_status_id?:  string | null;
   replied_status?:      RepliedStatus;
   shared_post_id?:      string | null;
+  shared_post_data?:    SharedPostData;
   reply_to_message_id?: string | null;
   replied_message?:     RepliedMessage | null;
   reactions?:           MessageReaction[];
@@ -107,12 +115,13 @@ type Partner = {
 };
 
 type Props = {
-  conversationId:  string;
-  currentUserId:   string;
-  accountType:     string;
-  partner:         Partner;
-  initialMessages: MessageData[];
-  initialCanReply: boolean;
+  conversationId:       string;
+  currentUserId:        string;
+  currentUserAvatarUrl: string | null;
+  accountType:          string;
+  partner:              Partner;
+  initialMessages:      MessageData[];
+  initialCanReply:      boolean;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -223,6 +232,7 @@ function MessageReplyPreview({
 export function ChatWindow({
   conversationId,
   currentUserId,
+  currentUserAvatarUrl,
   accountType,
   partner,
   initialMessages,
@@ -289,6 +299,17 @@ export function ChatWindow({
       user_full_name:   u?.full_name ?? '',
       expires_at:       (st.expires_at as string) ?? null,
     };
+  }, [supabase]);
+
+  // ── Fetch replied message enrichment (for realtime messages) ─
+  const fetchRepliedMessage = useCallback(async (msgId: string): Promise<RepliedMessage | null> => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any)
+      .from('messages')
+      .select('id, sender_id, content, message_type, voice_url, deleted_for_everyone')
+      .eq('id', msgId)
+      .maybeSingle() as { data: RepliedMessage | null };
+    return data;
   }, [supabase]);
 
   // ── Status viewer opener (Session D) ───────────────────────
@@ -374,19 +395,53 @@ export function ChatWindow({
         table:  'messages',
         filter: `conversation_id=eq.${conversationId}`,
       }, (payload) => {
-        const raw = payload.new as Omit<MessageData, 'replied_status'>;
-        const newMsg: MessageData = { ...raw, reactions: [] };
+        const raw = payload.new as MessageData;
+        // replied_message is a client-side enrichment — not in the DB row
+        const newMsg: MessageData = { ...raw, reactions: [], replied_message: undefined };
 
         setMessages((prev) => {
+          // Replace our own optimistic message (matched by content + sender)
           const tempIdx = prev.findIndex(
             (m) => m.is_optimistic && m.content === newMsg.content && m.sender_id === newMsg.sender_id,
           );
           if (tempIdx !== -1) {
-            const next = [...prev]; next[tempIdx] = newMsg; return next;
+            const next = [...prev];
+            // Preserve replied_message we already built for the optimistic message
+            next[tempIdx] = { ...newMsg, replied_message: prev[tempIdx]?.replied_message };
+            return next;
           }
           if (prev.some((m) => m.id === newMsg.id)) return prev;
+
+          // Incoming message from the other user — try to enrich replied_message
+          // from the messages already in state before falling back to a DB fetch.
+          if (newMsg.reply_to_message_id) {
+            const original = prev.find((m) => m.id === newMsg.reply_to_message_id);
+            if (original) {
+              newMsg.replied_message = {
+                id:                   original.id,
+                sender_id:            original.sender_id,
+                content:              original.content,
+                message_type:         original.message_type ?? 'text',
+                voice_url:            original.voice_url ?? null,
+                deleted_for_everyone: original.deleted_for_everyone ?? false,
+              };
+            }
+          }
+
           return [...prev, newMsg];
         });
+
+        // Async fallback: if the original message wasn't in local state, fetch it
+        if (raw.reply_to_message_id) {
+          fetchRepliedMessage(raw.reply_to_message_id).then((rm) => {
+            if (!rm) return;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === raw.id && !m.replied_message ? { ...m, replied_message: rm } : m,
+              ),
+            );
+          });
+        }
 
         if (raw.reply_to_status_id) {
           fetchRepliedStatus(raw.reply_to_status_id).then((rs) =>
@@ -401,7 +456,7 @@ export function ChatWindow({
           );
         }
       })
-      // Realtime: soft-delete updates
+      // Realtime: soft-delete and other server-side updates
       .on('postgres_changes', {
         event:  'UPDATE',
         schema: 'public',
@@ -410,13 +465,23 @@ export function ChatWindow({
       }, (payload) => {
         const updated = payload.new as Partial<MessageData> & { id: string };
         setMessages((prev) =>
-          prev.map((m) => m.id === updated.id ? { ...m, ...updated } : m),
+          prev.map((m) => {
+            if (m.id !== updated.id) return m;
+            return {
+              ...m,
+              ...updated,
+              // Preserve client-side enrichments that are not DB columns
+              replied_message: m.replied_message,
+              replied_status:  m.replied_status,
+              reactions:       m.reactions ?? [],
+            };
+          }),
         );
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [supabase, conversationId, currentUserId, playMessage, queryClient, fetchRepliedStatus]);
+  }, [supabase, conversationId, currentUserId, playMessage, queryClient, fetchRepliedStatus, fetchRepliedMessage]);
 
   // ── Realtime: reactions ─────────────────────────────────────
   useEffect(() => {
@@ -506,7 +571,9 @@ export function ChatWindow({
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = 'auto';
-    ta.style.height = `${Math.min(ta.scrollHeight, 96)}px`;
+    const newHeight = Math.min(ta.scrollHeight, 96);
+    ta.style.height = `${newHeight}px`;
+    ta.style.overflowY = newHeight >= 96 ? 'auto' : 'hidden';
   };
 
   // ── Reaction handler ────────────────────────────────────────
@@ -584,6 +651,20 @@ export function ChatWindow({
     const capturedReply = replyingTo;
     setReplyingTo(null);
 
+    // Snapshot the original message for optimistic reply preview.
+    // We do this BEFORE setMessages so we read the current state.
+    const originalMsg = capturedReply ? messages.find((m) => m.id === capturedReply.id) : null;
+    const capturedRepliedMsg: RepliedMessage | null = originalMsg
+      ? {
+          id:                   originalMsg.id,
+          sender_id:            originalMsg.sender_id,
+          content:              capturedReply!.content,
+          message_type:         capturedReply!.messageType,
+          voice_url:            originalMsg.voice_url ?? null,
+          deleted_for_everyone: originalMsg.deleted_for_everyone ?? false,
+        }
+      : null;
+
     const optimisticMsg: MessageData = {
       id:                   tempId,
       sender_id:            currentUserId,
@@ -592,6 +673,7 @@ export function ChatWindow({
       is_read:              false,
       is_optimistic:        true,
       reply_to_message_id:  capturedReply?.id ?? null,
+      replied_message:      capturedRepliedMsg,
       reactions:            [],
     };
     setMessages((prev) => [...prev, optimisticMsg]);
@@ -613,7 +695,12 @@ export function ChatWindow({
 
     const sent = result.data;
     if (sent) {
-      setMessages((prev) => prev.map((m) => (m.id === tempId ? sent : m)));
+      // Preserve replied_message from the optimistic message: SentMessage doesn't
+      // carry it (it's a client-side enrichment, not stored as a DB column).
+      setMessages((prev) => prev.map((m) => {
+        if (m.id !== tempId) return m;
+        return { ...(sent as MessageData), replied_message: capturedRepliedMsg };
+      }));
     }
   };
 
@@ -879,20 +966,65 @@ export function ChatWindow({
                     }
 
                     if (msg.message_type === 'post_share' && msg.shared_post_id) {
+                      const post     = msg.shared_post_data;
+                      const thumb    = post?.media?.[0]?.thumbnail ?? post?.media?.[0]?.url ?? null;
+                      const isVideo  = post?.media?.[0]?.type === 'video';
+                      const caption  = post?.content ?? null;
+                      const author   = post?.author_full_name ?? null;
+
                       return (
                         <a
                           href={`/post/${msg.shared_post_id}`}
                           className={cn(
-                            'flex flex-col overflow-hidden rounded-2xl border',
-                            isSent ? 'rounded-ee-sm border-primary/30 bg-primary/10' : 'rounded-es-sm border-border bg-muted/50',
+                            'flex flex-col overflow-hidden rounded-2xl border w-full max-w-[260px] sm:max-w-[300px]',
+                            isSent
+                              ? 'rounded-ee-sm border-primary/30 bg-primary/10'
+                              : 'rounded-es-sm border-border bg-muted/50',
                           )}
                         >
-                          <div className={cn('px-3 py-1.5 text-[11px] font-medium', isSent ? 'text-primary/80' : 'text-muted-foreground')}>
-                            📎 شارك معك منشوراً
-                          </div>
-                          <div className={cn('flex items-center gap-2 border-t px-3 py-2', isSent ? 'border-primary/20' : 'border-border')}>
-                            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm">📝</div>
-                            <p className={cn('text-xs font-medium', isSent ? 'text-primary-foreground' : 'text-foreground')}>اضغط لعرض المنشور</p>
+                          {/* Thumbnail */}
+                          {thumb ? (
+                            <div className="relative aspect-video w-full overflow-hidden bg-black/10">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={thumb}
+                                alt={caption ?? 'منشور'}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                              {isVideo && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50">
+                                    <span className="ms-0.5 text-white text-lg">▶</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className={cn(
+                              'flex h-20 items-center justify-center text-3xl',
+                              isSent ? 'bg-primary/15' : 'bg-muted',
+                            )}>
+                              📝
+                            </div>
+                          )}
+
+                          {/* Footer */}
+                          <div className="flex flex-col gap-1 px-3 py-2">
+                            {author && (
+                              <p className="text-[11px] font-semibold leading-none text-primary">
+                                @{post?.author_username ?? author}
+                              </p>
+                            )}
+                            {caption ? (
+                              <p className="line-clamp-2 text-xs leading-snug text-foreground">
+                                {caption}
+                              </p>
+                            ) : (
+                              <p className="text-xs italic text-muted-foreground">
+                                اضغط لعرض المنشور
+                              </p>
+                            )}
                           </div>
                         </a>
                       );
@@ -946,7 +1078,10 @@ export function ChatWindow({
                     <ReactionsDisplay
                       reactions={msg.reactions!}
                       currentUserId={currentUserId}
+                      currentUserAvatarUrl={currentUserAvatarUrl}
                       isSent={isSent}
+                      partner={partner}
+                      onToggle={(emoji) => handleReactionToggle(msg.id, emoji)}
                     />
                   )}
 
@@ -1058,8 +1193,8 @@ export function ChatWindow({
                 placeholder="اكتب رسالة..."
                 rows={1}
                 disabled={isSending}
-                className="flex-1 resize-none rounded-2xl border bg-muted/50 px-4 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                style={{ maxHeight: '96px', overflowY: 'auto' }}
+                className="flex-1 resize-none rounded-2xl border bg-muted/50 px-4 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent"
+                style={{ maxHeight: '96px', overflowY: 'hidden' }}
               />
             )}
 

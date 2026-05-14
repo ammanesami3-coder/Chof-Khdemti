@@ -5,8 +5,17 @@ import { usePathname } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useNotificationSound } from '@/hooks/use-notification-sound';
+import type { ConversationRow } from '@/lib/queries/conversations';
 
 type Props = { currentUserId: string };
+
+function isConversationMuted(conversations: ConversationRow[] | undefined, convId: string): boolean {
+  const conv = conversations?.find((c) => c.id === convId);
+  if (!conv?.is_muted) return false;
+  // muted_until = null means muted forever
+  if (!conv.muted_until) return true;
+  return new Date(conv.muted_until) > new Date();
+}
 
 export function GlobalRealtimeProvider({ currentUserId }: Props) {
   const pathname = usePathname();
@@ -42,7 +51,12 @@ export function GlobalRealtimeProvider({ currentUserId }: Props) {
             (old: number | undefined) => (old ?? 0) + 1,
           );
           queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
-          playMessage();
+
+          // لا تُشغّل الصوت إذا كانت المحادثة مكتومة
+          const conversations = queryClient.getQueryData<ConversationRow[]>(['conversations']);
+          if (!isConversationMuted(conversations, msg.conversation_id)) {
+            playMessage();
+          }
 
           if (document.visibilityState === 'hidden') {
             document.title = '🔔 رسالة جديدة — Chof Khdemti';

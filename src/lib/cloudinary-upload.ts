@@ -18,6 +18,14 @@ export type AttachmentUploadResult = {
   thumbnail_url?: string;
 };
 
+/** Determines the correct Cloudinary resource_type from the file's MIME type. */
+export function getResourceType(file: File): "image" | "video" | "raw" {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("video/")) return "video";
+  if (file.type.startsWith("audio/")) return "video"; // Cloudinary handles audio as video
+  return "raw"; // PDF, DOCX, XLSX, TXT, CSV, etc.
+}
+
 type UploadPreset = "avatar" | "cover" | "post_image" | "post_video";
 
 /**
@@ -118,22 +126,40 @@ export async function uploadAttachmentToCloudinary(
     audio:    "msg_audio",
   } as const;
 
+  // Determine resource_type from the actual file MIME type.
+  // PDFs, DOCX, XLSX, etc. → 'raw'. Images → 'image'. Videos → 'video'.
+  const resourceType = getResourceType(file);
+
   const signRes = await fetch("/api/cloudinary/sign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ preset: presetMap[attachmentType] }),
+    body: JSON.stringify({ preset: presetMap[attachmentType], resourceType }),
   });
-  if (!signRes.ok) throw new Error("فشل الحصول على توقيع الرفع");
+  if (!signRes.ok) {
+    const errBody = await signRes.text().catch(() => "");
+    console.error("[uploadAttachment] sign route failed:", signRes.status, errBody);
+    throw new Error(`فشل الحصول على توقيع الرفع (${signRes.status})`);
+  }
 
-  const { signature, timestamp, cloud_name, api_key, folder, resource_type } =
-    (await signRes.json()) as {
-      signature: string;
-      timestamp: number;
-      cloud_name: string;
-      api_key: string;
-      folder: string;
-      resource_type: string;
-    };
+  const signData = (await signRes.json()) as {
+    signature: string;
+    timestamp: number;
+    cloud_name: string;
+    api_key: string;
+    folder: string;
+    resource_type: string;
+  };
+
+  const { signature, timestamp, cloud_name, api_key, folder } = signData;
+  // Use client-computed resourceType as the authoritative value — never trust an
+  // undefined or mismatched value from the server to avoid uploading a PDF to /image/upload.
+  const resource_type: string = (signData.resource_type === "image" || signData.resource_type === "video" || signData.resource_type === "raw")
+    ? signData.resource_type
+    : resourceType;
+
+  if (process.env.NODE_ENV === "development") {
+    console.log(`[uploadAttachment] ${file.name} → resource_type="${resource_type}" (file MIME: "${file.type}")`);
+  }
 
   const formData = new FormData();
   formData.append("file", file);
@@ -183,7 +209,13 @@ export async function uploadAttachmentToCloudinary(
           thumbnail_url,
         });
       } else {
-        reject(new Error("فشل رفع الملف إلى Cloudinary"));
+        let reason = "فشل رفع الملف إلى Cloudinary";
+        try {
+          const err = JSON.parse(xhr.responseText) as { error?: { message?: string } };
+          if (err?.error?.message) reason += `: ${err.error.message}`;
+        } catch { /* ignore parse errors */ }
+        console.error(`[uploadAttachment] Cloudinary ${xhr.status}:`, xhr.responseText);
+        reject(new Error(reason));
       }
     };
 

@@ -593,3 +593,156 @@ alter table public.messages
 ✓ npm run build     → 0 errors, 0 warnings
 ✓ npm run lint      → 0 errors, 1 pre-existing warning (post-card.tsx)
 ```
+
+---
+
+---
+
+## إصلاحات ما بعد الإطلاق — مايو 2026 (جلسة 2)
+
+> **الهدف:** إصلاح مشاكل في عرض الوسائط وتحميل المستندات، وإضافة نظام إدارة احترافي للمحادثات
+
+---
+
+### الإصلاح #4 — نظام عرض وتحميل المستندات (Cloudinary Proxy) ✅
+
+**المشكلة الأصلية:** ثلاث مشاكل متشابكة:
+1. **PDF لا يُعرض:** Cloudinary يُرجع 401 (مورد مقيّد) عند جلب الملف من المتصفح مباشرةً بسبب CORS
+2. **DOCX/XLSX تحميل 400:** `fl_attachment` في URL غير موقّع يُرجع HTTP 400 من Cloudinary لـ raw resources
+3. **Double-proxy bug:** المكوّن كان يُمرّر URL الـ proxy مجدداً للـ proxy → URL مشفّر داخل URL → رفض الـ route
+
+**الحل الكامل:**
+
+**`src/app/api/cloudinary/view/route.ts`** (جديد):
+- Proxy route خادم-لخادم: يُحضر الملف من Cloudinary ثم يُعيده للمتصفح
+- خطوتان: يجرب URL النظيف أولاً → إذا 401/403 ينشئ signed URL عبر Cloudinary SDK
+- `arrayBuffer()` بدل body stream (أكثر موثوقية في serverless)
+- RFC 5987 encoding (`filename*=UTF-8''...`) لأسماء الملفات العربية في Content-Disposition
+- `parseCloudinaryUrl()` تُميّز raw (يحتفظ بالامتداد) عن image/video
+
+**`src/lib/cloudinary-utils.ts`** (جديد):
+- `getProxyDownloadUrl(url, fileName)` — يوجّه التحميل عبر `/api/cloudinary/view?filename=...`
+- `getPreviewUrl(url)` — يزيل التوقيع للعرض المباشر
+- `isOfficeMime(mime)` — يكتشف DOCX/XLSX/PPTX لعارض Office Online
+- `getFileTypeLabel(mime, fileName)` — label مقروء (PDF, DOCX, XLSX...)
+
+**`src/components/messages/document-viewer-modal.tsx`** (جديد):
+- `PdfFrame`: يستقبل `proxyUrl` جاهزاً (لا re-wrapping داخل المكوّن)
+- `OfficeFrame`: يُمرّر URL Cloudinary الأصلي لـ Microsoft Office Online (يجلبه بنفسه)
+- `Fallback` شامل مع زرّي فتح + تحميل
+
+**`src/components/messages/attachment-bubble.tsx`**:
+- استبدال `getDownloadUrl` بـ `getProxyDownloadUrl`
+- truncation متجاوب: `max-w-[26ch]` موبايل / `sm:max-w-[40ch]` ديسكتوب
+- إضافة `min-w-0 overflow-hidden` لتفعيل truncation
+
+**`src/components/messages/reactions-display.tsx`**:
+- إضافة prop `currentUserAvatarUrl` → يُظهر صورة المستخدم الفعلية بدل حرف "أ"
+- إصلاح موضع panel في RTL: sent=يسار → panel يمتد يميناً، received=يمين → panel يمتد يساراً
+
+**`src/app/(app)/messages/[conversationId]/page.tsx`**:
+- جلب avatar المستخدم الحالي + تمريره لـ `ChatWindow`
+- إثراء `shared_post_data`: جلب بيانات المنشور + المؤلف للرسائل من نوع `post_share`
+
+**`src/components/messages/chat-window.tsx`**:
+- إصلاح scrollbar textarea: يظهر فقط عند تجاوز `maxHeight: 96px`
+- عرض post_share بصورة مصغرة (aspect-video + overlay ▶ للفيديو + اسم المؤلف + وصف)
+- إصلاح تباين نص post_share: `text-primary` للمؤلف، `text-foreground` للوصف (بدل الألوان الشفافة)
+
+---
+
+### الإصلاح #5 — نظام إدارة المحادثات (Messenger-style) ✅
+
+**المشكلة:** لا توجد إمكانية لتثبيت أو كتم أو حذف المحادثات
+
+**الحل الكامل:**
+
+**`supabase/migrations/0030_conversation_settings.sql`** (جديد):
+- جدول `conversation_settings`: `(user_id, conversation_id)` PK، حقول: `is_pinned`, `pinned_at`, `is_muted`, `muted_until`, `deleted_at`
+- RLS: كل مستخدم يدير إعداداته فقط (`user_id = auth.uid()`)
+- Trigger `restore_conv_on_new_message`: يُزيل `deleted_at` تلقائياً عند وصول رسالة جديدة
+- تحديث `get_user_conversations()`: يُضيف أعمدة الإعدادات + يرتّب (مثبَّتة أولاً) + يُخفي المحذوفة
+
+**`src/lib/actions/conversation-settings.ts`** (جديد):
+- `pinConversation` / `unpinConversation`
+- `muteConversation(id, duration)` حيث duration: `'1h'|'8h'|'24h'|'forever'`
+- `unmuteConversation`
+- `markConversationAsRead` → يستدعي `mark_conversation_read` RPC (security definer)
+- `deleteConversationForMe` → يُعيّن `deleted_at`
+
+**`src/components/messages/conversation-actions-menu.tsx`** (جديد):
+- Desktop: Context menu مُحدَّد الموضع عند المؤشر (portal في `document.body`)
+- Mobile: `Sheet` bottom drawer أنيق
+- مشاركة نفس `ActionList`: تثبيت، كتم (مع sub-picker للمدة)، تعليم مقروء، حذف
+- Keyboard: ESC يُغلق، focus states
+
+**`src/components/messages/conversation-list-item.tsx`** (إعادة كتابة):
+- تحويل من `<Link>` لـ `<div role="button">` مع `router.push()` للتحكم الكامل
+- `onContextMenu` → context menu عند الكورسور (desktop)
+- `useLongPress` → bottom sheet (mobile) مع haptic feedback
+- زر `⋯` → يكتشف `pointer: coarse` ويفتح المناسب
+- أيقونة دبوس 📌 + شريط بلون primary للمثبَّتة
+- أيقونة كتم 🔕 للمكتومة
+- RTL-aware positioning
+
+**`src/components/messages/conversation-list.tsx`**:
+- `sortConversations()` محلياً (مثبَّتة أولاً ثم الأحدث)
+- `handleOptimisticUpdate()`: يُعدَّل cache TanStack Query فوراً بدون انتظار السيرفر
+- Realtime يستمع أيضاً لتغييرات `conversation_settings`
+
+**`src/lib/queries/conversations.ts`**:
+- إضافة `is_pinned`, `pinned_at`, `is_muted`, `muted_until` لنوع `ConversationRow`
+
+---
+
+### الإصلاح #6 — "تعليم كمقروءة" لا يُخزَّن في قاعدة البيانات ✅
+
+**السبب الجذري:** سياسة RLS `"messages_update_sender"` تسمح فقط للمُرسِل بتعديل رسائله. عندما يُحاول المستقبِل تعيين `is_read = true` على رسائل الشريك، تحجب RLS التحديث بصمت (0 صفوف، لا خطأ).
+
+**الحل:**
+
+**`supabase/migrations/0031_mark_conversation_read_fn.sql`** (جديد):
+```sql
+create or replace function public.mark_conversation_read(p_conversation_id uuid)
+returns void language plpgsql security definer ...
+-- يتحقق من عضوية المحادثة ثم يُعدّل مباشرةً بدون قيود RLS
+```
+
+**`src/lib/actions/conversation-settings.ts`**:
+- `markConversationAsRead` تستدعي `supabase.rpc('mark_conversation_read', ...)` بدل `update` مباشر
+
+---
+
+### الإصلاح #7 — الصوت يُشغَّل عند رسالة من محادثة مكتومة ✅
+
+**السبب الجذري:** `GlobalRealtimeProvider` يُشغّل `playMessage()` لكل رسالة جديدة دون التحقق من حالة الكتم.
+
+**الحل** في `src/components/providers/global-realtime-provider.tsx`:
+```ts
+// قبل playMessage() — يقرأ من cache التانستاك
+const conversations = queryClient.getQueryData<ConversationRow[]>(['conversations']);
+if (!isConversationMuted(conversations, msg.conversation_id)) {
+  playMessage();
+}
+```
+- `isConversationMuted()` تتحقق من `is_muted` و`muted_until` (مؤقت أو دائم)
+- إذا الكاش فارغ (المستخدم لم يزر `/messages` بعد) → يُشغَّل الصوت افتراضياً (السلوك الآمن)
+
+---
+
+### نتائج الفحوصات (الجلسة 2)
+
+```
+✓ npx tsc --noEmit  → 0 errors
+✓ npm run build     → 0 errors, 0 warnings
+```
+
+### SQL يحتاج تطبيقاً في Supabase SQL Editor
+
+```sql
+-- 1. نظام إعدادات المحادثات + تحديث get_user_conversations:
+--    supabase/migrations/0030_conversation_settings.sql
+
+-- 2. دالة mark_conversation_read (security definer):
+--    supabase/migrations/0031_mark_conversation_read_fn.sql
+```

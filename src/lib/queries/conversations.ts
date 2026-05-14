@@ -18,6 +18,11 @@ export type ConversationRow = {
   last_message_sender_id: string | null;
   last_message_is_read: boolean | null;
   unread_count: number;
+  // conversation_settings columns (null before migration runs)
+  is_pinned:   boolean;
+  pinned_at:   string | null;
+  is_muted:    boolean;
+  muted_until: string | null;
 };
 
 export async function fetchUserConversations(): Promise<ConversationRow[]> {

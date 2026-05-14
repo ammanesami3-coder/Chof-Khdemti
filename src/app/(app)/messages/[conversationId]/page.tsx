@@ -29,23 +29,28 @@ export default async function ConversationPage({ params }: Props) {
   const isArtisan = conv.artisan_id === user.id;
   const partnerId = isArtisan ? conv.customer_id : conv.artisan_id;
 
-  const [currentUserResult, partnerUserResult, partnerProfileResult, rawMessagesResult] =
+  const [currentUserResult, currentProfileResult, partnerUserResult, partnerProfileResult, rawMessagesResult] =
     await Promise.all([
       supabase.from('users').select('account_type').eq('id', user.id).single(),
+      supabase.from('profiles').select('avatar_url').eq('user_id', user.id).maybeSingle(),
       supabase.from('users').select('id, username, full_name').eq('id', partnerId).single(),
       supabase.from('profiles').select('avatar_url').eq('user_id', partnerId).maybeSingle(),
+      // Fetch the LATEST 50 messages (desc) then reverse for chronological display.
+      // Ascending + limit(50) would return the oldest 50, causing new messages to
+      // vanish after refresh in conversations with more than 50 messages.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
         .from('messages')
         .select('id, sender_id, content, is_read, created_at, message_type, voice_url, voice_duration, reply_to_status_id, shared_post_id, reply_to_message_id, deleted_at, deleted_for_everyone, deleted_by_user_ids, attachment_url, attachment_metadata')
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(50) as Promise<{ data: RawMessage[] | null }>,
     ]);
 
   if (!partnerUserResult.data) notFound();
 
-  const rawMessages: RawMessage[] = rawMessagesResult.data ?? [];
+  // Reverse: we fetched newest-first (desc), render oldest-first (asc)
+  const rawMessages: RawMessage[] = (rawMessagesResult.data ?? []).reverse();
   const messageIds = rawMessages.map((m) => m.id);
 
   // ── Enrich: status replies ─────────────────────────────────────────────────
@@ -102,6 +107,50 @@ export default async function ConversationPage({ params }: Props) {
     }
   }
 
+  // ── Enrich: shared posts ──────────────────────────────────────────────────
+  type SharedPostData = {
+    content: string | null;
+    media: Array<{ type: string; url: string; thumbnail: string }>;
+    author_full_name: string;
+    author_username:  string;
+  };
+
+  const sharedPostIds = [
+    ...new Set(
+      rawMessages
+        .filter((m) => m.message_type === 'post_share' && m.shared_post_id)
+        .map((m) => m.shared_post_id!),
+    ),
+  ];
+
+  const sharedPostMap = new Map<string, SharedPostData>();
+  if (sharedPostIds.length > 0) {
+    const { data: posts } = await supabase
+      .from('posts')
+      .select('id, content, media, author_id')
+      .in('id', sharedPostIds);
+
+    if (posts?.length) {
+      const authorIds = [...new Set(posts.map((p) => p.author_id))];
+      const { data: authors } = await supabase
+        .from('users')
+        .select('id, full_name, username')
+        .in('id', authorIds);
+
+      const authorMap = new Map((authors ?? []).map((a) => [a.id, a]));
+
+      for (const p of posts) {
+        const author = authorMap.get(p.author_id);
+        sharedPostMap.set(p.id, {
+          content:          p.content ?? null,
+          media:            (p.media as Array<{ type: string; url: string; thumbnail: string }>) ?? [],
+          author_full_name: author?.full_name ?? '',
+          author_username:  author?.username ?? '',
+        });
+      }
+    }
+  }
+
   // ── Enrich: reactions ──────────────────────────────────────────────────────
   const reactionsMap = new Map<string, MessageReaction[]>();
   if (messageIds.length > 0) {
@@ -129,6 +178,7 @@ export default async function ConversationPage({ params }: Props) {
     voice_url:            m.voice_url ?? null,
     voice_duration:       m.voice_duration ?? null,
     shared_post_id:       m.shared_post_id ?? null,
+    shared_post_data:     m.shared_post_id ? (sharedPostMap.get(m.shared_post_id) ?? null) : null,
     reply_to_status_id:   m.reply_to_status_id ?? null,
     replied_status:       m.reply_to_status_id ? (statusDataMap.get(m.reply_to_status_id) ?? null) : null,
     reply_to_message_id:  m.reply_to_message_id ?? null,
@@ -158,6 +208,7 @@ export default async function ConversationPage({ params }: Props) {
     <ChatWindow
       conversationId={conversationId}
       currentUserId={user.id}
+      currentUserAvatarUrl={currentProfileResult.data?.avatar_url ?? null}
       accountType={currentUserResult.data?.account_type ?? 'customer'}
       partner={partner}
       initialMessages={initialMessages}

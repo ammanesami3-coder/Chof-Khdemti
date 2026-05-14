@@ -1,14 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import { useState } from 'react';
 import {
   Download, Eye,
   FileText, FileSpreadsheet, Presentation, File as FileIcon,
-  X, Loader2, AlertCircle,
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { getProxyDownloadUrl, getFileTypeLabel } from '@/lib/cloudinary-utils';
 import type { AttachmentMetadata } from '@/lib/actions/messages';
+
+// Lazy-load the heavy viewer modal (blob fetch + iframe)
+const DocumentViewerModal = dynamic(
+  () => import('./document-viewer-modal').then(m => m.DocumentViewerModal),
+  { ssr: false },
+);
 
 type Props = {
   messageType: 'image' | 'video' | 'document' | 'audio';
@@ -25,175 +32,22 @@ function formatBytes(bytes: number) {
 }
 
 function DocIcon({ mime }: { mime?: string }) {
-  if (!mime) return <FileIcon className="h-5 w-5" />;
-  if (mime.includes('pdf'))                                           return <FileText className="h-5 w-5 text-red-500" />;
+  if (!mime)                                                              return <FileIcon className="h-6 w-6 text-muted-foreground" />;
+  if (mime.includes('pdf'))                                               return <FileText className="h-6 w-6 text-red-500" />;
   if (mime.includes('spreadsheet') || mime.includes('excel') || mime.includes('csv'))
-                                                                      return <FileSpreadsheet className="h-5 w-5 text-green-600" />;
-  if (mime.includes('presentation') || mime.includes('powerpoint'))  return <Presentation className="h-5 w-5 text-orange-500" />;
-  return <FileText className="h-5 w-5 text-blue-500" />;
+                                                                          return <FileSpreadsheet className="h-6 w-6 text-green-600" />;
+  if (mime.includes('presentation') || mime.includes('powerpoint'))       return <Presentation className="h-6 w-6 text-orange-500" />;
+  if (mime.includes('word') || mime.includes('msword'))                   return <FileText className="h-6 w-6 text-blue-500" />;
+  return <FileText className="h-6 w-6 text-muted-foreground" />;
 }
-
-// ── PDF viewer ────────────────────────────────────────────────────────────────
-// Fetches the raw Cloudinary URL from the browser (CORS is allowed by Cloudinary),
-// wraps it in a blob URL so the browser's native PDF viewer renders it inline,
-// bypassing the Content-Disposition: attachment header Cloudinary sends for raw uploads.
-
-type PdfViewerProps = { url: string; filename: string; onClose: () => void };
-
-function PdfViewer({ url, filename, onClose }: PdfViewerProps) {
-  const [blobUrl,     setBlobUrl]     = useState<string | null>(null);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const blobRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(false);
-
-    fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error(`${res.status}`);
-        return res.blob();
-      })
-      .then((blob) => {
-        if (cancelled) return;
-        const objectUrl = URL.createObjectURL(blob);
-        blobRef.current = objectUrl;
-        setBlobUrl(objectUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-      if (blobRef.current) {
-        URL.revokeObjectURL(blobRef.current);
-        blobRef.current = null;
-      }
-    };
-  }, [url]);
-
-  const handleDownload = useCallback(() => {
-    const src = blobRef.current;
-    if (!src) return;
-    setDownloading(true);
-    const a = document.createElement('a');
-    a.href = src;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setDownloading(false);
-  }, [filename]);
-
-  return (
-    <DialogContent className="max-w-3xl w-[95vw] h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
-      <DialogTitle className="sr-only">{filename}</DialogTitle>
-
-      {/* Toolbar */}
-      <div className="flex shrink-0 items-center justify-between border-b bg-background px-4 py-2.5">
-        <span className="truncate text-sm font-medium">{filename}</span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={downloading || !blobUrl}
-            className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-accent transition-colors disabled:opacity-40"
-            aria-label="تنزيل"
-          >
-            {downloading
-              ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              : <Download className="h-4 w-4 text-muted-foreground" />}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-accent transition-colors"
-            aria-label="إغلاق"
-          >
-            <X className="h-4 w-4 text-muted-foreground" />
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="relative flex-1 w-full">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        )}
-
-        {error && !loading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
-            <AlertCircle className="h-10 w-10 opacity-60" />
-            <p className="text-sm">تعذّر تحميل الملف</p>
-            <button
-              type="button"
-              onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
-              className="text-sm text-primary underline underline-offset-2"
-            >
-              فتح في تبويب جديد
-            </button>
-          </div>
-        )}
-
-        {blobUrl && (
-          <iframe
-            src={blobUrl}
-            className="h-full w-full border-0"
-            title={filename}
-          />
-        )}
-      </div>
-    </DialogContent>
-  );
-}
-
-// ── clientDownload ────────────────────────────────────────────────────────────
-// Fetch → blob → programmatic click so the original filename is preserved
-// even for cross-origin URLs (where <a download> is ignored by browsers).
-
-async function clientDownload(url: string, filename: string) {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error();
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-  } catch {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  }
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
 
 export function AttachmentBubble({ messageType, url, metadata, isSent, caption }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [pdfOpen,      setPdfOpen]      = useState(false);
-  const [downloading,  setDownloading]  = useState(false);
+  const [viewerOpen,   setViewerOpen]   = useState(false);
 
-  const filename = metadata.filename ?? (metadata.mime_type?.includes('pdf') ? 'document.pdf' : 'document');
-
-  const handleDownload = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDownloading(true);
-    await clientDownload(url, filename);
-    setDownloading(false);
-  }, [url, filename]);
+  const filename    = metadata.filename ?? (metadata.mime_type?.includes('pdf') ? 'document.pdf' : 'document');
+  const downloadUrl = getProxyDownloadUrl(url, filename);
+  const typeLabel   = getFileTypeLabel(metadata.mime_type, filename);
 
   // ── Image ──────────────────────────────────────────────────────────────────
 
@@ -276,69 +130,86 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
     );
   }
 
-  // ── PDF ────────────────────────────────────────────────────────────────────
-
-  if (metadata.mime_type?.includes('pdf')) {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <button
-          type="button"
-          onClick={() => setPdfOpen(true)}
-          className={cn(
-            'flex items-center gap-3 rounded-xl px-3 py-2.5 text-start transition-opacity hover:opacity-80',
-            isSent ? 'bg-primary-foreground/10' : 'bg-black/5',
-          )}
-        >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-background shadow-sm">
-            <FileText className="h-5 w-5 text-red-500" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium">{filename}</p>
-            {metadata.size && (
-              <p className="text-[10px] text-muted-foreground">{formatBytes(metadata.size)}</p>
-            )}
-          </div>
-          <Eye className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </button>
-
-        {caption && <p className="px-0.5 text-sm">{caption}</p>}
-
-        <Dialog open={pdfOpen} onOpenChange={setPdfOpen}>
-          {pdfOpen && (
-            <PdfViewer url={url} filename={filename} onClose={() => setPdfOpen(false)} />
-          )}
-        </Dialog>
-      </div>
-    );
-  }
-
-  // ── Other documents (DOCX, XLSX, PPTX …) ──────────────────────────────────
+  // ── Documents (PDF, DOCX, XLSX, PPTX …) ───────────────────────────────────
+  //
+  // WhatsApp-style card:
+  //  ┌──────────────────────────────────┐
+  //  │ [icon]  filename.pdf             │
+  //  │         30.9 KB · PDF            │
+  //  ├──────────────────────────────────┤
+  //  │   [👁 معاينة]  │  [⬇ تحميل]    │
+  //  └──────────────────────────────────┘
 
   return (
     <div className="flex flex-col gap-1.5">
-      <button
-        type="button"
-        onClick={handleDownload}
-        disabled={downloading}
-        className={cn(
-          'flex items-center gap-3 rounded-xl px-3 py-2.5 transition-opacity hover:opacity-80 disabled:opacity-60',
+      <div className={cn(
+        'overflow-hidden rounded-xl border',
+        isSent ? 'border-primary-foreground/20' : 'border-border',
+      )}>
+        {/* File info */}
+        <div className={cn(
+          'flex min-w-0 items-center gap-3 px-3 py-2.5',
           isSent ? 'bg-primary-foreground/10' : 'bg-black/5',
-        )}
-      >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-background shadow-sm">
-          <DocIcon mime={metadata.mime_type} />
+        )}>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-background shadow-sm">
+            <DocIcon mime={metadata.mime_type} />
+          </div>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <p className="truncate text-xs font-semibold leading-tight max-w-[26ch] sm:max-w-[40ch]">{filename}</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              {metadata.size ? `${formatBytes(metadata.size)} · ` : ''}{typeLabel}
+            </p>
+          </div>
         </div>
-        <div className="min-w-0 flex-1 text-start">
-          <p className="truncate text-xs font-medium">{filename}</p>
-          {metadata.size && (
-            <p className="text-[10px] text-muted-foreground">{formatBytes(metadata.size)}</p>
-          )}
+
+        {/* Separator */}
+        <div className={cn('h-px', isSent ? 'bg-primary-foreground/15' : 'bg-border')} />
+
+        {/* Action buttons */}
+        <div className={cn('flex', isSent ? 'bg-primary-foreground/5' : 'bg-background/60')}>
+          <button
+            type="button"
+            onClick={() => setViewerOpen(true)}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
+              isSent ? 'hover:bg-primary-foreground/10' : 'hover:bg-black/5',
+            )}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            معاينة
+          </button>
+
+          <div className={cn('w-px self-stretch', isSent ? 'bg-primary-foreground/15' : 'bg-border')} />
+
+          <a
+            href={downloadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              'flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
+              isSent ? 'hover:bg-primary-foreground/10' : 'hover:bg-black/5',
+            )}
+          >
+            <Download className="h-3.5 w-3.5" />
+            تحميل
+          </a>
         </div>
-        {downloading
-          ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
-          : <Download className="h-4 w-4 shrink-0 text-muted-foreground" />}
-      </button>
+      </div>
+
       {caption && <p className="px-0.5 text-sm">{caption}</p>}
+
+      {/* Viewer modal — mounted only when open to avoid premature blob fetch */}
+      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
+        {viewerOpen && (
+          <DocumentViewerModal
+            url={url}
+            fileName={filename}
+            mimeType={metadata.mime_type}
+            fileSize={metadata.size}
+            onClose={() => setViewerOpen(false)}
+          />
+        )}
+      </Dialog>
     </div>
   );
 }
