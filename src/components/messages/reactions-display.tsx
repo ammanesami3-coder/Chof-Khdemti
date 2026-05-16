@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 import type { MessageReaction } from '@/components/messages/chat-window';
 
 type Partner = {
@@ -48,6 +49,7 @@ export function ReactionsDisplay({
   partner,
   onToggle,
 }: Props) {
+  const { t } = useLang();
   const [open, setOpen]         = useState(false);
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
   const badgeRef                = useRef<HTMLButtonElement>(null);
@@ -133,12 +135,12 @@ export function ReactionsDisplay({
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-2.5">
-          <span className="text-sm font-semibold text-foreground">التفاعلات</span>
+          <span className="text-sm font-semibold text-foreground">{t('reactionsTitle')}</span>
           <button
             type="button"
             onClick={() => setOpen(false)}
             className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent"
-            aria-label="إغلاق"
+            aria-label={t('closeLabel')}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -156,7 +158,7 @@ export function ReactionsDisplay({
         >
           {reactions.map((r, idx) => {
             const isMe = r.user_id === currentUserId;
-            const name = isMe ? 'أنت' : partner.full_name;
+            const name = isMe ? t('youLabel') : partner.full_name;
             const src  = isMe ? currentUserAvatarUrl : partner.avatar_url;
 
             return (
@@ -187,7 +189,7 @@ export function ReactionsDisplay({
                   </p>
                   {isMe && (
                     <p className="mt-0.5 text-[11px] leading-none text-destructive/60">
-                      اضغط للإزالة
+                      {t('pressToRemove')}
                     </p>
                   )}
                 </div>
@@ -217,7 +219,7 @@ export function ReactionsDisplay({
           isSent ? 'self-end' : 'self-start',
           myEmoji ? 'border-primary/40 bg-primary/5' : 'border-border/60',
         )}
-        aria-label="عرض التفاعلات"
+        aria-label={t('viewReactionsAriaLabel')}
       >
         <span className="leading-none">{topEmojis.join('')}</span>
         {reactions.length > 1 && (

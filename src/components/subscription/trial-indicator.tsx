@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { AlertTriangle, CheckCircle, CreditCard, Flame, Gift } from 'lucide-react';
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status';
 import { SUBSCRIPTION_PRICE_DISPLAY } from '@/lib/constants/subscription';
+import { useLang } from '@/lib/i18n/language-context';
 
 const BASE =
   'flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors';
 
 export function TrialIndicator() {
   const { data, isLoading } = useSubscriptionStatus();
+  const { t } = useLang();
 
   if (isLoading) {
     return <div className="h-5 w-24 animate-pulse rounded-full bg-muted" />;
@@ -30,14 +32,16 @@ export function TrialIndicator() {
           className={`${BASE} bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400`}
         >
           <AlertTriangle className="h-3 w-3" />
-          {dateStr ? `يُلغى ${dateStr}` : 'يُلغى قريباً'}
+          {dateStr
+            ? `${t('cancellingAtDatePrefix')} ${dateStr}`
+            : t('cancellingSoon')}
         </Link>
       );
     }
     return (
       <span className={`${BASE} bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400`}>
         <CheckCircle className="h-3 w-3" />
-        اشتراك نشط
+        {t('activeSubscription')}
       </span>
     );
   }
@@ -47,7 +51,7 @@ export function TrialIndicator() {
       return (
         <Link href="/settings/subscription" className={`${BASE} bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50`}>
           <Flame className="h-3 w-3" />
-          ينتهي اليوم!
+          {t('trialExpiringToday')}
         </Link>
       );
     }
@@ -55,14 +59,14 @@ export function TrialIndicator() {
       return (
         <Link href="/settings/subscription" className={`${BASE} bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50`}>
           <AlertTriangle className="h-3 w-3" />
-          {daysLeft} يوم — اشترك الآن
+          {t('trialDaysUrgent').replace('{daysLeft}', String(daysLeft))}
         </Link>
       );
     }
     return (
       <span className={`${BASE} bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400`}>
         <Gift className="h-3 w-3" />
-        {daysLeft} يوم متبقي
+        {t('trialDaysLeft').replace('{daysLeft}', String(daysLeft ?? ''))}
       </span>
     );
   }
@@ -71,7 +75,7 @@ export function TrialIndicator() {
     return (
       <Link href="/settings/subscription" className={`${BASE} bg-red-600 text-white hover:bg-red-700`}>
         <CreditCard className="h-3 w-3" />
-        اشترك الآن — {SUBSCRIPTION_PRICE_DISPLAY}
+        {t('subscribeNowWithPrice').replace('{price}', SUBSCRIPTION_PRICE_DISPLAY)}
       </Link>
     );
   }
@@ -80,7 +84,7 @@ export function TrialIndicator() {
     return (
       <Link href="/settings/subscription" className={`${BASE} bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50`}>
         <AlertTriangle className="h-3 w-3" />
-        فشل الدفع — حدّث الدفع
+        {t('pastDueIndicatorLabel')}
       </Link>
     );
   }
@@ -89,7 +93,7 @@ export function TrialIndicator() {
     return (
       <Link href="/settings/subscription" className={`${BASE} bg-muted text-muted-foreground hover:bg-muted/80`}>
         <CreditCard className="h-3 w-3" />
-        اشترك مجدداً
+        {t('resubscribeBtn')}
       </Link>
     );
   }

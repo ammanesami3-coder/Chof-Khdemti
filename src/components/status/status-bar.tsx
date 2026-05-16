@@ -7,6 +7,7 @@ import { UserAvatar } from '@/components/shared/user-avatar';
 import { StatusComposer } from './status-composer';
 import { StatusViewer } from './status-viewer';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 import type { StatusGroup, StatusWithUser } from '@/lib/types/status.types';
 
 type CurrentUser = {
@@ -148,11 +149,12 @@ function CreateStoryCard({
   currentUser: { username: string; full_name: string; avatar_url: string | null };
   onClick: () => void;
 }) {
+  const { t } = useLang();
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label="إنشاء قصة"
+      aria-label={t('createStory')}
       className={cn(
         'group relative shrink-0 overflow-hidden rounded-xl',
         'border border-border bg-card shadow-sm',
@@ -174,17 +176,17 @@ function CreateStoryCard({
         ) : (
           <div className="h-full w-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800" />
         )}
+      </div>
 
-        {/* Plus badge at the bottom edge of the photo */}
-        <div className="absolute -bottom-[18px] left-1/2 -translate-x-1/2 z-10 flex size-9 items-center justify-center rounded-full bg-primary shadow-lg ring-[3px] ring-card">
-          <Plus className="size-5 text-primary-foreground" strokeWidth={2.5} />
-        </div>
+      {/* Plus badge — positioned on the card button (relative), straddles the photo/label boundary */}
+      <div className="absolute left-1/2 -translate-x-1/2 z-10 flex size-9 items-center justify-center rounded-full bg-primary shadow-lg ring-[3px] ring-card" style={{ top: 120 }}>
+        <Plus className="size-5 text-primary-foreground" strokeWidth={2.5} />
       </div>
 
       {/* Bottom section: label */}
       <div className="flex h-[54px] flex-col items-center justify-end pb-3 pt-5 bg-card">
         <span className="text-center text-[11.5px] font-semibold text-foreground leading-tight">
-          إنشاء قصة
+          {t('createStory')}
         </span>
       </div>
     </button>
@@ -202,6 +204,7 @@ function StoryCard({
   isOwn?: boolean;
   onClick: () => void;
 }) {
+  const { t } = useLang();
   const story = group.statuses[0]!;
   const { user, hasUnviewed } = group;
   const hasRing = isOwn || hasUnviewed;
@@ -210,7 +213,7 @@ function StoryCard({
     <button
       type="button"
       onClick={onClick}
-      aria-label={isOwn ? 'قصتي' : `قصة ${user.full_name}`}
+      aria-label={isOwn ? t('myStoryLabel') : `${t('storyOfPrefix')} ${user.full_name}`}
       className={cn(
         'group relative shrink-0 overflow-hidden rounded-xl shadow-sm',
         'transition-transform duration-150 hover:scale-[1.02] active:scale-[0.97]',
@@ -267,7 +270,7 @@ function StoryCard({
       {/* ── Name at bottom ─── */}
       <div className="absolute bottom-0 inset-x-0 px-2.5 pb-3 z-10">
         <p className="truncate text-start text-[11.5px] font-semibold text-white drop-shadow-md leading-tight">
-          {isOwn ? 'قصتي' : user.full_name}
+          {isOwn ? t('myStoryLabel') : user.full_name}
         </p>
       </div>
 

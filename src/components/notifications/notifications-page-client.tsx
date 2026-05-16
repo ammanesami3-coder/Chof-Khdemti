@@ -13,6 +13,9 @@ import {
 } from '@/lib/actions/notifications';
 import { NotificationItemCard } from './notification-item';
 import { Button } from '@/components/ui/button';
+import { useLang } from '@/lib/i18n/language-context';
+
+type GroupKey = 'todayLabel' | 'yesterdayLabel' | 'thisWeekLabel' | 'olderLabel';
 
 function groupByDate(notifications: NotificationItem[]) {
   const today: NotificationItem[] = [];
@@ -28,11 +31,11 @@ function groupByDate(notifications: NotificationItem[]) {
     else older.push(n);
   }
 
-  const groups: { label: string; items: NotificationItem[] }[] = [];
-  if (today.length) groups.push({ label: 'اليوم', items: today });
-  if (yesterday.length) groups.push({ label: 'الأمس', items: yesterday });
-  if (thisWeek.length) groups.push({ label: 'هذا الأسبوع', items: thisWeek });
-  if (older.length) groups.push({ label: 'أقدم', items: older });
+  const groups: { key: GroupKey; items: NotificationItem[] }[] = [];
+  if (today.length) groups.push({ key: 'todayLabel', items: today });
+  if (yesterday.length) groups.push({ key: 'yesterdayLabel', items: yesterday });
+  if (thisWeek.length) groups.push({ key: 'thisWeekLabel', items: thisWeek });
+  if (older.length) groups.push({ key: 'olderLabel', items: older });
 
   return groups;
 }
@@ -46,6 +49,7 @@ export function NotificationsPageClient({
   initialNotifications,
   initialHasMore,
 }: Props) {
+  const { t, lang } = useLang();
   const queryClient = useQueryClient();
   const [notifications, setNotifications] = useState(initialNotifications);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -103,7 +107,7 @@ export function NotificationsPageClient({
         (old: number | undefined) => Math.max(0, (old ?? 0) - 1),
       );
     },
-    onError: () => toast.error('تعذّر تعليم الإشعار كمقروء'),
+    onError: () => toast.error(t('markReadErrorToast')),
   });
 
   const markAllReadMutation = useMutation({
@@ -112,7 +116,7 @@ export function NotificationsPageClient({
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       queryClient.setQueryData(['unread-notifications-count'], 0);
     },
-    onError: () => toast.error('تعذّر تعليم الإشعارات كمقروءة'),
+    onError: () => toast.error(t('markAllReadErrorToast')),
   });
 
   async function loadMore() {
@@ -122,7 +126,7 @@ export function NotificationsPageClient({
       setNotifications((prev) => [...prev, ...result.data]);
       setHasMore(result.data.length === 20);
     } catch {
-      toast.error('تعذّر تحميل المزيد من الإشعارات');
+      toast.error(t('loadMoreErrorToast'));
     } finally {
       setIsLoadingMore(false);
     }
@@ -136,10 +140,10 @@ export function NotificationsPageClient({
   }
 
   return (
-    <div dir="rtl">
+    <div dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold">الإشعارات</h1>
+        <h1 className="text-xl font-bold">{t('notificationsLabel')}</h1>
         {unreadCount > 0 && (
           <Button
             variant="ghost"
@@ -153,7 +157,7 @@ export function NotificationsPageClient({
             ) : (
               <CheckCheck className="size-3.5" />
             )}
-            تعليم الكل كمقروء
+            {t('markAllReadLabel')}
           </Button>
         )}
       </div>
@@ -163,21 +167,21 @@ export function NotificationsPageClient({
         <div className="flex flex-col items-center justify-center gap-3 rounded-xl border bg-card py-24 text-center">
           <Bell className="size-16 text-muted-foreground/25" />
           <p className="text-base font-semibold text-muted-foreground">
-            لا توجد إشعارات بعد
+            {t('noNotificationsTitle')}
           </p>
           <p className="text-sm text-muted-foreground/60">
-            ستظهر هنا إشعارات الإعجابات والتعليقات والمتابعات
+            {t('noNotificationsSubtext')}
           </p>
         </div>
       ) : (
         /* ── Grouped list ─────────────────────────────────────────────────── */
         <div className="overflow-hidden rounded-xl border bg-card">
           {groups.map((group, gi) => (
-            <div key={group.label}>
+            <div key={group.key}>
               {/* Date section header */}
               <div className="border-b bg-muted/30 px-4 py-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {group.label}
+                  {t(group.key)}
                 </span>
               </div>
 
@@ -208,7 +212,7 @@ export function NotificationsPageClient({
             {isLoadingMore ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
-              'تحميل المزيد'
+              t('loadMoreLabel')
             )}
           </Button>
         </div>

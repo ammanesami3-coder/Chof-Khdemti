@@ -1,6 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/lib/i18n/language-context";
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 
@@ -59,6 +62,7 @@ export function UserAvatar({
   showOnline = false,
   className,
 }: UserAvatarProps) {
+  const { t } = useLang();
   const dim = DIM[size];
   const font = FONT[size];
   const px = PX[size];
@@ -104,7 +108,7 @@ export function UserAvatar({
   return (
     <Link
       href={`/profile/${user.username}`}
-      aria-label={`زيارة ملف ${user.full_name}`}
+      aria-label={`${t('visitProfileOfPrefix')} ${user.full_name}`}
       className={cn(
         "inline-flex shrink-0 rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
       )}

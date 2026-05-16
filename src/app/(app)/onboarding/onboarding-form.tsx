@@ -22,29 +22,34 @@ import {
 import { CRAFTS } from '@/lib/constants/crafts';
 import { CITIES } from '@/lib/constants/cities';
 import { completeOnboarding } from '@/lib/actions/onboarding';
+import { useLang } from '@/lib/i18n/language-context';
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
-const artisanSchema = z.object({
-  craft_category: z.string().min(1, 'اختر تخصصك'),
-  city: z.string().min(1, 'اختر مدينتك'),
-  years_experience: z
-    .number({ error: 'أدخل رقماً صحيحاً' })
-    .min(0, 'القيمة يجب أن تكون 0 أو أكثر')
-    .max(50, 'القيمة يجب أن تكون 50 أو أقل'),
-  bio: z
-    .string()
-    .min(10, 'النبذة قصيرة جداً (10 أحرف على الأقل)')
-    .max(300, 'النبذة طويلة جداً (300 حرف كحد أقصى)'),
-});
+function makeArtisanSchema(e: {
+  chooseCraft: string; chooseCity: string; validNum: string;
+  minZero: string; maxFifty: string; tooShort: string; tooLong: string;
+}) {
+  return z.object({
+    craft_category: z.string().min(1, e.chooseCraft),
+    city: z.string().min(1, e.chooseCity),
+    years_experience: z
+      .number({ error: e.validNum })
+      .min(0, e.minZero)
+      .max(50, e.maxFifty),
+    bio: z.string().min(10, e.tooShort).max(300, e.tooLong),
+  });
+}
 
-const customerSchema = z.object({
-  city: z.string().min(1, 'اختر مدينتك'),
-  bio: z.string().max(200, 'النبذة طويلة جداً (200 حرف كحد أقصى)').optional(),
-});
+function makeCustomerSchema(e: { chooseCity: string; tooLong: string }) {
+  return z.object({
+    city: z.string().min(1, e.chooseCity),
+    bio: z.string().max(200, e.tooLong).optional(),
+  });
+}
 
-type ArtisanValues = z.infer<typeof artisanSchema>;
-type CustomerValues = z.infer<typeof customerSchema>;
+type ArtisanValues = z.infer<ReturnType<typeof makeArtisanSchema>>;
+type CustomerValues = z.infer<ReturnType<typeof makeCustomerSchema>>;
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
@@ -55,10 +60,11 @@ type Props = {
 // ─── Progress Bar ─────────────────────────────────────────────────────────────
 
 function ProgressBar({ step }: { step: 1 | 2 }) {
+  const { t } = useLang();
   return (
     <div className="w-full mb-6">
       <div className="flex justify-between text-xs text-muted-foreground mb-2">
-        <span>الخطوة {step} من 2</span>
+        <span>{t('stepLabel')} {step} {t('stepOf')} 2</span>
         <span>{step === 1 ? '50%' : '100%'}</span>
       </div>
       <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
@@ -74,11 +80,12 @@ function ProgressBar({ step }: { step: 1 | 2 }) {
 // ─── Step 1: Account Type ────────────────────────────────────────────────────
 
 function Step1({ onSelect }: { onSelect: (type: 'artisan' | 'customer') => void }) {
+  const { t } = useLang();
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
-        <h2 className="text-xl font-bold">من أنت؟</h2>
-        <p className="text-muted-foreground text-sm mt-1">اختر نوع حسابك للمتابعة</p>
+        <h2 className="text-xl font-bold">{t('whoAreYou')}</h2>
+        <p className="text-muted-foreground text-sm mt-1">{t('chooseAccountType')}</p>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <button
@@ -88,8 +95,8 @@ function Step1({ onSelect }: { onSelect: (type: 'artisan' | 'customer') => void 
         >
           <span className="text-4xl">🔨</span>
           <div className="text-center">
-            <p className="font-semibold text-base">أنا حرفي</p>
-            <p className="text-xs text-muted-foreground mt-1">أقدّم خدمات واحترف</p>
+            <p className="font-semibold text-base">{t('imArtisan')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('artisanDesc')}</p>
           </div>
         </button>
 
@@ -100,8 +107,8 @@ function Step1({ onSelect }: { onSelect: (type: 'artisan' | 'customer') => void 
         >
           <span className="text-4xl">👤</span>
           <div className="text-center">
-            <p className="font-semibold text-base">أنا زبون</p>
-            <p className="text-xs text-muted-foreground mt-1">أبحث عن خدمات</p>
+            <p className="font-semibold text-base">{t('imCustomer')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('customerDesc')}</p>
           </div>
         </button>
       </div>
@@ -115,6 +122,16 @@ function ArtisanStep2({ onSubmit, isPending }: {
   onSubmit: (values: ArtisanValues) => void;
   isPending: boolean;
 }) {
+  const { t } = useLang();
+  const artisanSchema = makeArtisanSchema({
+    chooseCraft: t('chooseCraftError'),
+    chooseCity: t('chooseCityError'),
+    validNum: t('enterValidNumberError'),
+    minZero: t('minValueZeroError'),
+    maxFifty: t('maxValueFiftyError'),
+    tooShort: t('bioTooShortError'),
+    tooLong: t('bioTooLongArtisanError'),
+  });
   const form = useForm<ArtisanValues>({
     resolver: zodResolver(artisanSchema),
     defaultValues: { craft_category: '', city: '', years_experience: 0, bio: '' },
@@ -126,20 +143,19 @@ function ArtisanStep2({ onSubmit, isPending }: {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="text-center mb-4">
-          <h2 className="text-xl font-bold">🔨 أخبرنا عن خدماتك</h2>
-          <p className="text-muted-foreground text-sm mt-1">أكمل ملفك المهني</p>
+          <h2 className="text-xl font-bold">{t('tellUsAboutServices')}</h2>
+          <p className="text-muted-foreground text-sm mt-1">{t('completeProfessionalProfile')}</p>
         </div>
 
-        {/* التخصص */}
         <FormField
           control={form.control}
           name="craft_category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>التخصص *</FormLabel>
+              <FormLabel>{t('specialtyLabel')} *</FormLabel>
               <FormControl>
                 <SelectNative {...field}>
-                  <option value="">اختر تخصصك</option>
+                  <option value="">{t('chooseSpecialty')}</option>
                   {CRAFTS.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name_ar}
@@ -152,16 +168,15 @@ function ArtisanStep2({ onSubmit, isPending }: {
           )}
         />
 
-        {/* المدينة */}
         <FormField
           control={form.control}
           name="city"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>المدينة *</FormLabel>
+              <FormLabel>{t('cityLabel')} *</FormLabel>
               <FormControl>
                 <SelectNative {...field}>
-                  <option value="">اختر مدينتك</option>
+                  <option value="">{t('chooseCity')}</option>
                   {CITIES.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name_ar}
@@ -174,19 +189,18 @@ function ArtisanStep2({ onSubmit, isPending }: {
           )}
         />
 
-        {/* سنوات الخبرة */}
         <FormField
           control={form.control}
           name="years_experience"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>سنوات الخبرة *</FormLabel>
+              <FormLabel>{t('yearsExperienceLabel')} *</FormLabel>
               <FormControl>
                 <Input
                   type="number"
                   min={0}
                   max={50}
-                  placeholder="مثال: 5"
+                  placeholder="5"
                   value={field.value}
                   onChange={(e) => field.onChange(e.target.valueAsNumber)}
                   onBlur={field.onBlur}
@@ -199,16 +213,15 @@ function ArtisanStep2({ onSubmit, isPending }: {
           )}
         />
 
-        {/* النبذة */}
         <FormField
           control={form.control}
           name="bio"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>نبذة مختصرة *</FormLabel>
+              <FormLabel>{t('shortBioLabel')} *</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="اكتب نبذة عن خبرتك وخدماتك..."
+                  placeholder={t('bioPlaceholder')}
                   rows={4}
                   maxLength={300}
                   {...field}
@@ -225,7 +238,7 @@ function ArtisanStep2({ onSubmit, isPending }: {
         />
 
         <Button type="submit" className="w-full" disabled={isPending}>
-          {isPending ? 'جارٍ الحفظ...' : 'إنهاء وانطلاق 🚀'}
+          {isPending ? t('saving') : t('finishAndLaunch')}
         </Button>
       </form>
     </Form>
@@ -238,6 +251,11 @@ function CustomerStep2({ onSubmit, isPending }: {
   onSubmit: (values: CustomerValues) => void;
   isPending: boolean;
 }) {
+  const { t } = useLang();
+  const customerSchema = makeCustomerSchema({
+    chooseCity: t('chooseCityError'),
+    tooLong: t('bioTooLongCustomerError'),
+  });
   const form = useForm<CustomerValues>({
     resolver: zodResolver(customerSchema),
     defaultValues: { city: '', bio: '' },
@@ -249,20 +267,19 @@ function CustomerStep2({ onSubmit, isPending }: {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="text-center mb-4">
-          <h2 className="text-xl font-bold">👤 أخبرنا عنك</h2>
-          <p className="text-muted-foreground text-sm mt-1">بضع معلومات للبدء</p>
+          <h2 className="text-xl font-bold">{t('tellUsAboutYou')}</h2>
+          <p className="text-muted-foreground text-sm mt-1">{t('someInfoToStart')}</p>
         </div>
 
-        {/* المدينة */}
         <FormField
           control={form.control}
           name="city"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>المدينة *</FormLabel>
+              <FormLabel>{t('cityLabel')} *</FormLabel>
               <FormControl>
                 <SelectNative {...field}>
-                  <option value="">اختر مدينتك</option>
+                  <option value="">{t('chooseCity')}</option>
                   {CITIES.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name_ar}
@@ -275,16 +292,15 @@ function CustomerStep2({ onSubmit, isPending }: {
           )}
         />
 
-        {/* النبذة */}
         <FormField
           control={form.control}
           name="bio"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>نبذة اختيارية</FormLabel>
+              <FormLabel>{t('optionalBioLabel')}</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="اكتب نبذة قصيرة عنك (اختياري)..."
+                  placeholder={t('optionalBioPlaceholder')}
                   rows={3}
                   maxLength={200}
                   {...field}
@@ -301,7 +317,7 @@ function CustomerStep2({ onSubmit, isPending }: {
         />
 
         <Button type="submit" className="w-full" disabled={isPending}>
-          {isPending ? 'جارٍ الحفظ...' : 'إنهاء وانطلاق 🚀'}
+          {isPending ? t('saving') : t('finishAndLaunch')}
         </Button>
       </form>
     </Form>
@@ -311,6 +327,7 @@ function CustomerStep2({ onSubmit, isPending }: {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function OnboardingForm({ defaultAccountType }: Props) {
+  const { t } = useLang();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [step, setStep] = useState<1 | 2>(1);
@@ -337,8 +354,8 @@ export function OnboardingForm({ defaultAccountType }: Props) {
         toast.error(result.error);
         return;
       }
-      toast.success('أهلاً بك في Chof Khdemti! 🎉');
-      router.push('/feed');
+      toast.success(t('welcomeToast'));
+      router.push('/');
     });
   }
 
@@ -346,10 +363,10 @@ export function OnboardingForm({ defaultAccountType }: Props) {
     <Card className="w-full max-w-md">
       <CardHeader className="pb-0">
         <CardTitle className="text-center text-2xl font-bold">
-          مرحباً بك 👋
+          {t('welcomeTitle')}
         </CardTitle>
         <CardDescription className="text-center">
-          أكمل ملفك الشخصي للبدء
+          {t('completeProfileToStart')}
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-4">

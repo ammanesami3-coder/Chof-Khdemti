@@ -5,6 +5,7 @@ import { Loader2, Send } from "lucide-react";
 import { CommentItem } from "@/components/feed/comment-item";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useComments, useAddComment } from "@/hooks/use-comments";
+import { useLang } from "@/lib/i18n/language-context";
 
 type CurrentUser = {
   id: string;
@@ -28,6 +29,7 @@ export function InlineComments({
   isAuthenticated,
   autoFocus = false,
 }: Props) {
+  const { t } = useLang();
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -104,7 +106,7 @@ export function InlineComments({
       <div
         ref={listRef}
         className="max-h-[220px] overflow-y-auto overscroll-contain px-4 sm:max-h-[300px]"
-        aria-label="قائمة التعليقات"
+        aria-label={t('commentsListAriaLabel')}
       >
         {/* "View previous" button at the very top */}
         {hasNextPage && (
@@ -118,7 +120,7 @@ export function InlineComments({
               {isFetchingNextPage ? (
                 <Loader2 className="size-3 animate-spin" />
               ) : null}
-              عرض التعليقات السابقة
+              {t('loadOlderComments')}
             </button>
           </div>
         )}
@@ -133,7 +135,7 @@ export function InlineComments({
         {/* Empty state */}
         {!isLoading && allComments.length === 0 && (
           <p className="py-4 text-center text-xs text-muted-foreground">
-            كن أول من يعلّق!
+            {t('beFirstToComment')}
           </p>
         )}
 
@@ -169,9 +171,9 @@ export function InlineComments({
                     handleSubmit();
                   }
                 }}
-                placeholder="أضف تعليقاً..."
+                placeholder={t('addCommentPlaceholder')}
                 className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
-                aria-label="كتابة تعليق"
+                aria-label={t('writeCommentAriaLabel')}
               />
               {text.trim() && (
                 <button
@@ -179,7 +181,7 @@ export function InlineComments({
                   onClick={handleSubmit}
                   disabled={addMutation.isPending}
                   className="shrink-0 text-primary transition-opacity disabled:opacity-40"
-                  aria-label="إرسال التعليق"
+                  aria-label={t('sendCommentAriaLabel')}
                 >
                   {addMutation.isPending ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -192,7 +194,7 @@ export function InlineComments({
           </div>
         ) : (
           <p className="py-1 text-center text-xs text-muted-foreground">
-            سجّل دخولك للتعليق
+            {t('loginToComment')}
           </p>
         )}
       </div>

@@ -8,6 +8,7 @@ import { fetchUserConversations } from '@/lib/queries/conversations';
 import { ConversationListItem } from './conversation-list-item';
 import { ConversationListSkeleton } from './conversation-list-skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
+import { useLang } from '@/lib/i18n/language-context';
 import type { ConversationRow } from '@/lib/queries/conversations';
 
 type Props = {
@@ -25,6 +26,7 @@ function sortConversations(list: ConversationRow[]): ConversationRow[] {
 }
 
 export function ConversationList({ initialData, currentUserId }: Props) {
+  const { t } = useLang();
   const queryClient = useQueryClient();
   const supabaseRef = useRef(createClient());
   const supabase    = supabaseRef.current;
@@ -85,9 +87,9 @@ export function ConversationList({ initialData, currentUserId }: Props) {
       <div className="px-4 pt-8">
         <EmptyState
           icon={MessageCircle}
-          title="لا توجد محادثات بعد"
-          description="ابدأ بالاكتشاف وتواصل مع الحرفيين"
-          action={{ label: 'اكتشف حرفيين', href: '/explore' }}
+          title={t('noMessagesTitle')}
+          description={t('noMessagesDesc')}
+          action={{ label: t('discoverArtisans'), href: '/explore' }}
         />
       </div>
     );

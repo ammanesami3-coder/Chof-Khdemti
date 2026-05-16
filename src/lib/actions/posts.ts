@@ -47,7 +47,7 @@ export async function createPost(
 
   if (error) return { error: error.message };
 
-  revalidatePath('/feed');
+  revalidatePath('/');
   if (userRes.data?.username) {
     revalidatePath(`/profile/${userRes.data.username}`);
   }

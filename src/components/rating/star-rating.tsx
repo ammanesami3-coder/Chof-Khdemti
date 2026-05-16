@@ -3,6 +3,7 @@
 import { Star, StarHalf } from 'lucide-react';
 import { useState, KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 
 type StarType = 'full' | 'half' | 'empty';
 
@@ -45,6 +46,7 @@ export function StarRating({
   size = 'md',
   showValue = false,
 }: StarRatingProps) {
+  const { t } = useLang();
   const [hoverValue, setHoverValue] = useState(0);
   const px = SIZE_PX[size];
   const isInteractive = !readonly && !!onChange;
@@ -70,7 +72,7 @@ export function StarRating({
       <div
         dir="ltr"
         role={isInteractive ? 'radiogroup' : undefined}
-        aria-label={`تقييم ${value} من 5`}
+        aria-label={`${t('ratingNofMPrefix')} ${value} ${t('ratingNofMSuffix')}`}
         tabIndex={isInteractive ? 0 : undefined}
         className={cn(
           'inline-flex items-center gap-0.5 focus:outline-none',
@@ -91,7 +93,7 @@ export function StarRating({
                 type="button"
                 role="radio"
                 aria-checked={value === i}
-                aria-label={`${i} نجوم`}
+                aria-label={`${i} ${t('nStarsSuffix')}`}
                 tabIndex={-1}
                 className="cursor-pointer focus:outline-none"
                 onMouseEnter={() => setHoverValue(i)}

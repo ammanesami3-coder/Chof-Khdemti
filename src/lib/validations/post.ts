@@ -70,6 +70,10 @@ export type PostWithAuthor = {
   author_id: string;
   /** Whether the currently-authenticated user has liked this post */
   is_liked?: boolean;
+  /** Whether the currently-authenticated user follows this post's author */
+  is_following?: boolean;
+  /** Whether the currently-authenticated user has saved/bookmarked this post */
+  is_saved?: boolean;
   /** True while the post is being optimistically shown before server confirms */
   is_pending?: boolean;
   /** Set when this post is a repost of another */

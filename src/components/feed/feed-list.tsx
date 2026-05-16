@@ -10,11 +10,13 @@ import {
   fetchFollowingFeed,
   fetchDiscoverFeed,
   fetchUserPosts,
+  fetchSmartFeed,
 } from "@/lib/queries/posts";
+import { useLang } from "@/lib/i18n/language-context";
 import type { FeedCursor, FeedPage } from "@/lib/queries/posts";
 import type { PostWithAuthor } from "@/lib/validations/post";
 
-export type FeedType = "following" | "discover" | "user";
+export type FeedType = "following" | "discover" | "user" | "smart";
 
 type CurrentUser = {
   id: string;
@@ -48,6 +50,7 @@ export function FeedList({
   initialData,
   newPosts = [],
 }: Props) {
+  const { t } = useLang();
   const listRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const hiddenAtRef = useRef<number | null>(null);
@@ -79,6 +82,8 @@ export function FeedList({
   >({
     queryKey: ["feed", feedType, currentUserId ?? "anon", profileUserId ?? ""],
     queryFn: async ({ pageParam }) => {
+      if (feedType === "smart")
+        return fetchSmartFeed(currentUserId, pageParam);
       if (feedType === "following" && currentUserId)
         return fetchFollowingFeed(currentUserId, pageParam);
       if (feedType === "discover")
@@ -189,13 +194,13 @@ export function FeedList({
   if (isError) {
     return (
       <div className="rounded-xl border border-dashed p-8 text-center">
-        <p className="text-sm text-muted-foreground">حدث خطأ في تحميل المنشورات</p>
+        <p className="text-sm text-muted-foreground">{t('feedLoadError')}</p>
         <button
           type="button"
           onClick={() => void refetch()}
           className="mt-2 text-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
-          إعادة المحاولة
+          {t('retry')}
         </button>
       </div>
     );
@@ -208,32 +213,32 @@ export function FeedList({
 
   // ── Empty states ──────────────────────────────────────────────────────────
   if (!displayed.length) {
-    if (feedType === "following") {
+    if (feedType === "smart" || feedType === "following") {
       return (
         <EmptyState
           icon={Compass}
-          title="فيدك فارغ حتى الآن"
-          description="ابدأ بمتابعة حرفيين لتظهر منشوراتهم هنا"
-          action={{ label: "اكتشف حرفيين", href: "/explore" }}
+          title={t('feedFollowingEmpty')}
+          description={t('feedFollowingDesc')}
+          action={{ label: t('discoverArtisans'), href: "/explore" }}
         />
       );
     }
     if (feedType === "user") {
-      const label = ownerName ? `لم ينشر ${ownerName} بعد` : "لم ينشر شيئاً بعد";
+      const label = ownerName ? `${ownerName} — ${t('hasNotPostedYet')}` : t('hasNotPostedYet');
       return (
         <EmptyState
           icon={Image}
           title={label}
-          description={isOwnProfile ? "شارك أول عمل لك مع المجتمع" : undefined}
-          action={isOwnProfile ? { label: "انشر أول منشور", href: "/feed" } : undefined}
+          description={isOwnProfile ? t('shareFirstWork') : undefined}
+          action={isOwnProfile ? { label: t('createFirstPost'), href: "/" } : undefined}
         />
       );
     }
     return (
       <EmptyState
         icon={Compass}
-        title="لا توجد منشورات بعد"
-        description="لم يتم نشر أي منشورات في هذا القسم حتى الآن"
+        title={t('feedFollowingEmpty')}
+        description={t('noPostsInSection')}
       />
     );
   }
@@ -251,7 +256,7 @@ export function FeedList({
           className="flex items-center justify-center py-3 text-muted-foreground transition-all"
           style={{ height: isRefreshing ? 48 : Math.min(pullDelta * 0.75, 48) }}
           aria-live="polite"
-          aria-label={isRefreshing ? "جاري التحديث..." : "اسحب لتحديث الفيد"}
+          aria-label={isRefreshing ? t('refreshing') : t('pullToRefresh')}
         >
           {isRefreshing || isFetching ? (
             <Loader2 className="size-5 animate-spin" aria-hidden="true" />
@@ -271,10 +276,10 @@ export function FeedList({
           type="button"
           onClick={dismissBanner}
           className="mb-3 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-md transition-transform hover:bg-primary/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          aria-label={`${newPostsBanner} منشورات جديدة، اضغط للاطلاع عليها`}
+          aria-label={`${newPostsBanner} ${t('newPostsAvailable')}`}
         >
           <ArrowUp className="size-4" aria-hidden="true" />
-          {newPostsBanner} منشورات جديدة
+          {newPostsBanner} {t('newPostsAvailable')}
         </button>
       )}
 
@@ -296,7 +301,7 @@ export function FeedList({
 
       {!hasNextPage && fetchedPosts.length >= PAGE_SIZE && (
         <p className="py-4 text-center text-xs text-muted-foreground">
-          وصلت إلى نهاية الفيد
+          {t('endOfFeed')}
         </p>
       )}
     </div>

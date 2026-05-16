@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ArtisanGrid, ArtisanGridSkeleton } from './artisan-grid';
 import { ExploreFilters } from './explore-filters';
 import { searchArtisans, PAGE_SIZE } from '@/lib/queries/artisans';
+import { useLang } from '@/lib/i18n/language-context';
 import type { ArtisanListItem } from '@/lib/queries/artisans';
 
 type Props = {
@@ -24,6 +25,7 @@ export function ExploreClient({
   currentUserId,
 }: Props) {
   const router = useRouter();
+  const { t } = useLang();
   const searchParams = useSearchParams();
   const craft = searchParams.get('craft') ?? '';
   const city = searchParams.get('city') ?? '';
@@ -74,14 +76,14 @@ export function ExploreClient({
                 disabled={isFetchingNextPage}
                 className="min-w-36"
               >
-                {isFetchingNextPage ? 'جارٍ التحميل...' : 'تحميل المزيد'}
+                {isFetchingNextPage ? t('loading') : t('loadMoreLabel')}
               </Button>
             </div>
           )}
 
           {!hasNextPage && artisans.length > 0 && (
             <p className="text-center text-sm text-muted-foreground">
-              عُرضت جميع النتائج ({artisans.length} حرفي)
+              {t('allResultsShown').replace('{count}', String(artisans.length))}
             </p>
           )}
         </>

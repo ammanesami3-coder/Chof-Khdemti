@@ -1,11 +1,15 @@
+'use client';
+
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLang } from '@/lib/i18n/language-context';
 
 export function ArtisanCardSkeleton() {
+  const { t } = useLang();
   return (
     <div
       className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
       aria-busy="true"
-      aria-label="جاري التحميل"
+      aria-label={t('loadingAriaLabel')}
     >
       {/* Header: avatar + name/username */}
       <div className="flex items-start gap-3">

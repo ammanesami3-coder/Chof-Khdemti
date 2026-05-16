@@ -1,8 +1,12 @@
+'use client';
+
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLang } from '@/lib/i18n/language-context';
 
 export function ProfileHeaderSkeleton() {
+  const { t } = useLang();
   return (
-    <div aria-busy="true" aria-label="جاري تحميل الملف الشخصي">
+    <div aria-busy="true" aria-label={t('loadingProfileAriaLabel')}>
       {/* Cover */}
       <Skeleton className="h-44 w-full rounded-none sm:h-52" />
 

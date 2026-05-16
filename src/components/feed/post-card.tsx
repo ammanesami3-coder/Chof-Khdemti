@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import useEmblaCarousel from "embla-carousel-react";
 import { formatDistanceToNow } from "date-fns";
-import { ar } from "date-fns/locale";
+import { ar, fr, enUS } from "date-fns/locale";
 
 const CommentsSheetLazy = dynamic(
   () => import("@/components/feed/comments-sheet").then((m) => m.CommentsSheet),
@@ -31,6 +31,7 @@ const SharedPostEmbedLazy = dynamic(
 import {
   BadgeCheck,
   Bookmark,
+  BookmarkCheck,
   ChevronLeft,
   ChevronRight,
   Flag,
@@ -40,6 +41,8 @@ import {
   Repeat2,
   Share2,
   Trash2,
+  UserCheck,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -50,9 +53,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLikePost } from "@/hooks/use-like-post";
+import { followUser, unfollowUser } from "@/lib/actions/follow";
+import { followStore } from "@/lib/stores/follow-store";
+import { toggleSavePost } from "@/lib/actions/save-post";
+import { reportPost, type ReportReason } from "@/lib/actions/report-post";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { AuthGate } from "@/components/shared/auth-gate";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { StatusAwareAvatar } from "@/components/shared/status-aware-avatar";
+import { useLang } from "@/lib/i18n/language-context";
 import type { PostMedia, PostWithAuthor } from "@/lib/validations/post";
 
 type CurrentUser = {
@@ -73,6 +94,7 @@ function SingleMedia({
   priority?: boolean;
   onImageClick?: () => void;
 }) {
+  const { t } = useLang();
   if (item.type === "video") {
     return (
       <div className="overflow-hidden rounded-xl">
@@ -85,7 +107,7 @@ function SingleMedia({
       type="button"
       onClick={onImageClick}
       className="relative block w-full cursor-zoom-in overflow-hidden rounded-xl bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      aria-label="عرض الصورة بالحجم الكامل"
+      aria-label={t('viewFullImageAriaLabel')}
     >
       <div className="aspect-[4/3]">
         <Image
@@ -112,6 +134,7 @@ function MediaCarousel({
   priority?: boolean;
   onImageClick?: (imageIndex: number) => void;
 }) {
+  const { t } = useLang();
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
@@ -139,7 +162,7 @@ function MediaCarousel({
     <div
       className="relative overflow-hidden rounded-xl"
       role="region"
-      aria-label="معرض الوسائط"
+      aria-label={t('mediaGalleryAriaLabel')}
       aria-roledescription="carousel"
     >
       {/* Slides */}
@@ -150,8 +173,8 @@ function MediaCarousel({
               key={i}
               className="min-w-0 flex-[0_0_100%]"
               role="group"
-              aria-roledescription="شريحة"
-              aria-label={`${i + 1} من ${media.length}`}
+              aria-roledescription={t('slideRoleDesc')}
+              aria-label={`${i + 1} ${t('slideNofMPrefix')} ${media.length}`}
             >
               {item.type === "video" ? (
                 <OptimizedVideoLazy item={item} className="aspect-square" />
@@ -167,7 +190,7 @@ function MediaCarousel({
                     onImageClick?.(imgIdx);
                   }}
                   className="relative block aspect-square w-full cursor-zoom-in bg-muted focus-visible:outline-none"
-                  aria-label="عرض الصورة بالحجم الكامل"
+                  aria-label={t('viewFullImageAriaLabel')}
                 >
                   <Image
                     src={item.url}
@@ -194,7 +217,7 @@ function MediaCarousel({
         type="button"
         onClick={() => emblaApi?.scrollPrev()}
         disabled={!canScrollPrev}
-        aria-label="السابق"
+        aria-label={t('prevSlide')}
         style={{ left: "8px" }}
         className="absolute top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-1.5 text-white transition-opacity hover:bg-black/80 disabled:pointer-events-none disabled:opacity-0"
       >
@@ -206,7 +229,7 @@ function MediaCarousel({
         type="button"
         onClick={() => emblaApi?.scrollNext()}
         disabled={!canScrollNext}
-        aria-label="التالي"
+        aria-label={t('nextSlide')}
         style={{ right: "8px" }}
         className="absolute top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-1.5 text-white transition-opacity hover:bg-black/80 disabled:pointer-events-none disabled:opacity-0"
       >
@@ -217,7 +240,7 @@ function MediaCarousel({
       <div
         className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1"
         role="tablist"
-        aria-label="شرائح المعرض"
+        aria-label={t('galleryDotsAriaLabel')}
       >
         {media.map((_, i) => (
           <button
@@ -225,7 +248,7 @@ function MediaCarousel({
             type="button"
             role="tab"
             aria-selected={i === selectedIndex}
-            aria-label={`الانتقال إلى الشريحة ${i + 1}`}
+            aria-label={`${t('goToSlidePrefix')} ${i + 1}`}
             onClick={() => emblaApi?.scrollTo(i)}
             className={`h-1.5 rounded-full transition-all ${
               i === selectedIndex
@@ -245,6 +268,7 @@ const CONTENT_LIMIT = 300;
 
 function PostContent({ content }: { content: string }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useLang();
   const needsTruncation = content.length > CONTENT_LIMIT;
   const displayed =
     needsTruncation && !expanded ? content.slice(0, CONTENT_LIMIT) : content;
@@ -260,7 +284,7 @@ function PostContent({ content }: { content: string }) {
             onClick={() => setExpanded(true)}
             className="font-medium text-primary hover:underline"
           >
-            عرض المزيد
+            {t('showMore')}
           </button>
         </>
       )}
@@ -272,7 +296,7 @@ function PostContent({ content }: { content: string }) {
             onClick={() => setExpanded(false)}
             className="text-xs text-muted-foreground hover:underline"
           >
-            عرض أقل
+            {t('showLess')}
           </button>
         </>
       )}
@@ -302,12 +326,34 @@ export function PostCard({
   priority = false,
   initialCommentHighlight,
 }: PostCardProps) {
+  const { t, lang } = useLang();
   const [bouncing, setBouncing] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(!!initialCommentHighlight);
   const [sheetAutoFocus, setSheetAutoFocus] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
+  const [isFollowPending, setIsFollowPending] = useState(false);
+  // Save state
+  const [isSaved, setIsSaved] = useState(post.is_saved ?? false);
+  const [isSavePending, startSaveTransition] = useTransition();
+  // Delete confirmation
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isDeleting, startDeleteTransition] = useTransition();
+  // Report dialog
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason>('spam');
+  const [isReporting, startReportTransition] = useTransition();
+  const reportedRef = useRef(false);
+  // Module-level store — syncs follow state across ALL PostCards globally
+  const followMap = useSyncExternalStore(
+    followStore.subscribe,
+    followStore.getSnapshot,
+    followStore.getServerSnapshot,
+  );
+  const isFollowing = followMap.has(post.author_id)
+    ? (followMap.get(post.author_id) as boolean)
+    : (post.is_following ?? false);
   const likeMutation = useLikePost();
 
   const lightboxImages = post.media
@@ -319,9 +365,10 @@ export function PostCard({
   const isOwner = Boolean(currentUserId && currentUserId === post.author_id);
   const isPending = post.is_pending ?? false;
 
+  const dateLocale = lang === 'ar' ? ar : lang === 'fr' ? fr : enUS;
   const timeAgo = formatDistanceToNow(new Date(post.created_at), {
     addSuffix: true,
-    locale: ar,
+    locale: dateLocale,
   });
 
   function handleLike() {
@@ -334,6 +381,68 @@ export function PostCard({
     setShareOpen(true);
   }
 
+  async function handleFollowToggle() {
+    if (!currentUserId || isFollowPending) return;
+    const prev = isFollowing;
+    // Optimistic update via module-level store — instantly syncs all PostCards globally
+    followStore.setFollowing(post.author_id, !prev);
+    setIsFollowPending(true);
+    try {
+      const result = prev
+        ? await unfollowUser(post.author_id)
+        : await followUser(post.author_id);
+      if (result?.error) {
+        followStore.setFollowing(post.author_id, prev); // rollback
+        toast.error(result.error);
+      }
+    } catch {
+      followStore.setFollowing(post.author_id, prev); // rollback
+      toast.error(t('operationFailed'));
+    } finally {
+      setIsFollowPending(false);
+    }
+  }
+
+  function handleSaveToggle() {
+    if (isSavePending) return;
+    const prev = isSaved;
+    setIsSaved(!prev);
+    startSaveTransition(async () => {
+      const result = await toggleSavePost(post.id);
+      if (result.error) {
+        setIsSaved(prev);
+        toast.error(result.error);
+      } else {
+        setIsSaved(result.saved);
+        toast.success(result.saved ? t('postSaved') : t('postUnsaved'));
+      }
+    });
+  }
+
+  function handleDeleteConfirmed() {
+    startDeleteTransition(async () => {
+      onDelete?.(post.id);
+      setDeleteOpen(false);
+    });
+  }
+
+  function handleReportSubmit() {
+    if (reportedRef.current || isReporting) return;
+    startReportTransition(async () => {
+      const result = await reportPost(post.id, reportReason);
+      if (result.already) {
+        toast.info(t('alreadyReported'));
+      } else if (result.error) {
+        toast.error(result.error);
+        return;
+      } else {
+        reportedRef.current = true;
+        toast.success(t('reportSent'));
+      }
+      setReportOpen(false);
+    });
+  }
+
   return (
     <article className={`rounded-xl border bg-card transition-opacity${post.is_pending ? " opacity-50" : ""}`}>
       {/* ── Repost indicator ────────────────────────────────────────── */}
@@ -344,7 +453,7 @@ export function PostCard({
             <Link href={`/profile/${post.author.username}`} className="font-medium hover:underline">
               {post.author.full_name}
             </Link>
-            {" "}شارك منشوراً
+            {" "}{t('sharedAPost')}
           </span>
         </div>
       )}
@@ -353,7 +462,7 @@ export function PostCard({
       {post.is_pending && (
         <div className="flex items-center gap-1.5 px-4 pt-3 text-xs text-muted-foreground">
           <span className="inline-block size-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
-          جاري النشر...
+          {t('postPending')}
         </div>
       )}
 
@@ -372,7 +481,7 @@ export function PostCard({
             {post.author.is_verified && (
               <BadgeCheck
                 className="size-4 shrink-0 fill-green-600 text-white"
-                aria-label="موثّق"
+                aria-label={t('verifiedBadgeAriaLabel')}
               />
             )}
           </div>
@@ -390,32 +499,59 @@ export function PostCard({
           </p>
         </div>
 
+        {/* Follow/Unfollow — shown only on others' posts when follow state is known */}
+        {currentUserId && !isOwner && post.is_following !== undefined && (
+          <button
+            type="button"
+            onClick={() => void handleFollowToggle()}
+            disabled={isFollowPending}
+            aria-label={isFollowing ? t('unfollow') : t('follow')}
+            className="shrink-0 flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50
+              hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {isFollowing ? (
+              <UserCheck className="size-3.5 text-primary" />
+            ) : (
+              <UserPlus className="size-3.5" />
+            )}
+            <span className={isFollowing ? 'text-primary' : 'text-muted-foreground'}>
+              {isFollowing ? t('following_verb') : t('follow')}
+            </span>
+          </button>
+        )}
+
         {/* ••• dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger
-            aria-label="خيارات المنشور"
+            aria-label={t('postOptions')}
             className="mt-0.5 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <MoreHorizontal className="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent side="bottom" align="start">
-            <DropdownMenuItem>
-              <Bookmark className="size-4" />
-              حفظ
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Flag className="size-4" />
-              إبلاغ
-            </DropdownMenuItem>
+            {/* Save / Unsave */}
+            {currentUserId && (
+              <DropdownMenuItem onClick={handleSaveToggle} disabled={isSavePending}>
+                {isSaved ? <BookmarkCheck className="size-4 text-primary" /> : <Bookmark className="size-4" />}
+                {isSaved ? t('unsavePost') : t('savePost')}
+              </DropdownMenuItem>
+            )}
+            {/* Report — only for others' posts */}
+            {currentUserId && !isOwner && (
+              <DropdownMenuItem onClick={() => setReportOpen(true)}>
+                <Flag className="size-4" />
+                {t('reportPost')}
+              </DropdownMenuItem>
+            )}
             {isOwner && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
-                  onClick={() => onDelete?.(post.id)}
+                  onClick={() => setDeleteOpen(true)}
                 >
                   <Trash2 className="size-4" />
-                  حذف
+                  {t('deletePost')}
                 </DropdownMenuItem>
               </>
             )}
@@ -468,7 +604,7 @@ export function PostCard({
             type="button"
             onClick={handleLike}
             disabled={isPending}
-            aria-label={liked ? "إلغاء الإعجاب" : "إعجاب"}
+            aria-label={liked ? t('unlikeAriaLabel') : t('likeAriaLabel')}
             aria-pressed={liked}
             className="flex items-center gap-1.5 rounded-full px-2 py-1.5 transition-colors hover:bg-red-50 disabled:pointer-events-none dark:hover:bg-red-950"
           >
@@ -500,7 +636,7 @@ export function PostCard({
               setSheetOpen(true);
             }}
             disabled={isPending}
-            aria-label="تعليق"
+            aria-label={t('commentAriaLabel')}
             className="flex items-center gap-1.5 rounded-full px-2 py-1.5 transition-colors disabled:pointer-events-none text-muted-foreground hover:bg-primary/10 hover:text-primary"
           >
             <MessageCircle className="size-5" />
@@ -514,7 +650,7 @@ export function PostCard({
         <button
           type="button"
           onClick={handleShare}
-          aria-label="مشاركة المنشور"
+          aria-label={t('sharePostAriaLabel')}
           className="ms-auto flex items-center gap-1.5 rounded-full px-2 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Share2 className="size-4" />
@@ -550,7 +686,7 @@ export function PostCard({
               onClick={() => setSheetOpen(true)}
               className="text-xs text-muted-foreground transition-colors hover:text-primary"
             >
-              عرض الـ {post.comments_count - 2} تعليق المتبقي
+              {t('viewAllComments')} ({post.comments_count - 2})
             </button>
           )}
         </div>
@@ -565,7 +701,7 @@ export function PostCard({
               onClick={() => setSheetOpen(true)}
               className="text-xs text-muted-foreground transition-colors hover:text-primary"
             >
-              عرض {post.comments_count} تعليق
+              {t('viewAllComments')} ({post.comments_count})
             </button>
           </div>
         )}
@@ -599,6 +735,79 @@ export function PostCard({
         onClose={() => setShareOpen(false)}
         isAuthenticated={!!currentUserId}
       />
+
+      {/* ── Delete confirmation ───────────────────────────────────── */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deletePostTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deletePostDesc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirmed}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? t('deleting') : t('delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Report dialog ─────────────────────────────────────────── */}
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('reportPostTitle')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {t('reportPostDesc')}
+          </p>
+          <RadioGroup
+            value={reportReason}
+            onValueChange={(v) => setReportReason(v as ReportReason)}
+            className="mt-1 space-y-2"
+            dir={lang === 'ar' ? 'rtl' : 'ltr'}
+          >
+            {([
+              ['spam',          t('reportSpam')],
+              ['fraud',         t('reportFraud')],
+              ['inappropriate', t('reportInappropriate')],
+              ['harassment',    t('reportHarassment')],
+              ['impersonation', t('reportImpersonation')],
+              ['other',         t('reportOther')],
+            ] as [ReportReason, string][]).map(([value, label]) => (
+              <div key={value} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/50">
+                <RadioGroupItem value={value} id={`report-${value}-${post.id}`} />
+                <Label htmlFor={`report-${value}-${post.id}`} className="flex-1 cursor-pointer text-sm font-medium">
+                  {label}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
+          <div className="mt-2 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setReportOpen(false)}
+              className="rounded-lg border px-4 py-2 text-sm transition-colors hover:bg-muted"
+            >
+              {t('cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={handleReportSubmit}
+              disabled={isReporting}
+              className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:opacity-50"
+            >
+              {isReporting ? t('submittingReport') : t('submitReport')}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </article>
   );
 }

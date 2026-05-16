@@ -10,6 +10,7 @@ import { Loader2, Wrench, ShoppingBag } from "lucide-react";
 
 import { signUpSchema, type SignUpInput } from "@/lib/validations/auth";
 import { signUp } from "@/lib/actions/auth";
+import { useLang } from "@/lib/i18n/language-context";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ interface SignupFormProps {
 
 export function SignupForm({ next }: SignupFormProps) {
   const router = useRouter();
+  const { t } = useLang();
   const [loading, setLoading] = useState(false);
 
   const form = useForm<SignUpInput>({
@@ -63,9 +65,9 @@ export function SignupForm({ next }: SignupFormProps) {
       return;
     }
 
-    toast.success("تم إنشاء حسابك بنجاح، مرحباً بك!");
+    toast.success(t('signupSuccess'));
     // المستخدم الجديد يمرّ بـ Onboarding أولاً — middleware يتولى التوجيه
-    router.push("/feed");
+    router.push("/");
   }
 
   const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
@@ -73,8 +75,8 @@ export function SignupForm({ next }: SignupFormProps) {
   return (
     <Card className="w-full max-w-md shadow-2xl">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl">إنشاء حساب</CardTitle>
-        <CardDescription>انضم إلى مجتمع الحرفيين في المغرب</CardDescription>
+        <CardTitle className="text-2xl">{t('signupTitle')}</CardTitle>
+        <CardDescription>{t('signupSubtitle')}</CardDescription>
       </CardHeader>
 
       <CardContent>
@@ -86,7 +88,7 @@ export function SignupForm({ next }: SignupFormProps) {
               name="account_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>نوع الحساب</FormLabel>
+                  <FormLabel>{t('accountTypeLabel')}</FormLabel>
                   <FormControl>
                     <div className="grid grid-cols-2 gap-3">
                       <button
@@ -100,9 +102,9 @@ export function SignupForm({ next }: SignupFormProps) {
                         )}
                       >
                         <Wrench className="size-6" />
-                        <span className="font-semibold text-sm">حرفي</span>
+                        <span className="font-semibold text-sm">{t('artisan')}</span>
                         <span className="text-xs text-muted-foreground leading-tight">
-                          أنشر أعمالك واستقبل زبائن
+                          {t('artisanSignupDesc')}
                         </span>
                       </button>
 
@@ -117,9 +119,9 @@ export function SignupForm({ next }: SignupFormProps) {
                         )}
                       >
                         <ShoppingBag className="size-6" />
-                        <span className="font-semibold text-sm">زبون</span>
+                        <span className="font-semibold text-sm">{t('customer')}</span>
                         <span className="text-xs text-muted-foreground leading-tight">
-                          ابحث عن حرفيين وخدمات
+                          {t('customerSignupDesc')}
                         </span>
                       </button>
                     </div>
@@ -135,9 +137,9 @@ export function SignupForm({ next }: SignupFormProps) {
               name="full_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>الاسم الكامل</FormLabel>
+                  <FormLabel>{t('fullNameLabel')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="مثال: يوسف بنعلي" {...field} />
+                    <Input placeholder={t('fullNamePlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -150,7 +152,7 @@ export function SignupForm({ next }: SignupFormProps) {
               name="username"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>اسم المستخدم</FormLabel>
+                  <FormLabel>{t('usernameLabel')}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="youssef_benali"
@@ -171,7 +173,7 @@ export function SignupForm({ next }: SignupFormProps) {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>البريد الإلكتروني</FormLabel>
+                  <FormLabel>{t('emailLabel')}</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
@@ -192,9 +194,9 @@ export function SignupForm({ next }: SignupFormProps) {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>كلمة السر</FormLabel>
+                  <FormLabel>{t('passwordLabel')}</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="8 أحرف على الأقل" {...field} />
+                    <Input type="password" placeholder={t('passwordPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -203,7 +205,7 @@ export function SignupForm({ next }: SignupFormProps) {
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="ms-2 size-4 animate-spin" />}
-              إنشاء الحساب
+              {t('createAccountBtn')}
             </Button>
           </form>
         </Form>
@@ -211,9 +213,9 @@ export function SignupForm({ next }: SignupFormProps) {
 
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
-          لديك حساب بالفعل؟{" "}
+          {t('alreadyHaveAccount')}{" "}
           <Link href={loginHref} className="text-primary font-medium hover:underline">
-            سجّل دخولك
+            {t('signInLink')}
           </Link>
         </p>
       </CardFooter>

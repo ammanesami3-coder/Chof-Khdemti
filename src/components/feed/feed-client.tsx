@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PostComposer } from "@/components/feed/post-composer";
 import { PostCard } from "@/components/feed/post-card";
+import { useLang } from "@/lib/i18n/language-context";
 import type { PostWithAuthor } from "@/lib/validations/post";
 
 type CurrentUser = {
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export function FeedClient({ currentUser }: Props) {
+  const { t } = useLang();
   // Optimistically prepended posts — task 3 will merge with infinite scroll list
   const [newPosts, setNewPosts] = useState<PostWithAuthor[]>([]);
 
@@ -39,11 +41,11 @@ export function FeedClient({ currentUser }: Props) {
       {newPosts.length === 0 && (
         <div className="rounded-xl border border-dashed p-12 text-center">
           <p className="text-sm text-muted-foreground">
-            ابدأ بمتابعة حرفيين من{" "}
+            {t('feedEmptyFollowPrefix')}{" "}
             <a href="/explore" className="text-primary hover:underline">
-              صفحة الاكتشاف
+              {t('feedEmptyExploreLinkText')}
             </a>{" "}
-            لرؤية منشوراتهم هنا
+            {t('feedEmptyFollowSuffix')}
           </p>
         </div>
       )}

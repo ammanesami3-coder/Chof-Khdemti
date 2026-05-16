@@ -74,6 +74,6 @@ export async function completeOnboarding(
 
   if (profileError) return { error: `خطأ في تحديث الملف الشخصي: ${profileError.message}` };
 
-  revalidatePath('/feed');
+  revalidatePath('/');
   return { success: true };
 }

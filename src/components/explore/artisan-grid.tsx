@@ -1,7 +1,10 @@
+'use client';
+
 import { Users } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArtisanCard } from './artisan-card';
 import { EmptyState } from '@/components/shared/empty-state';
+import { useLang } from '@/lib/i18n/language-context';
 import type { ArtisanListItem } from '@/lib/queries/artisans';
 
 type Props = {
@@ -13,21 +16,23 @@ type Props = {
 };
 
 export function ArtisanGrid({ artisans, isLoading, currentUserId, onClearFilters, hasActiveFilters }: Props) {
+  const { t } = useLang();
+
   if (isLoading) return <ArtisanGridSkeleton />;
 
   if (artisans.length === 0) {
     return hasActiveFilters ? (
       <EmptyState
         icon={Users}
-        title="لم نجد حرفيين مطابقين"
-        description="جرّب فلاتر أخرى أو ابحث بكلمة مختلفة"
-        action={onClearFilters ? { label: "مسح الفلاتر", onClick: onClearFilters } : undefined}
+        title={t('noArtisansFound')}
+        description={t('tryOtherFilters')}
+        action={onClearFilters ? { label: t('clearFiltersBtn'), onClick: onClearFilters } : undefined}
       />
     ) : (
       <EmptyState
         icon={Users}
-        title="لا يوجد حرفيون بعد"
-        description="كن أول من ينضم لمجتمع الحرفيين"
+        title={t('noArtisansYet')}
+        description={t('beFirstArtisan')}
       />
     );
   }

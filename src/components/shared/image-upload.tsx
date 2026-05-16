@@ -5,6 +5,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLang } from "@/lib/i18n/language-context";
 
 type UploadPreset = "avatar" | "cover";
 
@@ -17,6 +18,7 @@ type Props = {
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 export function ImageUpload({ type, onUpload, currentUrl }: Props) {
+  const { t } = useLang();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | undefined>(currentUrl);
@@ -25,11 +27,11 @@ export function ImageUpload({ type, onUpload, currentUrl }: Props) {
 
   async function handleFile(file: File) {
     if (!file.type.startsWith("image/")) {
-      toast.error("الملف يجب أن يكون صورة");
+      toast.error(t('notImageError'));
       return;
     }
     if (file.size > MAX_SIZE_BYTES) {
-      toast.error("الصورة أكبر من 5MB");
+      toast.error(t('imageTooLargeError'));
       return;
     }
 
@@ -41,7 +43,7 @@ export function ImageUpload({ type, onUpload, currentUrl }: Props) {
         body: JSON.stringify({ preset: type }),
       });
 
-      if (!signRes.ok) throw new Error("فشل الحصول على توقيع الرفع");
+      if (!signRes.ok) throw new Error(t('uploadFailedText'));
       const { signature, timestamp, cloud_name, api_key, folder } =
         await signRes.json();
 
@@ -57,14 +59,14 @@ export function ImageUpload({ type, onUpload, currentUrl }: Props) {
         { method: "POST", body: formData }
       );
 
-      if (!uploadRes.ok) throw new Error("فشل رفع الصورة");
+      if (!uploadRes.ok) throw new Error(t('uploadFailedText'));
       const { secure_url } = await uploadRes.json();
 
       setPreview(secure_url);
       onUpload(secure_url);
-      toast.success("تم رفع الصورة بنجاح");
+      toast.success(t('uploadImageSuccessToast'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "خطأ أثناء الرفع");
+      toast.error(err instanceof Error ? err.message : t('uploadErrorGeneric'));
     } finally {
       setUploading(false);
     }
@@ -82,7 +84,7 @@ export function ImageUpload({ type, onUpload, currentUrl }: Props) {
         {preview ? (
           <Image
             src={preview}
-            alt={isAvatar ? "الصورة الشخصية" : "صورة الغلاف"}
+            alt={isAvatar ? t('avatarAlt') : t('uploadCoverPhotoAlt')}
             fill
             className="object-cover"
             sizes={isAvatar ? "96px" : "100vw"}
@@ -107,7 +109,7 @@ export function ImageUpload({ type, onUpload, currentUrl }: Props) {
         ) : (
           <Upload className="me-2 size-4" />
         )}
-        {uploading ? "جاري الرفع..." : "رفع صورة"}
+        {uploading ? t('uploadingProgressText') : t('uploadImageButtonText')}
       </Button>
 
       <input

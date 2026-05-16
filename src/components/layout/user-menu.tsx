@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { LogOut, Settings, User } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import { useLang } from '@/lib/i18n/language-context';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,7 @@ type NavUser = {
 
 export function UserMenu({ user }: { user: NavUser }) {
   const router = useRouter();
+  const { t } = useLang();
 
   async function handleLogout() {
     await fetch('/logout', { method: 'POST', redirect: 'manual' });
@@ -30,7 +32,7 @@ export function UserMenu({ user }: { user: NavUser }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         className="rounded-full ring-2 ring-transparent transition-all hover:ring-primary focus-visible:outline-none focus-visible:ring-primary"
-        aria-label="قائمة المستخدم"
+        aria-label={t('userMenuAriaLabel')}
       >
         <UserAvatar user={user} size="sm" linkable={false} />
       </DropdownMenuTrigger>
@@ -45,14 +47,14 @@ export function UserMenu({ user }: { user: NavUser }) {
           onClick={() => router.push(`/profile/${user.username}`)}
         >
           <User className="h-4 w-4" />
-          ملفي الشخصي
+          {t('myProfileMenu')}
         </DropdownMenuItem>
         <DropdownMenuItem
           className="flex items-center gap-2"
-          onClick={() => router.push('/settings/subscription')}
+          onClick={() => router.push('/settings')}
         >
           <Settings className="h-4 w-4" />
-          الإعدادات
+          {t('settings')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -60,7 +62,7 @@ export function UserMenu({ user }: { user: NavUser }) {
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4" />
-          تسجيل الخروج
+          {t('logout')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

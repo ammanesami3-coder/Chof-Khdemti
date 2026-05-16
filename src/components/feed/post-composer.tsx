@@ -15,6 +15,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { MediaUpload, type MediaItem } from "@/components/shared/media-upload";
 import { createPost } from "@/lib/actions/posts";
+import { useLang } from "@/lib/i18n/language-context";
 import type { PostWithAuthor } from "@/lib/validations/post";
 
 const MAX_CONTENT = 2000;
@@ -41,6 +42,7 @@ export function PostComposer({
   onPostError,
   openTrigger,
 }: Props) {
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState("");
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -77,7 +79,7 @@ export function PostComposer({
 
   function handleClose() {
     if (isPending) return;
-    if (isDirty && !window.confirm("هل تريد حذف المسودة؟")) return;
+    if (isDirty && !window.confirm(t('confirmDiscardDraft'))) return;
     setOpen(false);
     reset();
   }
@@ -141,10 +143,10 @@ export function PostComposer({
           return;
         }
 
-        toast.success("تم نشر منشورك!");
+        toast.success(t('postPublished'));
         if (data) onPostCreated?.(data, tempId);
       } catch {
-        toast.error("حدث خطأ أثناء النشر، حاول مجدداً");
+        toast.error(t('postPublishError'));
         onPostError?.(tempId);
       }
     });
@@ -162,7 +164,7 @@ export function PostComposer({
       <button
         type="button"
         onClick={handleOpen}
-        aria-label="إنشاء منشور جديد"
+        aria-label={t('createPostAriaLabel')}
         className={cn(
           "fixed z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg",
           "bottom-[4.5rem] start-6 sm:bottom-6",
@@ -195,7 +197,7 @@ export function PostComposer({
               <button
                 type="button"
                 onClick={handleClose}
-                aria-label="إغلاق نافذة إنشاء منشور"
+                aria-label={t('closeComposerAriaLabel')}
                 className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="size-4" aria-hidden="true" />
@@ -210,9 +212,9 @@ export function PostComposer({
                 value={content}
                 onChange={(e) => setContent(e.target.value.slice(0, MAX_CONTENT))}
                 onKeyDown={handleKeyDown}
-                placeholder="ماذا تريد أن تشارك؟"
+                placeholder={t('postPlaceholder')}
                 rows={4}
-                aria-label="محتوى المنشور"
+                aria-label={t('postContentAriaLabel')}
                 className="resize-none border-none bg-transparent p-0 text-base shadow-none placeholder:text-muted-foreground/60 focus-visible:ring-0"
               />
               <p
@@ -229,14 +231,14 @@ export function PostComposer({
 
           <DialogFooter>
             <Button variant="outline" onClick={handleClose} disabled={isPending}>
-              إلغاء
+              {t('cancel')}
             </Button>
             <Button onClick={handleSubmit} disabled={!canPublish} className="min-w-24">
               {isPending ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
               ) : (
                 <>
-                  نشر
+                  {t('publishBtn')}
                   <span className="ms-1.5 hidden text-xs opacity-60 sm:inline">Ctrl+Enter</span>
                 </>
               )}

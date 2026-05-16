@@ -8,6 +8,7 @@ import { useComments, useAddComment, commentQueryKey } from "@/hooks/use-comment
 import { CommentBubble } from "@/components/feed/comment-bubble";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { createClient } from "@/lib/supabase/client";
+import { useLang } from "@/lib/i18n/language-context";
 import { cn } from "@/lib/utils";
 
 type CurrentUser = {
@@ -38,6 +39,8 @@ export function CommentsSheet({
   autoFocus = false,
   highlightCommentId,
 }: Props) {
+  const { t } = useLang();
+
   // ── SSR guard ─────────────────────────────────────────────────────────────────
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -247,7 +250,7 @@ export function CommentsSheet({
         ref={sheetRef}
         role="dialog"
         aria-modal="true"
-        aria-label="التعليقات"
+        aria-label={t('commentsHeader')}
         className={cn(
           // Mobile: full-width bottom sheet
           "fixed bottom-0 inset-x-0 z-50 flex flex-col",
@@ -273,12 +276,12 @@ export function CommentsSheet({
 
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-2.5 shrink-0">
-          <h2 className="text-sm font-semibold">التعليقات</h2>
+          <h2 className="text-sm font-semibold">{t('commentsHeader')}</h2>
           <button
             type="button"
             onClick={onClose}
             className="rounded-full p-1.5 text-muted-foreground hover:bg-muted transition-colors"
-            aria-label="إغلاق"
+            aria-label={t('closeLabel')}
           >
             <X className="size-4" />
           </button>
@@ -288,7 +291,7 @@ export function CommentsSheet({
         <div
           ref={listRef}
           className="flex-1 overflow-y-auto overscroll-contain"
-          aria-label="قائمة التعليقات"
+          aria-label={t('commentsHeader')}
         >
           {/* Load older comments */}
           {hasNextPage && (
@@ -300,7 +303,7 @@ export function CommentsSheet({
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline disabled:opacity-50"
               >
                 {isFetchingNextPage && <Loader2 className="size-3 animate-spin" />}
-                عرض التعليقات السابقة
+                {t('loadOlderComments')}
               </button>
             </div>
           )}
@@ -313,7 +316,7 @@ export function CommentsSheet({
 
           {!isLoading && displayComments.length === 0 && (
             <div className="flex flex-col items-center py-16">
-              <p className="text-sm text-muted-foreground">كن أول من يعلّق!</p>
+              <p className="text-sm text-muted-foreground">{t('beFirstToComment')}</p>
             </div>
           )}
 
@@ -349,9 +352,9 @@ export function CommentsSheet({
                       handleSubmit();
                     }
                   }}
-                  placeholder="أضف تعليقاً..."
+                  placeholder={t('addCommentPlaceholder')}
                   className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                  aria-label="كتابة تعليق"
+                  aria-label={t('writeCommentAriaLabel')}
                 />
                 {text.trim() && (
                   <button
@@ -359,7 +362,7 @@ export function CommentsSheet({
                     onClick={handleSubmit}
                     disabled={addMutation.isPending}
                     className="shrink-0 text-primary transition-opacity disabled:opacity-40"
-                    aria-label="إرسال التعليق"
+                    aria-label={t('sendCommentAriaLabel')}
                   >
                     {addMutation.isPending ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -372,7 +375,7 @@ export function CommentsSheet({
             </div>
           ) : (
             <p className="py-1 text-center text-sm text-muted-foreground">
-              سجّل دخولك للتعليق
+              {t('loginToComment')}
             </p>
           )}
         </div>

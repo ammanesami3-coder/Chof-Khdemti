@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, PlusSquare, MessageCircle, User } from 'lucide-react';
+import { Home, Users, PlusSquare, MessageCircle, User } from 'lucide-react';
 import { useUnreadMessagesCount } from '@/hooks/use-unread-messages-count';
+import { useLang } from '@/lib/i18n/language-context';
 import { cn } from '@/lib/utils';
 
 type Props = { username: string };
@@ -15,9 +16,10 @@ const LINK_BASE =
 export function MobileBottomNav({ username }: Props) {
   const pathname = usePathname();
   const unreadCount = useUnreadMessagesCount();
+  const { t } = useLang();
 
   function isActive(href: string) {
-    if (href === '/feed') return pathname === '/feed';
+    if (href === '/') return pathname === '/';
     return pathname === href || pathname.startsWith(href + '/');
   }
 
@@ -33,38 +35,38 @@ export function MobileBottomNav({ username }: Props) {
 
         {/* الرئيسية */}
         <Link
-          href="/feed"
-          aria-label="الرئيسية"
-          className={cn(LINK_BASE, isActive('/feed') ? activeClass : inactiveClass)}
+          href="/"
+          aria-label={t('home')}
+          className={cn(LINK_BASE, isActive('/') ? activeClass : inactiveClass)}
         >
           <Home className={ICON_CLASS} />
-          <span className="text-[10px] leading-none">الرئيسية</span>
+          <span className="text-[10px] leading-none">{t('home')}</span>
         </Link>
 
-        {/* اكتشاف */}
+        {/* الحرفيون (friends icon) */}
         <Link
           href="/explore"
-          aria-label="اكتشاف"
+          aria-label={t('explore')}
           className={cn(LINK_BASE, isActive('/explore') ? activeClass : inactiveClass)}
         >
-          <Search className={ICON_CLASS} />
-          <span className="text-[10px] leading-none">اكتشاف</span>
+          <Users className={ICON_CLASS} />
+          <span className="text-[10px] leading-none">{t('explore')}</span>
         </Link>
 
         {/* نشر */}
         <Link
-          href="/feed?compose=1"
-          aria-label="نشر"
+          href="/?compose=1"
+          aria-label={t('post')}
           className={cn(LINK_BASE, 'text-primary')}
         >
           <PlusSquare className="h-6 w-6" />
-          <span className="text-[10px] leading-none">نشر</span>
+          <span className="text-[10px] leading-none">{t('post')}</span>
         </Link>
 
         {/* رسائل — مع badge */}
         <Link
           href="/messages"
-          aria-label="رسائل"
+          aria-label={t('messages')}
           className={cn(LINK_BASE, isActive('/messages') ? activeClass : inactiveClass)}
         >
           <div className="relative">
@@ -82,17 +84,17 @@ export function MobileBottomNav({ username }: Props) {
               </span>
             )}
           </div>
-          <span className="text-[10px] leading-none">رسائل</span>
+          <span className="text-[10px] leading-none">{t('messages')}</span>
         </Link>
 
         {/* ملفي */}
         <Link
           href={`/profile/${username}`}
-          aria-label="ملفي"
+          aria-label={t('myProfile')}
           className={cn(LINK_BASE, isActive(`/profile/${username}`) ? activeClass : inactiveClass)}
         >
           <User className={ICON_CLASS} />
-          <span className="text-[10px] leading-none">ملفي</span>
+          <span className="text-[10px] leading-none">{t('myProfile')}</span>
         </Link>
 
       </div>

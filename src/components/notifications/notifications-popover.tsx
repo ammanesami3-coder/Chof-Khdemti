@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 import {
   useUnreadNotificationsCount,
   useNotifications,
@@ -21,6 +22,7 @@ function Badge({ count }: { count: number }) {
 type Props = { showLabel?: boolean };
 
 export function NotificationsPopover({ showLabel = true }: Props) {
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -63,7 +65,7 @@ export function NotificationsPopover({ showLabel = true }: Props) {
       <button
         ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
-        aria-label="الإشعارات"
+        aria-label={t('notificationsLabel')}
         aria-expanded={open}
         className={cn(
           'relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors',
@@ -75,7 +77,7 @@ export function NotificationsPopover({ showLabel = true }: Props) {
           <Bell className="h-4 w-4" />
           <Badge count={count} />
         </span>
-        {showLabel && <span>الإشعارات</span>}
+        {showLabel && <span>{t('notificationsLabel')}</span>}
       </button>
 
       {/* Panel */}
@@ -96,17 +98,17 @@ export function NotificationsPopover({ showLabel = true }: Props) {
               'overflow-hidden rounded-xl border bg-background shadow-2xl',
               'animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150',
             )}
-            dir="rtl"
+            dir="auto"
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b px-4 py-3">
-              <h2 className="text-base font-bold">الإشعارات</h2>
+              <h2 className="text-base font-bold">{t('notificationsLabel')}</h2>
               {hasUnread && (
                 <button
                   onClick={() => markAllRead()}
                   className="text-xs font-medium text-primary hover:underline"
                 >
-                  تعليم الكل كمقروء
+                  {t('markAllReadLabel')}
                 </button>
               )}
             </div>
@@ -129,10 +131,10 @@ export function NotificationsPopover({ showLabel = true }: Props) {
                 <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
                   <Bell className="size-10 text-muted-foreground/40" />
                   <p className="text-sm font-medium text-muted-foreground">
-                    لا توجد إشعارات بعد
+                    {t('noNotificationsTitle')}
                   </p>
                   <p className="text-xs text-muted-foreground/60">
-                    ستظهر هنا إشعارات الإعجابات والتعليقات والمتابعات
+                    {t('noNotificationsSubtext')}
                   </p>
                 </div>
               ) : (
@@ -151,7 +153,7 @@ export function NotificationsPopover({ showLabel = true }: Props) {
             {notifications.length > 0 && (
               <div className="border-t px-4 py-2.5 text-center">
                 <span className="text-xs text-muted-foreground">
-                  آخر 20 إشعار
+                  {t('last20NotificationsLabel')}
                 </span>
               </div>
             )}

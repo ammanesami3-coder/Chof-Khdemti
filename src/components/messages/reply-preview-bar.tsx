@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 
 type ReplyTarget = {
   id:          string;
@@ -16,11 +17,13 @@ type Props = {
 };
 
 export function ReplyPreviewBar({ replyingTo, onCancel }: Props) {
+  const { t } = useLang();
+
   const preview = replyingTo.content
     ? replyingTo.content.slice(0, 80) + (replyingTo.content.length > 80 ? '…' : '')
     : replyingTo.messageType === 'voice'
-    ? '🎤 رسالة صوتية'
-    : '📎 مرفق';
+    ? `🎤 ${t('voiceMessageLabel')}`
+    : `📎 ${t('attachmentLabel')}`;
 
   return (
     <div
@@ -43,7 +46,7 @@ export function ReplyPreviewBar({ replyingTo, onCancel }: Props) {
         type="button"
         onClick={onCancel}
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-        aria-label="إلغاء الرد"
+        aria-label={t('cancelReplyAriaLabel')}
       >
         <X className="h-3.5 w-3.5" />
       </button>

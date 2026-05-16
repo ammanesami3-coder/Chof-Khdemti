@@ -6,6 +6,7 @@ import { MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCoordinates } from '@/lib/google-maps';
 import { LocationViewerModal } from './location-viewer-modal';
+import { useLang } from '@/lib/i18n/language-context';
 
 // BubbleMap is a non-interactive Leaflet preview — no API key needed
 const BubbleMapDynamic = dynamic(
@@ -21,7 +22,7 @@ export function parseLocationContent(content: string | null): { lat: number; lng
   try {
     const obj = JSON.parse(content);
     if (typeof obj.lat === 'number' && typeof obj.lng === 'number') {
-      return { lat: obj.lat, lng: obj.lng, name: obj.name ?? 'موقع مشترك' };
+      return { lat: obj.lat, lng: obj.lng, name: obj.name ?? '' };
     }
     return null;
   } catch {
@@ -36,6 +37,7 @@ type Props = {
 };
 
 export function LocationMessageCard({ content, isSent, senderName }: Props) {
+  const { t } = useLang();
   const [viewerOpen, setViewerOpen] = useState(false);
   const loc = parseLocationContent(content);
 
@@ -43,7 +45,7 @@ export function LocationMessageCard({ content, isSent, senderName }: Props) {
     return (
       <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground">
         <MapPin className="h-4 w-4 shrink-0" />
-        <span>موقع غير متاح</span>
+        <span>{t('locationUnavailable')}</span>
       </div>
     );
   }
@@ -53,7 +55,7 @@ export function LocationMessageCard({ content, isSent, senderName }: Props) {
       <button
         type="button"
         onClick={() => setViewerOpen(true)}
-        aria-label="عرض الموقع"
+        aria-label={t('viewLocationAriaLabel')}
         className={cn(
           'relative w-[280px] overflow-hidden rounded-2xl text-start',
           'transition-opacity hover:opacity-90 active:opacity-80',
@@ -69,7 +71,7 @@ export function LocationMessageCard({ content, isSent, senderName }: Props) {
         <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-black/50 px-3 py-2 backdrop-blur-sm">
           <MapPin className="h-3.5 w-3.5 shrink-0 text-white opacity-90" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold leading-tight text-white">{loc.name}</p>
+            <p className="truncate text-xs font-semibold leading-tight text-white">{loc.name || t('sharedLocation')}</p>
             <p className="text-[10px] text-white/70">{formatCoordinates(loc.lat, loc.lng)}</p>
           </div>
         </div>
@@ -80,7 +82,7 @@ export function LocationMessageCard({ content, isSent, senderName }: Props) {
         onOpenChange={setViewerOpen}
         lat={loc.lat}
         lng={loc.lng}
-        name={loc.name}
+        name={loc.name || t('sharedLocation')}
         senderName={senderName}
       />
     </>

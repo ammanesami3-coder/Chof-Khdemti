@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getShareableUsers, sharePostViaMessage, type ShareableUser } from '@/lib/actions/shares';
+import { useLang } from '@/lib/i18n/language-context';
 import type { PostWithAuthor } from '@/lib/validations/post';
 
 type Props = {
@@ -31,6 +32,7 @@ function UserInitials({ name }: { name: string }) {
 }
 
 export function SendViaMessageSheet({ post, onBack, onClose }: Props) {
+  const { t } = useLang();
   const [users, setUsers] = useState<ShareableUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [search, setSearch] = useState('');
@@ -79,8 +81,8 @@ export function SendViaMessageSheet({ post, onBack, onClose }: Props) {
 
     toast.success(
       result.sent === 1
-        ? 'تم إرسال المنشور'
-        : `تم إرسال المنشور إلى ${result.sent} أشخاص`
+        ? t('sentPostSingular')
+        : `${t('sentPostToMultiple')} ${result.sent} ${t('personPlural')}`
     );
     onClose();
   }
@@ -92,7 +94,7 @@ export function SendViaMessageSheet({ post, onBack, onClose }: Props) {
         <button
           onClick={onBack}
           className="rounded-full p-2 transition-colors hover:bg-muted text-muted-foreground"
-          aria-label="رجوع"
+          aria-label={t('backAriaLabel')}
         >
           <ArrowRight className="size-4" />
         </button>
@@ -101,8 +103,8 @@ export function SendViaMessageSheet({ post, onBack, onClose }: Props) {
             <MessageCircle className="size-4 text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold">إرسال عبر الرسائل</p>
-            <p className="text-xs text-muted-foreground">اختر الأشخاص</p>
+            <p className="text-sm font-semibold">{t('sendViaMessagesTitle')}</p>
+            <p className="text-xs text-muted-foreground">{t('sendViaMessagesDesc')}</p>
           </div>
         </div>
       </div>
@@ -114,7 +116,7 @@ export function SendViaMessageSheet({ post, onBack, onClose }: Props) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ابحث عن شخص..."
+            placeholder={t('searchPeoplePlaceholder')}
             className="ps-9 h-9 text-sm"
             dir="rtl"
           />
@@ -150,7 +152,7 @@ export function SendViaMessageSheet({ post, onBack, onClose }: Props) {
         ) : filtered.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-sm text-muted-foreground">
-              {search ? 'لا توجد نتائج' : 'لا يوجد متابعون أو محادثات بعد'}
+              {search ? t('noSearchResults') : t('noFollowersOrConversations')}
             </p>
           </div>
         ) : (
@@ -181,7 +183,7 @@ export function SendViaMessageSheet({ post, onBack, onClose }: Props) {
                     <p className="truncate text-xs text-muted-foreground">
                       @{u.username}
                       {u.has_conversation && (
-                        <span className="ms-1 text-green-600 dark:text-green-500">· محادثة موجودة</span>
+                        <span className="ms-1 text-green-600 dark:text-green-500">{t('existingConversationLabel')}</span>
                       )}
                     </p>
                   </div>
@@ -217,10 +219,10 @@ export function SendViaMessageSheet({ post, onBack, onClose }: Props) {
             <MessageCircle className="size-4" />
           )}
           {sending
-            ? 'جاري الإرسال...'
+            ? t('sendingPostProgress')
             : selected.size
-            ? `إرسال إلى ${selected.size} ${selected.size === 1 ? 'شخص' : 'أشخاص'}`
-            : 'اختر شخصاً على الأقل'}
+            ? `${t('sendToNPeoplePrefix')} ${selected.size} ${selected.size === 1 ? t('personSingular') : t('personPlural')}`
+            : t('selectPersonFirst')}
         </Button>
       </div>
     </div>

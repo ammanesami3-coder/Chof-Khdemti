@@ -9,6 +9,7 @@ import { AuthGate } from '@/components/shared/auth-gate';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { getCraftById } from '@/lib/constants/crafts';
 import { CITIES } from '@/lib/constants/cities';
+import { useLang } from '@/lib/i18n/language-context';
 import type { ArtisanListItem } from '@/lib/queries/artisans';
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export function ArtisanCard({ artisan, currentUserId }: Props) {
+  const { t } = useLang();
   const { isFollowing, isPending, toggle } = useFollow(artisan.id, false);
   const craft = artisan.craft_category ? getCraftById(artisan.craft_category) : null;
   const cityName = artisan.city
@@ -40,7 +42,7 @@ export function ArtisanCard({ artisan, currentUserId }: Props) {
           <div className="flex items-center gap-1">
             <span className="truncate font-semibold leading-tight">{artisan.full_name}</span>
             {artisan.is_verified && (
-              <BadgeCheck className="size-4 shrink-0 text-blue-500" aria-label="موثّق" />
+              <BadgeCheck className="size-4 shrink-0 text-blue-500" aria-label={t('verifiedBadgeAriaLabel')} />
             )}
           </div>
           <p className="truncate text-sm text-muted-foreground">@{artisan.username}</p>
@@ -86,7 +88,7 @@ export function ArtisanCard({ artisan, currentUserId }: Props) {
               toggle();
             }}
           >
-            {isPending ? '...' : isFollowing ? 'متابَع' : 'متابعة'}
+            {isPending ? '...' : isFollowing ? t('followingStateLabel') : t('follow')}
           </Button>
         </AuthGate>
       )}

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { ar } from "date-fns/locale";
+import { ar, fr, enUS } from "date-fns/locale";
 import { Send, Pencil, Trash2, MoreHorizontal, ChevronDown, ChevronUp } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { AuthGate } from "@/components/shared/auth-gate";
@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useLang } from "@/lib/i18n/language-context";
 import type { RecentComment } from "@/lib/validations/post";
 
 type CurrentUser = {
@@ -50,6 +51,7 @@ export function CommentBubble({
   isPending = false,
   highlightId,
 }: Props) {
+  const { t, lang } = useLang();
   const elId = `comment-${comment.id}`;
   const isHighlighted = highlightId === comment.id;
 
@@ -59,7 +61,14 @@ export function CommentBubble({
   const [editText, setEditText] = useState(comment.content);
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
-  const [repliesOpen, setRepliesOpen] = useState(isHighlighted);
+  // Auto-open replies when this comment is highlighted OR when a reply within it is the highlight target
+  const repliesContainHighlight = (comment.replies ?? []).some((r) => r.id === highlightId);
+  const [repliesOpen, setRepliesOpen] = useState(isHighlighted || repliesContainHighlight);
+
+  // Reactively open replies if data arrives after initial render (e.g. async comment load)
+  useEffect(() => {
+    if (repliesContainHighlight) setRepliesOpen(true);
+  }, [repliesContainHighlight]);
 
   const deleteMutation = useDeleteComment();
   const toggleLikeMutation = useToggleCommentLike();
@@ -79,11 +88,12 @@ export function CommentBubble({
     !isPending &&
     Date.now() - new Date(comment.created_at).getTime() < 15 * 60 * 1000;
 
+  const dateLocale = lang === 'ar' ? ar : lang === 'fr' ? fr : enUS;
   const timeAgo = isPending
-    ? "جاري الإرسال..."
+    ? t('sendingComment')
     : formatDistanceToNow(new Date(comment.created_at), {
         addSuffix: true,
-        locale: ar,
+        locale: dateLocale,
       });
 
   const replies = comment.replies ?? [];
@@ -125,13 +135,15 @@ export function CommentBubble({
   function handleReplySubmit() {
     const trimmed = replyText.trim();
     if (!trimmed || !currentUser) return;
+    // depth=1 replies go to the root comment so threading stays flat (max 1 level)
+    const parentId = depth === 0 ? comment.id : (comment.parent_comment_id ?? comment.id);
     addReplyMutation.mutate(
-      { postId, content: trimmed, tempId: `temp-${Date.now()}`, parentCommentId: comment.id },
+      { postId, content: trimmed, tempId: `temp-${Date.now()}`, parentCommentId: parentId },
       {
         onSuccess: () => {
           setReplyText("");
           setShowReply(false);
-          setRepliesOpen(true);
+          if (depth === 0) setRepliesOpen(true);
         },
       },
     );
@@ -189,7 +201,7 @@ export function CommentBubble({
                   onClick={handleEditSubmit}
                   disabled={editMutation.isPending}
                   className="shrink-0 rounded-full p-1 text-primary hover:bg-primary/10 disabled:opacity-50"
-                  aria-label="حفظ"
+                  aria-label={t('saveCommentEdit')}
                 >
                   <Send className="size-3.5" />
                 </button>
@@ -226,22 +238,25 @@ export function CommentBubble({
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {isLiked ? "أعجبني ✓" : "إعجاب"}
+              {isLiked ? t('commentLiked') : t('commentLike')}
             </button>
           </AuthGate>
 
-          {/* Reply — top-level only */}
-          {depth === 0 && (
-            <AuthGate isAuthenticated={isAuthenticated} action="comment">
-              <button
-                onClick={() => setShowReply((v) => !v)}
-                disabled={isPending}
-                className="text-[12px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
-              >
-                رد
-              </button>
-            </AuthGate>
-          )}
+          {/* Reply — all depths */}
+          <AuthGate isAuthenticated={isAuthenticated} action="comment">
+            <button
+              onClick={() => {
+                if (!showReply && depth === 1) {
+                  setReplyText(`@${comment.author.username} `);
+                }
+                setShowReply((v) => !v);
+              }}
+              disabled={isPending}
+              className="text-[12px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {t('commentReply')}
+            </button>
+          </AuthGate>
 
           {/* Time */}
           <span className="text-[11px] text-muted-foreground/70 font-normal">{timeAgo}</span>
@@ -251,7 +266,7 @@ export function CommentBubble({
             <DropdownMenu>
               <DropdownMenuTrigger
                 className="ms-auto rounded-full p-0.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-                aria-label="خيارات"
+                aria-label={t('moreOptionsAriaLabel')}
               >
                 <MoreHorizontal className="size-3.5" />
               </DropdownMenuTrigger>
@@ -260,7 +275,7 @@ export function CommentBubble({
                   <DropdownMenuItem
                     onClick={() => { setEditing(true); setEditText(comment.content); }}
                   >
-                    <Pencil className="size-3.5" /> تعديل
+                    <Pencil className="size-3.5" /> {t('commentEdit')}
                   </DropdownMenuItem>
                 )}
                 {canDelete && (
@@ -269,7 +284,7 @@ export function CommentBubble({
                     onClick={handleDelete}
                     disabled={deleteMutation.isPending}
                   >
-                    <Trash2 className="size-3.5" /> حذف
+                    <Trash2 className="size-3.5" /> {t('commentDelete')}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -278,7 +293,7 @@ export function CommentBubble({
         </div>
 
         {/* ── Inline reply composer ───────────────────────────────────────── */}
-        {showReply && currentUser && depth === 0 && (
+        {showReply && currentUser && (
           <div className="mt-2 flex items-center gap-2">
             <UserAvatar user={currentUser} size="xs" className="shrink-0" />
             <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-muted px-3 py-1.5">
@@ -290,14 +305,14 @@ export function CommentBubble({
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReplySubmit(); }
                   if (e.key === "Escape") { setShowReply(false); }
                 }}
-                placeholder={`رد على ${comment.author.full_name}...`}
+                placeholder={`${t('commentReply')} ${comment.author.full_name}...`}
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
               <button
                 onClick={handleReplySubmit}
                 disabled={!replyText.trim() || addReplyMutation.isPending}
                 className="shrink-0 text-primary disabled:opacity-30 transition-opacity"
-                aria-label="إرسال الرد"
+                aria-label={t('sendReply')}
               >
                 <Send className="size-3.5" />
               </button>
@@ -314,8 +329,8 @@ export function CommentBubble({
               className="flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline"
             >
               {repliesOpen
-                ? <><ChevronUp className="size-3.5" /> إخفاء الردود</>
-                : <><ChevronDown className="size-3.5" /> عرض {replyCount} {replyCount === 1 ? "رد" : "ردود"}</>
+                ? <><ChevronUp className="size-3.5" /> {t('hideReplies')}</>
+                : <><ChevronDown className="size-3.5" /> {replyCount} {replyCount === 1 ? t('showReply') : t('showReplies')}</>
               }
             </button>
 

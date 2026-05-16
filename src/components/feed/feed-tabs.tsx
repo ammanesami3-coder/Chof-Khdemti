@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeedList } from "@/components/feed/feed-list";
 import { PostComposer } from "@/components/feed/post-composer";
+import { useLang } from "@/lib/i18n/language-context";
 import type { FeedPage } from "@/lib/queries/posts";
 import type { PostWithAuthor } from "@/lib/validations/post";
 
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export function FeedTabs({ currentUser, initialFollowingFeed, composeOnMount = false }: Props) {
+  const { t } = useLang();
   const [newPosts, setNewPosts] = useState<PostWithAuthor[]>([]);
   const [composeTrigger, setComposeTrigger] = useState(0);
   const composeOnMountRef = useRef(composeOnMount);
@@ -57,13 +59,13 @@ export function FeedTabs({ currentUser, initialFollowingFeed, composeOnMount = f
             value="following"
             className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-primary data-active:bg-transparent data-active:shadow-none"
           >
-            الفيد
+            {t('feedTabFollowing')}
           </TabsTrigger>
           <TabsTrigger
             value="discover"
             className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-primary data-active:bg-transparent data-active:shadow-none"
           >
-            اكتشاف
+            {t('feedTabDiscover')}
           </TabsTrigger>
         </TabsList>
 

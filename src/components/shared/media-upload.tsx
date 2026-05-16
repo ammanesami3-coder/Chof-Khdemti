@@ -22,6 +22,7 @@ import Image from "next/image";
 import { AlertCircle, GripVertical, Loader2, Play, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { uploadToCloudinary, type MediaItem } from "@/lib/cloudinary-upload";
+import { useLang } from "@/lib/i18n/language-context";
 
 export type { MediaItem };
 
@@ -51,6 +52,7 @@ function SortableItem({
   item: MediaItem;
   onRemove: () => void;
 }) {
+  const { t } = useLang();
   const {
     attributes,
     listeners,
@@ -90,7 +92,7 @@ function SortableItem({
       <button
         type="button"
         onClick={onRemove}
-        aria-label="حذف"
+        aria-label={t('deleteAriaLabel')}
         className="absolute end-1.5 top-1.5 rounded-full bg-black/70 p-1 opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
       >
         <X className="size-3 text-white" />
@@ -100,7 +102,7 @@ function SortableItem({
       <div
         {...attributes}
         {...listeners}
-        aria-label="اسحب لإعادة الترتيب"
+        aria-label={t('dragToReorderAriaLabel')}
         className="absolute bottom-1.5 start-1.5 cursor-grab rounded p-1 opacity-0 transition-opacity active:cursor-grabbing group-hover:opacity-100 bg-black/70"
       >
         <GripVertical className="size-3 text-white" />
@@ -112,6 +114,7 @@ function SortableItem({
 // ── UploadingItem ─────────────────────────────────────────────────────────────
 
 function UploadingItem({ state }: { state: UploadState }) {
+  const { t } = useLang();
   const isImage = IMAGE_TYPES.includes(state.file.type);
 
   return (
@@ -140,13 +143,13 @@ function UploadingItem({ state }: { state: UploadState }) {
               />
             </div>
             <span className="text-xs font-medium text-foreground">
-              جاري الرفع... {state.progress}%
+              {t('uploadingProgressText')} {state.progress}%
             </span>
           </>
         ) : (
           <>
             <AlertCircle className="size-5 text-red-400" />
-            <span className="text-center text-xs text-red-300">فشل الرفع</span>
+            <span className="text-center text-xs text-red-300">{t('uploadFailedText')}</span>
           </>
         )}
       </div>
@@ -169,6 +172,7 @@ export function MediaUpload({
   onUploadingChange,
   existingMedia,
 }: Props) {
+  const { t } = useLang();
   const [completedItems, setCompletedItems] = useState<MediaItem[]>(
     existingMedia ?? []
   );
@@ -254,7 +258,7 @@ export function MediaUpload({
       setUploadStates((prev) =>
         prev.map((s) => (s.id === stateId ? { ...s, status: "error" } : s))
       );
-      toast.error(`فشل رفع ${file.name}`);
+      toast.error(`${t('uploadFailedPrefix')} ${file.name}`);
 
       // Remove error item after 3 seconds
       setTimeout(() => {
@@ -268,14 +272,14 @@ export function MediaUpload({
     const remaining = maxFiles - completedItems.length - activeUploads;
 
     if (remaining <= 0) {
-      toast.warning(`وصلت الحد الأقصى (${maxFiles} ملفات)`);
+      toast.warning(`${t('maxFilesReachedPrefix')} (${maxFiles} ${t('filesLabel')})`);
       return;
     }
 
     const candidates = files.slice(0, remaining);
     if (files.length > remaining) {
       toast.warning(
-        `تم اختيار أول ${remaining} ملف فقط (الحد الأقصى ${maxFiles})`
+        `${t('firstNFilesPrefix')} ${remaining} ${t('firstNFilesSuffix')} (${maxFiles})`
       );
     }
 
@@ -286,15 +290,15 @@ export function MediaUpload({
       const isVideo = VIDEO_TYPES.includes(file.type);
 
       if (!isImage && !isVideo) {
-        toast.error(`${file.name}: نوع الملف غير مدعوم`);
+        toast.error(`${file.name}: ${t('fileUnsupportedSuffix')}`);
         continue;
       }
       if (isImage && file.size > MAX_IMAGE_BYTES) {
-        toast.error(`${file.name}: الصورة أكبر من 10MB`);
+        toast.error(`${file.name}: ${t('imageTooLarge10MB')}`);
         continue;
       }
       if (isVideo && file.size > MAX_VIDEO_BYTES) {
-        toast.error(`${file.name}: الفيديو أكبر من 100MB`);
+        toast.error(`${file.name}: ${t('videoTooLarge100MB')}`);
         continue;
       }
 
@@ -340,7 +344,7 @@ export function MediaUpload({
         <div
           role="button"
           tabIndex={0}
-          aria-label="رفع ملفات — انقر أو اسحب"
+          aria-label={t('uploadFilesAriaLabel')}
           onClick={() => inputRef.current?.click()}
           onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
           onDrop={(e) => {
@@ -371,15 +375,15 @@ export function MediaUpload({
 
           <div className="space-y-1">
             <p className="text-sm font-medium">
-              {isDragOver ? "أفلت الملفات هنا" : "اسحب الملفات هنا أو انقر للاختيار"}
+              {isDragOver ? t('dropFilesHint') : t('dragFilesHint')}
             </p>
             <p className="text-xs text-muted-foreground">
-              صور: JPG / PNG / WEBP ≤ 10MB &nbsp;|&nbsp; فيديو: MP4 / MOV / WEBM ≤ 100MB
+              {t('fileTypesHint')}
             </p>
             <p className="text-xs text-muted-foreground">
               {totalCount > 0
-                ? `${totalCount} / ${maxFiles} ملفات`
-                : `حتى ${maxFiles} ملفات`}
+                ? `${totalCount} / ${maxFiles} ${t('filesLabel')}`
+                : `${t('upToLabel')} ${maxFiles} ${t('filesLabel')}`}
             </p>
           </div>
         </div>

@@ -198,7 +198,7 @@ export async function createStatus(
 
   if (error) return { error: error.message };
 
-  revalidatePath('/feed');
+  revalidatePath('/');
 
   return {
     data: {
@@ -387,7 +387,7 @@ export async function deleteStatus(
     .eq('user_id', user.id);
 
   if (error) return { error: error.message };
-  revalidatePath('/feed');
+  revalidatePath('/');
   return {};
 }
 

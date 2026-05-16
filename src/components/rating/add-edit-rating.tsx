@@ -13,6 +13,7 @@ import {
 import { StarRating } from './star-rating';
 import { RatingForm } from './rating-form';
 import { useMyRating } from '@/hooks/use-my-rating';
+import { useLang } from '@/lib/i18n/language-context';
 import type { Rating } from '@/lib/validations/rating';
 
 interface AddEditRatingProps {
@@ -24,6 +25,7 @@ interface AddEditRatingProps {
 }
 
 export function AddEditRating({ artisanId, initialRating, canRate }: AddEditRatingProps) {
+  const { t, lang } = useLang();
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -44,7 +46,7 @@ export function AddEditRating({ artisanId, initialRating, canRate }: AddEditRati
         /* ── تقييم موجود ── */
         <div className="flex items-start justify-between gap-3 rounded-xl bg-amber-50 p-3 dark:bg-amber-950/20">
           <div className="space-y-1">
-            <p className="text-xs font-medium text-amber-700 dark:text-amber-400">تقييمك</p>
+            <p className="text-xs font-medium text-amber-700 dark:text-amber-400">{t('yourRatingLabel')}</p>
             <StarRating value={myRating.stars} readonly size="sm" />
             {myRating.comment && (
               <p className="text-sm text-foreground/80">{myRating.comment}</p>
@@ -57,7 +59,7 @@ export function AddEditRating({ artisanId, initialRating, canRate }: AddEditRati
             onClick={() => setOpen(true)}
           >
             <Pencil className="me-1 size-3.5" />
-            تعديل
+            {t('editRatingBtn')}
           </Button>
         </div>
       ) : (
@@ -68,14 +70,14 @@ export function AddEditRating({ artisanId, initialRating, canRate }: AddEditRati
           onClick={() => setOpen(true)}
         >
           <Star className="size-4 fill-amber-400 text-amber-400" />
-          أضف تقييماً
+          {t('addRatingBtn')}
         </Button>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent dir="rtl">
+        <DialogContent dir={lang === 'ar' ? 'rtl' : 'ltr'}>
           <DialogHeader>
-            <DialogTitle>{myRating ? 'تعديل تقييمك' : 'أضف تقييماً'}</DialogTitle>
+            <DialogTitle>{myRating ? t('editRatingTitle') : t('addRatingTitle')}</DialogTitle>
           </DialogHeader>
           <RatingForm
             artisanId={artisanId}

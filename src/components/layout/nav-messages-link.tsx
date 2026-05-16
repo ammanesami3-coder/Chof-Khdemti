@@ -3,15 +3,18 @@
 import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
 import { useUnreadMessagesCount } from '@/hooks/use-unread-messages-count';
+import { useLang } from '@/lib/i18n/language-context';
 
 type Props = { showLabel?: boolean };
 
 export function NavMessagesLink({ showLabel = true }: Props) {
   const count = useUnreadMessagesCount();
+  const { t } = useLang();
 
   return (
     <Link
       href="/messages"
+      aria-label={t('messages')}
       className="relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
     >
       <span className="relative">
@@ -22,7 +25,7 @@ export function NavMessagesLink({ showLabel = true }: Props) {
           </span>
         )}
       </span>
-      {showLabel && 'رسائل'}
+      {showLabel && <span>{t('messages')}</span>}
     </Link>
   );
 }

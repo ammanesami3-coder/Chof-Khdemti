@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { EmojiPicker } from './emoji-picker';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 
 type Props = {
   messageId:             string;
@@ -43,6 +44,7 @@ export function MessageActionBar({
   onDeleteForMe,
   onDeleteForEveryone,
 }: Props) {
+  const { t } = useLang();
   const [emojiOpen, setEmojiOpen] = useState(false);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const [pickerStyle, setPickerStyle] = useState<React.CSSProperties>({});
@@ -53,7 +55,6 @@ export function MessageActionBar({
       const PICKER_HEIGHT = 56;
       const style: React.CSSProperties = { position: 'fixed', zIndex: 9999 };
 
-      // Flip to below if not enough space above
       if (rect.top < PICKER_HEIGHT + 8) {
         style.top = rect.bottom + 4;
       } else {
@@ -85,7 +86,7 @@ export function MessageActionBar({
         type="button"
         className={cn(BTN, emojiOpen && 'bg-accent text-foreground')}
         onClick={handleEmojiClick}
-        aria-label="تفاعل"
+        aria-label={t('reactAriaLabel')}
       >
         <Smile className="h-3.5 w-3.5" />
       </button>
@@ -115,21 +116,21 @@ export function MessageActionBar({
         type="button"
         className={BTN}
         onClick={onReply}
-        aria-label="رد"
+        aria-label={t('replyAriaLabel')}
       >
         <CornerUpLeft className="h-3.5 w-3.5" />
       </button>
 
       {/* More */}
       <DropdownMenu>
-        <DropdownMenuTrigger className={BTN} aria-label="المزيد">
+        <DropdownMenuTrigger className={BTN} aria-label={t('moreOptionsAriaLabel')}>
           <MoreHorizontal className="h-3.5 w-3.5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align={isSent ? 'end' : 'start'} className="min-w-[160px]">
           {content && (
             <DropdownMenuItem onClick={onCopy}>
               <Copy className="me-2 h-4 w-4" />
-              نسخ النص
+              {t('copyText')}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
@@ -138,7 +139,7 @@ export function MessageActionBar({
             onClick={onDeleteForMe}
           >
             <Trash2 className="me-2 h-4 w-4" />
-            حذف لدي
+            {t('deleteForMeLabel')}
           </DropdownMenuItem>
           {canDeleteForEveryone && (
             <DropdownMenuItem
@@ -146,7 +147,7 @@ export function MessageActionBar({
               onClick={onDeleteForEveryone}
             >
               <Trash2 className="me-2 h-4 w-4" />
-              حذف لدى الجميع
+              {t('deleteForEveryoneLabel')}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

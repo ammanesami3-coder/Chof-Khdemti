@@ -118,6 +118,7 @@ export async function uploadAttachmentToCloudinary(
   file: File,
   attachmentType: "image" | "video" | "document" | "audio",
   onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
 ): Promise<AttachmentUploadResult> {
   const presetMap = {
     image:    "msg_image",
@@ -170,6 +171,15 @@ export async function uploadAttachmentToCloudinary(
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+
+    // Abort support
+    if (signal) {
+      if (signal.aborted) { reject(new DOMException('Upload cancelled', 'AbortError')); return; }
+      signal.addEventListener('abort', () => {
+        xhr.abort();
+        reject(new DOMException('Upload cancelled', 'AbortError'));
+      }, { once: true });
+    }
 
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable && onProgress) {
@@ -242,7 +252,8 @@ export async function deleteFromCloudinary(publicId: string): Promise<void> {
  */
 export async function uploadVoiceToCloudinary(
   blob: Blob,
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
 ): Promise<{ url: string; duration: number }> {
   const signRes = await fetch("/api/cloudinary/sign", {
     method: "POST",
@@ -279,6 +290,15 @@ export async function uploadVoiceToCloudinary(
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+
+    // Abort support
+    if (signal) {
+      if (signal.aborted) { reject(new DOMException('Upload cancelled', 'AbortError')); return; }
+      signal.addEventListener('abort', () => {
+        xhr.abort();
+        reject(new DOMException('Upload cancelled', 'AbortError'));
+      }, { once: true });
+    }
 
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable && onProgress) {

@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { BadgeCheck, FileText, ImageIcon, Video } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import { useLang } from '@/lib/i18n/language-context';
 import { cn } from '@/lib/utils';
 import type { SharedPostData } from '@/lib/validations/post';
 
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export function SharedPostEmbed({ post, className, compact = false }: Props) {
+  const { t } = useLang();
   const firstImage = post.media.find((m) => m.type === 'image');
   const firstVideo = post.media.find((m) => m.type === 'video');
   const hasMedia = post.media.length > 0;
@@ -87,12 +89,12 @@ export function SharedPostEmbed({ post, className, compact = false }: Props) {
           ) : hasMedia ? (
             <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
               {firstVideo ? <Video className="size-3" /> : <ImageIcon className="size-3" />}
-              {post.media.length > 1 ? `${post.media.length} وسائط` : firstVideo ? 'فيديو' : 'صورة'}
+              {post.media.length > 1 ? `${post.media.length} ${t('mediaCountSuffix')}` : firstVideo ? t('videoAriaLabel') : t('imageLabel')}
             </p>
           ) : (
             <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
               <FileText className="size-3" />
-              منشور
+              {t('postLabel')}
             </p>
           )}
         </div>

@@ -9,6 +9,7 @@ import { ArrowRight, Send, Check, ChevronDown } from 'lucide-react';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { useLang } from '@/lib/i18n/language-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -31,6 +32,7 @@ import { ReactionsDisplay } from '@/components/messages/reactions-display';
 import { ReplyPreviewBar } from '@/components/messages/reply-preview-bar';
 import { AttachmentBubble } from '@/components/messages/attachment-bubble';
 import { AttachmentPicker } from '@/components/messages/attachment-picker';
+import type { AttachmentType, AttachmentPreviewInfo } from '@/components/messages/attachment-picker';
 import { LocationMessageCard } from '@/components/messages/location-message-card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -96,8 +98,14 @@ type MessageData = {
   deleted_for_everyone?:  boolean;
   deleted_by_user_ids?:   string[] | null;
   attachment_url?:        string | null;
-  attachment_metadata?: AttachmentMetadata | null;
-  is_optimistic?:       boolean;
+  attachment_metadata?:   AttachmentMetadata | null;
+  is_optimistic?:         boolean;
+  // Upload state (client-side only, not in DB)
+  upload_status?:         'uploading' | 'failed';
+  upload_progress?:       number; // 0-100
+  preview_url?:           string; // local blob URL for image preview during upload
+  onCancelUpload?:        () => void;
+  onRetryUpload?:         () => void;
 };
 
 type ReplyTarget = {
@@ -126,12 +134,6 @@ type Props = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getDateLabel(iso: string) {
-  const d = parseISO(iso);
-  if (isToday(d))     return 'اليوم';
-  if (isYesterday(d)) return 'أمس';
-  return format(d, 'EEEE d MMMM', { locale: ar });
-}
 function formatTime(iso: string) { return format(parseISO(iso), 'HH:mm'); }
 
 // ── StatusReplyPreview ────────────────────────────────────────────────────────
@@ -140,10 +142,14 @@ function StatusReplyPreview({
   replied_status,
   isSent,
   onClick,
+  videoLabel,
+  imageLabel,
 }: {
   replied_status: NonNullable<RepliedStatus>;
   isSent:         boolean;
   onClick:        () => void;
+  videoLabel:     string;
+  imageLabel:     string;
 }) {
   const hasThumb = replied_status.content_type !== 'text' && !!replied_status.thumbnail_url;
 
@@ -175,7 +181,7 @@ function StatusReplyPreview({
           </p>
         ) : (
           <p className={cn('italic', isSent ? 'text-primary-foreground/60' : 'text-foreground/50')}>
-            {replied_status.content_type === 'video' ? '🎬 فيديو' : '📷 صورة'}
+            {replied_status.content_type === 'video' ? `🎬 ${videoLabel}` : `📷 ${imageLabel}`}
           </p>
         )}
       </div>
@@ -190,19 +196,25 @@ function MessageReplyPreview({
   senderName,
   isSent,
   onClick,
+  deletedLabel,
+  voiceLabel,
+  attachmentLabel,
 }: {
   replied_message: RepliedMessage;
   senderName:      string;
   isSent:          boolean;
   onClick:         () => void;
+  deletedLabel:    string;
+  voiceLabel:      string;
+  attachmentLabel: string;
 }) {
   const text = replied_message.deleted_for_everyone
-    ? '🚫 الرسالة الأصلية محذوفة'
+    ? `🚫 ${deletedLabel}`
     : replied_message.content
       ? replied_message.content.slice(0, 60) + (replied_message.content.length > 60 ? '…' : '')
       : replied_message.message_type === 'voice'
-        ? '🎤 رسالة صوتية'
-        : '📎 مرفق';
+        ? `🎤 ${voiceLabel}`
+        : `📎 ${attachmentLabel}`;
 
   return (
     <button
@@ -238,6 +250,15 @@ export function ChatWindow({
   initialMessages,
   initialCanReply,
 }: Props) {
+  const { t } = useLang();
+
+  const getDateLabel = (iso: string) => {
+    const d = parseISO(iso);
+    if (isToday(d))     return t('today');
+    if (isYesterday(d)) return t('yesterday');
+    return format(d, 'EEEE d MMMM', { locale: ar });
+  };
+
   // ── Core state ─────────────────────────────────────────────
   const [messages, setMessages]         = useState<MessageData[]>(initialMessages);
   const [content, setContent]           = useState('');
@@ -263,6 +284,9 @@ export function ChatWindow({
   const supabaseRef       = useRef(createClient());
   const supabase          = supabaseRef.current;
   const messageRefs        = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Tracks pending uploads: tempId → {messageType, realIdFromRealtime?}
+  // Used to deduplicate realtime INSERTs with optimistic upload messages.
+  const pendingUploads = useRef<Map<string, { messageType: string; realIdFromRealtime?: string }>>(new Map());
   const bubbleLongPressRef = useRef<{
     timer:    ReturnType<typeof setTimeout>;
     rect:     DOMRect;
@@ -318,7 +342,7 @@ export function ChatWindow({
     expiresAt: string | null,
   ) => {
     if (!expiresAt || new Date(expiresAt) <= new Date()) {
-      toast.info('انتهت صلاحية هذه الحالة');
+      toast.info(t('statusExpired'));
       return;
     }
     try {
@@ -330,7 +354,7 @@ export function ChatWindow({
         .maybeSingle() as { data: Record<string, unknown> | null };
 
       if (!st || new Date(st.expires_at as string) <= new Date()) {
-        toast.info('انتهت صلاحية هذه الحالة');
+        toast.info(t('statusExpired'));
         return;
       }
 
@@ -374,9 +398,9 @@ export function ChatWindow({
       });
       setViewerOpen(true);
     } catch {
-      toast.error('تعذّر تحميل الحالة');
+      toast.error(t('statusLoadError'));
     }
-  }, [supabase]);
+  }, [supabase, t]);
 
   // ── Mark read on mount ──────────────────────────────────────
   useEffect(() => {
@@ -396,24 +420,81 @@ export function ChatWindow({
         filter: `conversation_id=eq.${conversationId}`,
       }, (payload) => {
         const raw = payload.new as MessageData;
-        // replied_message is a client-side enrichment — not in the DB row
         const newMsg: MessageData = { ...raw, reactions: [], replied_message: undefined };
 
+        // ── Media messages from self: match against pending uploads ──────────
+        // When a voice/attachment upload completes, the realtime INSERT may arrive
+        // before or after the server action callback updates state. We use the
+        // pendingUploads map to correctly replace the optimistic temp message.
+        if (
+          newMsg.sender_id === currentUserId &&
+          newMsg.message_type &&
+          newMsg.message_type !== 'text'
+        ) {
+          // Find the oldest unmatched pending upload of the same type
+          let matchedTempId: string | null = null;
+          for (const [tId, meta] of pendingUploads.current.entries()) {
+            if (meta.messageType === newMsg.message_type && !meta.realIdFromRealtime) {
+              matchedTempId = tId; break;
+            }
+          }
+
+          if (matchedTempId) {
+            const tId = matchedTempId;
+            // Record the real DB id so the server action callback knows realtime already handled it
+            const existing = pendingUploads.current.get(tId)!;
+            pendingUploads.current.set(tId, { ...existing, realIdFromRealtime: newMsg.id });
+
+            setMessages((prev) => {
+              const tempIdx = prev.findIndex((m) => m.id === tId);
+              if (tempIdx !== -1) {
+                // Temp message still in state: revoke blob URLs and replace with real message
+                const prevTemp = prev[tempIdx]!;
+                if (prevTemp.voice_url?.startsWith('blob:')) URL.revokeObjectURL(prevTemp.voice_url);
+                if (prevTemp.preview_url?.startsWith('blob:')) URL.revokeObjectURL(prevTemp.preview_url);
+                const next = [...prev];
+                next[tempIdx] = { ...newMsg, replied_message: prevTemp.replied_message };
+                return next;
+              }
+              // Temp already replaced by server action — just guard against duplicates
+              if (prev.some((m) => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
+
+            // Enrich reply reference if needed
+            if (raw.reply_to_message_id) {
+              fetchRepliedMessage(raw.reply_to_message_id).then((rm) => {
+                if (!rm) return;
+                setMessages((prev) =>
+                  prev.map((m) => m.id === newMsg.id && !m.replied_message ? { ...m, replied_message: rm } : m),
+                );
+              });
+            }
+            return; // own media message — no sound, no mark-read
+          }
+
+          // No pending upload matched — normal dedup (e.g. message sent from another device)
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+          return;
+        }
+        // ── End media handling ────────────────────────────────────────────────
+
         setMessages((prev) => {
-          // Replace our own optimistic message (matched by content + sender)
+          // Replace our own optimistic text message (matched by content + sender)
           const tempIdx = prev.findIndex(
             (m) => m.is_optimistic && m.content === newMsg.content && m.sender_id === newMsg.sender_id,
           );
           if (tempIdx !== -1) {
             const next = [...prev];
-            // Preserve replied_message we already built for the optimistic message
             next[tempIdx] = { ...newMsg, replied_message: prev[tempIdx]?.replied_message };
             return next;
           }
           if (prev.some((m) => m.id === newMsg.id)) return prev;
 
           // Incoming message from the other user — try to enrich replied_message
-          // from the messages already in state before falling back to a DB fetch.
           if (newMsg.reply_to_message_id) {
             const original = prev.find((m) => m.id === newMsg.reply_to_message_id);
             if (original) {
@@ -431,7 +512,6 @@ export function ChatWindow({
           return [...prev, newMsg];
         });
 
-        // Async fallback: if the original message wasn't in local state, fetch it
         if (raw.reply_to_message_id) {
           fetchRepliedMessage(raw.reply_to_message_id).then((rm) => {
             if (!rm) return;
@@ -591,7 +671,7 @@ export function ChatWindow({
     }));
 
     const result = await toggleMessageReaction(messageId, emoji);
-    if (result.error) toast.error('فشل التفاعل');
+    if (result.error) toast.error(t('reactionFailed'));
   }, [currentUserId]);
 
   // ── Delete handler ──────────────────────────────────────────
@@ -620,24 +700,118 @@ export function ChatWindow({
     }
   }, [currentUserId]);
 
-  // ── Voice sent ──────────────────────────────────────────────
-  const handleVoiceSent = useCallback((msg: SentMessage) => {
+  // ── Voice upload lifecycle ──────────────────────────────────
+
+  const handlePendingVoice = useCallback((
+    tempId: string, blobUrl: string, localDuration: number, cancelFn: () => void,
+  ) => {
+    const msg: MessageData = {
+      id: tempId, sender_id: currentUserId, content: null,
+      created_at: new Date().toISOString(), is_read: false, is_optimistic: true,
+      message_type: 'voice', voice_url: blobUrl, voice_duration: localDuration,
+      reactions: [], upload_status: 'uploading', upload_progress: 0, onCancelUpload: cancelFn,
+    };
+    pendingUploads.current.set(tempId, { messageType: 'voice' });
+    setMessages((prev) => [...prev, msg]);
+    isNearBottomRef.current = true;
+  }, [currentUserId]);
+
+  const handleVoiceProgress = useCallback((tempId: string, progress: number) => {
+    setMessages((prev) =>
+      prev.map((m) => m.id === tempId ? { ...m, upload_status: 'uploading', upload_progress: progress } : m),
+    );
+  }, []);
+
+  const handleVoiceSent = useCallback((tempId: string, sent: SentMessage) => {
+    const meta = pendingUploads.current.get(tempId);
+    pendingUploads.current.delete(tempId);
     setMessages((prev) => {
-      if (prev.some((m) => m.id === msg.id)) return prev;
-      return [...prev, msg as MessageData];
+      const temp = prev.find((m) => m.id === tempId);
+      if (temp?.voice_url?.startsWith('blob:')) URL.revokeObjectURL(temp.voice_url);
+      if (meta?.realIdFromRealtime) return prev; // realtime already replaced temp
+      if (prev.some((m) => m.id === sent.id)) return prev;
+      return prev.map((m) => m.id === tempId ? { ...sent as MessageData, reactions: [] } : m);
+    });
+  }, []);
+
+  const handleVoiceFailed = useCallback((tempId: string, retryFn: () => void) => {
+    setMessages((prev) =>
+      prev.map((m) => m.id === tempId ? { ...m, upload_status: 'failed', onRetryUpload: retryFn } : m),
+    );
+  }, []);
+
+  const handleVoiceCancelled = useCallback((tempId: string) => {
+    pendingUploads.current.delete(tempId);
+    setMessages((prev) => {
+      const temp = prev.find((m) => m.id === tempId);
+      if (temp?.voice_url?.startsWith('blob:')) URL.revokeObjectURL(temp.voice_url);
+      return prev.filter((m) => m.id !== tempId);
+    });
+  }, []);
+
+  // ── Attachment upload lifecycle ─────────────────────────────
+
+  const handlePendingAttachment = useCallback((
+    tempId: string, type: AttachmentType, info: AttachmentPreviewInfo, cancelFn: () => void,
+  ) => {
+    const msg: MessageData = {
+      id: tempId, sender_id: currentUserId, content: null,
+      created_at: new Date().toISOString(), is_read: false, is_optimistic: true,
+      message_type: type,
+      attachment_url: info.previewUrl ?? 'pending',
+      attachment_metadata: { filename: info.filename, size: info.size, mime_type: info.mimeType },
+      reactions: [], upload_status: 'uploading', upload_progress: 0,
+      preview_url: info.previewUrl, onCancelUpload: cancelFn,
+    };
+    pendingUploads.current.set(tempId, { messageType: type });
+    setMessages((prev) => [...prev, msg]);
+    isNearBottomRef.current = true;
+  }, [currentUserId]);
+
+  const handleAttachmentProgress = useCallback((tempId: string, progress: number) => {
+    setMessages((prev) =>
+      prev.map((m) => m.id === tempId ? { ...m, upload_status: 'uploading', upload_progress: progress } : m),
+    );
+  }, []);
+
+  const handleAttachmentSent = useCallback((tempId: string, sent: SentMessage) => {
+    const meta = pendingUploads.current.get(tempId);
+    pendingUploads.current.delete(tempId);
+    setMessages((prev) => {
+      const temp = prev.find((m) => m.id === tempId);
+      if (temp?.preview_url?.startsWith('blob:')) URL.revokeObjectURL(temp.preview_url);
+      if (meta?.realIdFromRealtime) return prev;
+      if (prev.some((m) => m.id === sent.id)) return prev;
+      return prev.map((m) =>
+        m.id === tempId ? { ...sent as MessageData, reactions: [], preview_url: undefined } : m,
+      );
+    });
+    isNearBottomRef.current = true;
+    setReplyingTo(null);
+  }, []);
+
+  const handleAttachmentFailed = useCallback((tempId: string, retryFn: () => void) => {
+    setMessages((prev) =>
+      prev.map((m) => m.id === tempId ? { ...m, upload_status: 'failed', onRetryUpload: retryFn } : m),
+    );
+  }, []);
+
+  const handleAttachmentCancelled = useCallback((tempId: string) => {
+    pendingUploads.current.delete(tempId);
+    setMessages((prev) => {
+      const temp = prev.find((m) => m.id === tempId);
+      if (temp?.preview_url?.startsWith('blob:')) URL.revokeObjectURL(temp.preview_url);
+      return prev.filter((m) => m.id !== tempId);
+    });
+  }, []);
+
+  const handleLocationSent = useCallback((sent: SentMessage) => {
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === sent.id)) return prev;
+      return [...prev, sent as MessageData];
     });
     isNearBottomRef.current = true;
   }, []);
-
-  // ── Attachment sent ─────────────────────────────────────────
-  const handleAttachmentSent = useCallback((msg: SentMessage) => {
-    setMessages((prev) => {
-      if (prev.some((m) => m.id === msg.id)) return prev;
-      return [...prev, msg as MessageData];
-    });
-    isNearBottomRef.current = true;
-    if (replyingTo) setReplyingTo(null);
-  }, [replyingTo]);
 
   // ── Send message ────────────────────────────────────────────
   const handleSend = async () => {
@@ -686,7 +860,7 @@ export function ChatWindow({
     if (result.error) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       if (result.error !== 'subscription_required') {
-        toast.error('فشل إرسال الرسالة');
+        toast.error(t('messageSendFailed'));
         setContent(trimmed);
         if (capturedReply) setReplyingTo(capturedReply);
       }
@@ -734,7 +908,7 @@ export function ChatWindow({
 
       {/* Header */}
       <div className="flex shrink-0 items-center gap-3 border-b bg-background px-4 py-3">
-        <Link href="/messages" className="shrink-0 rounded-full p-1.5 transition-colors hover:bg-accent" aria-label="العودة">
+        <Link href="/messages" className="shrink-0 rounded-full p-1.5 transition-colors hover:bg-accent" aria-label={t('backAriaLabel')}>
           <ArrowRight className="h-5 w-5" />
         </Link>
         <UserAvatar user={partner} size="md" />
@@ -753,7 +927,7 @@ export function ChatWindow({
       >
         {displayMessages.length === 0 && (
           <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-muted-foreground">ابدأ المحادثة الآن</p>
+            <p className="text-sm text-muted-foreground">{t('startConversationNow')}</p>
           </div>
         )}
 
@@ -819,7 +993,7 @@ export function ChatWindow({
                         setReplyingTo({
                           id:          msg.id,
                           content:     msg.content,
-                          senderName:  'أنت',
+                          senderName:  t('youLabel'),
                           messageType: msg.message_type ?? 'text',
                         });
                         textareaRef.current?.focus();
@@ -827,7 +1001,7 @@ export function ChatWindow({
                       onCopy={() => {
                         if (msg.content) {
                           navigator.clipboard.writeText(msg.content);
-                          toast.success('تم نسخ النص');
+                          toast.success(t('textCopied'));
                         }
                       }}
                       onDeleteForMe={() => handleDeleteMessage(msg.id, false)}
@@ -895,14 +1069,15 @@ export function ChatWindow({
 
                   {/* Bubble */}
                   {(() => {
-                    const isAttachment = msg.attachment_url &&
+                    const isAttachment =
                       (msg.message_type === 'image' || msg.message_type === 'video' ||
-                       msg.message_type === 'document' || msg.message_type === 'audio');
+                       msg.message_type === 'document' || msg.message_type === 'audio') &&
+                      (!!msg.attachment_url || msg.upload_status === 'uploading');
 
                     if (msg.deleted_for_everyone) {
                       return (
                         <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-3.5 py-2 text-sm text-muted-foreground/60">
-                          <p className="text-xs italic">🚫 تم حذف هذه الرسالة</p>
+                          <p className="text-xs italic">{t('messageDeletedBubble')}</p>
                         </div>
                       );
                     }
@@ -929,30 +1104,40 @@ export function ChatWindow({
                                     msg.reply_to_status_id!,
                                     msg.replied_status!.expires_at,
                                   )}
+                                  videoLabel={t('videoLabel')}
+                                  imageLabel={t('imageLabel')}
                                 />
                               )}
                               {msg.replied_message && !msg.replied_status && (
                                 <MessageReplyPreview
                                   replied_message={msg.replied_message}
-                                  senderName={msg.replied_message.sender_id === currentUserId ? 'أنت' : partner.full_name}
+                                  senderName={msg.replied_message.sender_id === currentUserId ? t('youLabel') : partner.full_name}
                                   isSent={isSent}
                                   onClick={() => scrollToMessage(msg.reply_to_message_id!)}
+                                  deletedLabel={t('deletedOriginalMessage')}
+                                  voiceLabel={t('voiceMessageLabel')}
+                                  attachmentLabel={t('attachmentLabel')}
                                 />
                               )}
                             </div>
                           )}
                           <AttachmentBubble
                             messageType={msg.message_type as 'image' | 'video' | 'document' | 'audio'}
-                            url={msg.attachment_url!}
+                            url={msg.attachment_url ?? 'pending'}
                             metadata={msg.attachment_metadata ?? {}}
                             isSent={isSent}
                             caption={msg.content}
+                            uploadStatus={msg.upload_status}
+                            uploadProgress={msg.upload_progress}
+                            onCancelUpload={msg.onCancelUpload}
+                            onRetryUpload={msg.onRetryUpload}
+                            previewUrl={msg.preview_url}
                           />
                         </div>
                       );
                     }
 
-                    if (msg.message_type === 'voice' && msg.voice_url) {
+                    if (msg.message_type === 'voice' && (msg.voice_url || msg.upload_status)) {
                       return (
                         <div className={cn(
                           'rounded-2xl px-3 py-2.5 text-sm',
@@ -960,7 +1145,15 @@ export function ChatWindow({
                             ? 'rounded-ee-sm bg-primary text-primary-foreground'
                             : 'rounded-es-sm bg-muted text-foreground',
                         )}>
-                          <VoiceMessageBubble url={msg.voice_url} duration={msg.voice_duration ?? 0} isSent={isSent} />
+                          <VoiceMessageBubble
+                            url={msg.voice_url ?? ''}
+                            duration={msg.voice_duration ?? 0}
+                            isSent={isSent}
+                            uploadStatus={msg.upload_status}
+                            uploadProgress={msg.upload_progress}
+                            onCancelUpload={msg.onCancelUpload}
+                            onRetryUpload={msg.onRetryUpload}
+                          />
                         </div>
                       );
                     }
@@ -988,7 +1181,7 @@ export function ChatWindow({
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={thumb}
-                                alt={caption ?? 'منشور'}
+                                alt={caption ?? t('imageLabel')}
                                 className="h-full w-full object-cover"
                                 loading="lazy"
                               />
@@ -1022,7 +1215,7 @@ export function ChatWindow({
                               </p>
                             ) : (
                               <p className="text-xs italic text-muted-foreground">
-                                اضغط لعرض المنشور
+                                {t('tapToViewPost')}
                               </p>
                             )}
                           </div>
@@ -1035,7 +1228,7 @@ export function ChatWindow({
                         <LocationMessageCard
                           content={msg.content}
                           isSent={isSent}
-                          senderName={isSent ? 'أنت' : partner.full_name}
+                          senderName={isSent ? t('youLabel') : partner.full_name}
                         />
                       );
                     }
@@ -1057,15 +1250,20 @@ export function ChatWindow({
                               msg.reply_to_status_id!,
                               msg.replied_status!.expires_at,
                             )}
+                            videoLabel={t('videoLabel')}
+                            imageLabel={t('imageLabel')}
                           />
                         )}
                         {/* Message reply card (Session A) */}
                         {msg.replied_message && !msg.replied_status && (
                           <MessageReplyPreview
                             replied_message={msg.replied_message}
-                            senderName={msg.replied_message.sender_id === currentUserId ? 'أنت' : partner.full_name}
+                            senderName={msg.replied_message.sender_id === currentUserId ? t('youLabel') : partner.full_name}
                             isSent={isSent}
                             onClick={() => scrollToMessage(msg.reply_to_message_id!)}
+                            deletedLabel={t('deletedOriginalMessage')}
+                            voiceLabel={t('voiceMessageLabel')}
+                            attachmentLabel={t('attachmentLabel')}
                           />
                         )}
                         {msg.content}
@@ -1126,7 +1324,7 @@ export function ChatWindow({
                       onCopy={() => {
                         if (msg.content) {
                           navigator.clipboard.writeText(msg.content);
-                          toast.success('تم نسخ النص');
+                          toast.success(t('textCopied'));
                         }
                       }}
                       onDeleteForMe={() => handleDeleteMessage(msg.id, false)}
@@ -1153,10 +1351,10 @@ export function ChatWindow({
             scrollToBottom('smooth');
           }}
           className="absolute bottom-4 left-0 right-0 mx-auto w-fit z-30 flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs text-primary-foreground shadow-lg hover:bg-primary/90 transition-all animate-in slide-in-from-bottom-2 duration-200"
-          aria-label="الانتقال إلى آخر رسالة"
+          aria-label={t('scrollToLatestAriaLabel')}
         >
           <ChevronDown className="h-3.5 w-3.5" />
-          <span>آخر رسالة</span>
+          <span>{t('scrollToLatest')}</span>
         </button>
       )}
       </div>
@@ -1178,7 +1376,12 @@ export function ChatWindow({
               <AttachmentPicker
                 conversationId={conversationId}
                 replyToMessageId={replyingTo?.id ?? null}
-                onSent={handleAttachmentSent}
+                onPendingAttachment={handlePendingAttachment}
+                onAttachmentProgress={handleAttachmentProgress}
+                onAttachmentSent={handleAttachmentSent}
+                onAttachmentFailed={handleAttachmentFailed}
+                onAttachmentCancelled={handleAttachmentCancelled}
+                onLocationSent={handleLocationSent}
                 disabled={isSending}
               />
             )}
@@ -1190,7 +1393,7 @@ export function ChatWindow({
                 onChange={(e) => setContent(e.target.value)}
                 onInput={handleTextareaInput}
                 onKeyDown={handleKeyDown}
-                placeholder="اكتب رسالة..."
+                placeholder={t('writeMessagePlaceholder')}
                 rows={1}
                 disabled={isSending}
                 className="flex-1 resize-none rounded-2xl border bg-muted/50 px-4 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent"
@@ -1204,7 +1407,7 @@ export function ChatWindow({
                 className="h-10 w-10 shrink-0 rounded-full"
                 onClick={handleSend}
                 disabled={!content.trim() || isSending}
-                aria-label="إرسال الرسالة"
+                aria-label={t('sendMessageAriaLabel')}
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -1212,7 +1415,11 @@ export function ChatWindow({
               <VoiceRecorder
                 conversationId={conversationId}
                 onRecordingChange={setIsVoiceRecording}
-                onSent={handleVoiceSent}
+                onPendingVoice={handlePendingVoice}
+                onVoiceProgress={handleVoiceProgress}
+                onVoiceSent={handleVoiceSent}
+                onVoiceFailed={handleVoiceFailed}
+                onVoiceCancelled={handleVoiceCancelled}
                 disabled={isSending}
                 className={isVoiceRecording ? 'flex-1' : ''}
               />
@@ -1237,7 +1444,7 @@ export function ChatWindow({
             setReplyingTo({
               id:          msg.id,
               content:     msg.content,
-              senderName:  sheetMsg.isSent ? 'أنت' : partner.full_name,
+              senderName:  sheetMsg.isSent ? t('youLabel') : partner.full_name,
               messageType: msg.message_type ?? 'text',
             });
             textareaRef.current?.focus();
@@ -1246,7 +1453,7 @@ export function ChatWindow({
             const msg = messages.find((m) => m.id === sheetMsg.id);
             if (msg?.content) {
               navigator.clipboard.writeText(msg.content);
-              toast.success('تم نسخ النص');
+              toast.success(t('textCopied'));
             }
           }}
           onDeleteForMe={() => handleDeleteMessage(sheetMsg.id, false)}

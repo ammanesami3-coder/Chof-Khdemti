@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
+import { useLang } from '@/lib/i18n/language-context';
 
 const STORAGE_KEY = 'soundEnabled';
 
 export function SoundSettings() {
+  const { t } = useLang();
   const [enabled, setEnabled] = useState(true);
 
   // Read preference once on mount (avoids SSR mismatch)
@@ -30,9 +32,9 @@ export function SoundSettings() {
           )}
         </span>
         <div>
-          <p className="font-medium leading-tight">أصوات الإشعارات</p>
+          <p className="font-medium leading-tight">{t('soundNotificationsSetting')}</p>
           <p className="text-sm text-muted-foreground">
-            {enabled ? 'مفعّلة — ستسمع صوتاً عند كل رسالة أو إشعار جديد' : 'معطّلة'}
+            {enabled ? t('soundEnabledDesc') : t('soundDisabledDesc')}
           </p>
         </div>
       </div>

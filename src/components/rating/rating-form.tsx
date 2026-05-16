@@ -10,14 +10,17 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { StarRating } from './star-rating';
 import { submitRating } from '@/lib/actions/ratings';
+import { useLang } from '@/lib/i18n/language-context';
 import type { Rating } from '@/lib/validations/rating';
 
-const schema = z.object({
-  stars: z.number().int().min(1, 'اختر عدد النجوم').max(5),
-  comment: z.string().max(500, 'الحد الأقصى 500 حرف').optional(),
-});
+type FormValues = z.infer<ReturnType<typeof makeSchema>>;
 
-type FormValues = z.infer<typeof schema>;
+function makeSchema(chooseStarsError: string, maxCharsError: string) {
+  return z.object({
+    stars: z.number().int().min(1, chooseStarsError).max(5),
+    comment: z.string().max(500, maxCharsError).optional(),
+  });
+}
 
 interface RatingFormProps {
   artisanId: string;
@@ -27,8 +30,11 @@ interface RatingFormProps {
 }
 
 export function RatingForm({ artisanId, existingRating, onSuccess, onCancel }: RatingFormProps) {
+  const { t } = useLang();
   const queryClient = useQueryClient();
   const isEditing = !!existingRating;
+
+  const schema = makeSchema(t('chooseStarsError'), t('maxCharsError'));
 
   const {
     control,
@@ -64,20 +70,20 @@ export function RatingForm({ artisanId, existingRating, onSuccess, onCancel }: R
         toast.error(result.error);
         return;
       }
-      toast.success(isEditing ? 'تم تحديث تقييمك' : 'شكراً على تقييمك!');
+      toast.success(isEditing ? t('ratingUpdatedToast') : t('ratingThanksToast'));
       // invalidate so ProfileHeader + RatingDisplay refresh
       queryClient.invalidateQueries({ queryKey: ['my-rating', artisanId] });
       queryClient.invalidateQueries({ queryKey: ['artisan-rating', artisanId] });
       onSuccess?.();
     },
-    onError: () => toast.error('حدث خطأ، حاول مجدداً'),
+    onError: () => toast.error(t('genericError')),
   });
 
   return (
     <form onSubmit={handleSubmit((v) => mutate(v))} className="space-y-5" noValidate>
       <div className="space-y-2">
         <p className="text-sm font-medium">
-          {isEditing ? 'تعديل تقييمك' : 'أضف تقييماً'}
+          {isEditing ? t('editRatingTitle') : t('addRatingTitle')}
         </p>
 
         <Controller
@@ -96,11 +102,11 @@ export function RatingForm({ artisanId, existingRating, onSuccess, onCancel }: R
       <div className="space-y-1.5">
         <Textarea
           {...register('comment')}
-          placeholder="شاركنا تجربتك مع هذا الحرفي... (اختياري)"
+          placeholder={t('ratingCommentPlaceholder')}
           rows={3}
           maxLength={500}
           className="resize-none"
-          aria-label="تعليق اختياري"
+          aria-label={t('ratingCommentAriaLabel')}
         />
         <div className="flex justify-between items-center">
           {errors.comment ? (
@@ -121,11 +127,11 @@ export function RatingForm({ artisanId, existingRating, onSuccess, onCancel }: R
       <div className="flex gap-2 justify-end">
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel} disabled={isPending}>
-            إلغاء
+            {t('cancelLabel')}
           </Button>
         )}
         <Button type="submit" disabled={starsValue === 0 || isPending}>
-          {isPending ? 'جاري الإرسال…' : isEditing ? 'تحديث' : 'إرسال'}
+          {isPending ? t('sendingRatingProgress') : isEditing ? t('updateRatingBtn') : t('submitRatingBtn')}
         </Button>
       </div>
     </form>

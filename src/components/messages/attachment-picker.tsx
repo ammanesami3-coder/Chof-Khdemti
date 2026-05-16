@@ -1,103 +1,259 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { Plus, Image, Video, FileText, Music, MapPin, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { uploadAttachmentToCloudinary } from '@/lib/cloudinary-upload';
 import { sendAttachmentMessage, sendLocationMessage } from '@/lib/actions/messages';
 import type { SentMessage, AttachmentMetadata } from '@/lib/actions/messages';
+import { useLang } from '@/lib/i18n/language-context';
 import { LocationPicker } from './location-picker';
+import { ImagePreviewModal } from './image-preview-modal';
+import { VideoPreviewModal } from './video-preview-modal';
+
+export type AttachmentType = 'image' | 'video' | 'document' | 'audio';
+
+export type AttachmentPreviewInfo = {
+  previewUrl?: string; // local blob URL (images only)
+  filename:    string;
+  size:        number;
+  mimeType:    string;
+};
+
+type OptionDef = {
+  type:   AttachmentType;
+  labelKey: 'attachTypeImage' | 'attachTypeVideo' | 'attachTypeDocument' | 'attachTypeAudio';
+  icon:   React.FC<{ className?: string }>;
+  accept: string;
+  color:  string;
+};
+
+const OPTIONS: OptionDef[] = [
+  { type: 'image',    labelKey: 'attachTypeImage',    icon: Image,    accept: 'image/*',                                          color: 'text-blue-500'   },
+  { type: 'video',    labelKey: 'attachTypeVideo',    icon: Video,    accept: 'video/*',                                          color: 'text-purple-500' },
+  { type: 'document', labelKey: 'attachTypeDocument', icon: FileText, accept: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv', color: 'text-orange-500' },
+  { type: 'audio',    labelKey: 'attachTypeAudio',    icon: Music,    accept: 'audio/*',                                          color: 'text-green-500'  },
+];
 
 type Props = {
-  conversationId: string;
+  conversationId:    string;
   replyToMessageId?: string | null;
-  onSent: (msg: SentMessage) => void;
+  /** Called immediately after file is selected — adds optimistic message to chat. */
+  onPendingAttachment: (
+    tempId:   string,
+    type:     AttachmentType,
+    info:     AttachmentPreviewInfo,
+    cancelFn: () => void,
+  ) => void;
+  /** Called to update upload progress bar (0-100). */
+  onAttachmentProgress:  (tempId: string, progress: number) => void;
+  /** Called when upload + server action succeed. */
+  onAttachmentSent:      (tempId: string, msg: SentMessage) => void;
+  /** Called on failure — retryFn re-runs the upload. */
+  onAttachmentFailed:    (tempId: string, retryFn: () => void) => void;
+  /** Called when user cancels the in-progress upload. */
+  onAttachmentCancelled: (tempId: string) => void;
+  /** Called for location messages (no upload involved). */
+  onLocationSent:        (msg: SentMessage) => void;
   disabled?: boolean;
 };
 
-type AttachmentType = 'image' | 'video' | 'document' | 'audio';
+export function AttachmentPicker({
+  conversationId,
+  replyToMessageId,
+  onPendingAttachment,
+  onAttachmentProgress,
+  onAttachmentSent,
+  onAttachmentFailed,
+  onAttachmentCancelled,
+  onLocationSent,
+  disabled,
+}: Props) {
+  const { t } = useLang();
+  const [open,             setOpen]             = useState(false);
+  const [locationOpen,     setLocationOpen]     = useState(false);
+  const [imagePreviewFile, setImagePreviewFile] = useState<File | null>(null);
+  const [videoPreviewFile, setVideoPreviewFile] = useState<File | null>(null);
 
-const OPTIONS: { type: AttachmentType; label: string; icon: React.FC<{ className?: string }>; accept: string; color: string }[] = [
-  { type: 'image',    label: 'صورة',        icon: Image,    accept: 'image/*',                                          color: 'text-blue-500'   },
-  { type: 'video',    label: 'فيديو',       icon: Video,    accept: 'video/*',                                          color: 'text-purple-500' },
-  { type: 'document', label: 'مستند',       icon: FileText, accept: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv', color: 'text-orange-500' },
-  { type: 'audio',    label: 'ملف صوتي',   icon: Music,    accept: 'audio/*',                                          color: 'text-green-500'  },
-];
-
-export function AttachmentPicker({ conversationId, replyToMessageId, onSent, disabled }: Props) {
-  const [open, setOpen]           = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress]   = useState(0);
-  const [locationOpen, setLocationOpen] = useState(false);
   const fileInputRefs = useRef<Record<AttachmentType, HTMLInputElement | null>>({
     image: null, video: null, document: null, audio: null,
   });
 
-  const handleOptionClick = (type: AttachmentType) => {
-    fileInputRefs.current[type]?.click();
-    setOpen(false);
+  /* ── Core upload logic (shared by all types + image after preview) ─── */
+
+  const startUpload = useCallback((
+    blob:     Blob,
+    type:     AttachmentType,
+    fileInfo: { name: string; mimeType: string },
+    caption?: string,
+    /** Optional pre-created preview URL (caller owns revocation) */
+    externalPreviewUrl?: string,
+    /** Optional edited thumbnail blob (video only) — uploaded before the main file */
+    thumbnailBlob?: Blob,
+  ) => {
+    const tempId = `temp-attachment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    // We only create + own a local preview for non-image types or when not provided
+    const ownPreview = (type === 'image') && !externalPreviewUrl;
+    const previewUrl = externalPreviewUrl ?? (ownPreview ? URL.createObjectURL(blob) : undefined);
+    let previewRevoked = false;
+
+    const revokePreviewOnce = () => {
+      if (!previewRevoked && previewUrl && ownPreview) {
+        URL.revokeObjectURL(previewUrl);
+        previewRevoked = true;
+      }
+    };
+
+    // Wrap Blob as File if needed (Cloudinary SDK expects File)
+    const uploadFile = blob instanceof File
+      ? blob
+      : new File([blob], fileInfo.name, { type: fileInfo.mimeType || 'application/octet-stream' });
+
+    // AbortController is reassigned on each retry; closures capture the binding.
+    let currentAC = new AbortController();
+
+    const doUpload = async () => {
+      currentAC = new AbortController();
+      onAttachmentProgress(tempId, 0);
+
+      try {
+        // Upload edited thumbnail first (video with custom cover frame)
+        let customThumbUrl: string | undefined;
+        if (thumbnailBlob && type === 'video') {
+          try {
+            const thumbFile = new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' });
+            const thumbResult = await uploadAttachmentToCloudinary(thumbFile, 'image', undefined, currentAC.signal);
+            customThumbUrl = thumbResult.url;
+          } catch (thumbErr) {
+            if (thumbErr instanceof DOMException && (thumbErr as DOMException).name === 'AbortError') return;
+            // Fall through — Cloudinary auto-generated thumbnail will be used
+          }
+        }
+
+        const result = await uploadAttachmentToCloudinary(
+          uploadFile, type,
+          (p) => onAttachmentProgress(tempId, p),
+          currentAC.signal,
+        );
+
+        const metadata: AttachmentMetadata = {
+          filename:      result.filename,
+          size:          result.size,
+          mime_type:     result.mime_type || fileInfo.mimeType || undefined,
+          width:         result.width,
+          height:        result.height,
+          duration:      result.duration,
+          thumbnail_url: customThumbUrl ?? result.thumbnail_url,
+        };
+
+        const res = await sendAttachmentMessage(
+          conversationId, result.url, type, metadata,
+          caption ?? null,
+          replyToMessageId ?? null,
+        );
+
+        revokePreviewOnce();
+
+        if ('error' in res) {
+          if (res.error === 'subscription_required') {
+            toast.error(t('subscriptionRequiredForAttachments'));
+            onAttachmentCancelled(tempId);
+          } else {
+            onAttachmentFailed(tempId, doUpload);
+            toast.error(res.error || t('fileSendFailed'));
+          }
+        } else {
+          onAttachmentSent(tempId, res.data);
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        revokePreviewOnce();
+        toast.error(err instanceof Error ? err.message : t('fileUploadFailed'));
+        onAttachmentFailed(tempId, doUpload);
+      }
+    };
+
+    const cancelFn = () => {
+      currentAC.abort();
+      revokePreviewOnce();
+      onAttachmentCancelled(tempId);
+    };
+
+    onPendingAttachment(tempId, type, {
+      previewUrl,
+      filename: fileInfo.name,
+      size:     blob.size,
+      mimeType: fileInfo.mimeType,
+    }, cancelFn);
+
+    doUpload(); // fire and forget
+  }, [
+    conversationId, replyToMessageId,
+    onPendingAttachment, onAttachmentProgress,
+    onAttachmentSent, onAttachmentFailed, onAttachmentCancelled,
+  ]);
+
+  /* ── File input handler ──────────────────────────────────────────────── */
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: AttachmentType) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = ''; // allow re-selecting the same file after failure
+
+    if (type === 'image') {
+      setImagePreviewFile(file);
+      return;
+    }
+
+    if (type === 'video') {
+      setVideoPreviewFile(file);
+      return;
+    }
+
+    startUpload(file, type, { name: file.name, mimeType: file.type });
   };
 
+  /* ── Location ────────────────────────────────────────────────────────── */
+
   const handleLocationConfirm = async (loc: { lat: number; lng: number; name: string }) => {
-    setUploading(true);
     try {
       const res = await sendLocationMessage(conversationId, loc.lat, loc.lng, loc.name);
       if ('error' in res) {
-        toast.error(res.error === 'subscription_required' ? 'يجب الاشتراك لإرسال الموقع' : res.error);
+        toast.error(res.error === 'subscription_required' ? t('subscriptionRequiredForLocation') : res.error);
       } else {
-        onSent(res.data);
+        onLocationSent(res.data);
       }
     } catch {
-      toast.error('فشل إرسال الموقع');
-    } finally {
-      setUploading(false);
+      toast.error(t('locationSendFailed'));
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: AttachmentType) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
+  /* ── Image preview send ──────────────────────────────────────────────── */
 
-    setUploading(true);
-    setProgress(0);
-    try {
-      const result = await uploadAttachmentToCloudinary(file, type, setProgress);
+  const handleVideoPreviewSend = useCallback((file: File, caption: string, thumbnailBlob?: Blob) => {
+    setVideoPreviewFile(null);
+    startUpload(file, 'video', {
+      name:     file.name,
+      mimeType: file.type,
+    }, caption || undefined, undefined, thumbnailBlob);
+  }, [startUpload]);
 
-      const metadata: AttachmentMetadata = {
-        filename:      result.filename,
-        size:          result.size,
-        mime_type:     result.mime_type || file.type || undefined,
-        width:         result.width,
-        height:        result.height,
-        duration:      result.duration,
-        thumbnail_url: result.thumbnail_url,
-      };
+  const handleImagePreviewSend = useCallback((blob: Blob, caption: string) => {
+    const origFile = imagePreviewFile;
+    setImagePreviewFile(null);
+    if (!origFile) return;
 
-      const res = await sendAttachmentMessage(
-        conversationId, result.url, type, metadata, null, replyToMessageId ?? null,
-      );
+    // The preview modal already created an editedUrl; we create a fresh one for the
+    // optimistic bubble (startUpload will own it if ownPreview is true).
+    startUpload(blob, 'image', {
+      name:     origFile.name.replace(/\.\w+$/, '') + '.jpg',
+      mimeType: blob.type || 'image/jpeg',
+    }, caption || undefined);
+  }, [imagePreviewFile, startUpload]);
 
-      if ('error' in res) {
-        if (res.error === 'subscription_required') {
-          toast.error('يجب الاشتراك لإرسال المرفقات');
-        } else {
-          console.error('[AttachmentPicker] sendAttachmentMessage error:', res.error);
-          toast.error(res.error || 'فشل إرسال الملف');
-        }
-      } else {
-        onSent(res.data);
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'فشل رفع الملف';
-      console.error('[AttachmentPicker] upload error:', err);
-      toast.error(msg);
-    } finally {
-      setUploading(false);
-      setProgress(0);
-    }
-  };
+  /* ── Render ──────────────────────────────────────────────────────────── */
 
   return (
     <div className="relative shrink-0">
@@ -113,72 +269,77 @@ export function AttachmentPicker({ conversationId, replyToMessageId, onSent, dis
         />
       ))}
 
-      {/* Upload progress overlay */}
-      {uploading && (
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted">
-          <span className="text-[10px] font-bold tabular-nums text-muted-foreground">{progress}%</span>
-        </div>
-      )}
-
       {/* + button */}
-      {!uploading && (
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => setOpen((v) => !v)}
-          className={cn(
-            'flex h-10 w-10 items-center justify-center rounded-full border bg-muted/60',
-            'transition-colors hover:bg-accent hover:text-foreground',
-            'disabled:cursor-not-allowed disabled:opacity-40',
-            open && 'bg-accent text-foreground',
-          )}
-          aria-label="إرفاق ملف"
-        >
-          {open ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-        </button>
-      )}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'flex h-10 w-10 items-center justify-center rounded-full border bg-muted/60',
+          'transition-colors hover:bg-accent hover:text-foreground',
+          'disabled:cursor-not-allowed disabled:opacity-40',
+          open && 'bg-accent text-foreground',
+        )}
+        aria-label={t('attachFileAriaLabel')}
+      >
+        {open ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+      </button>
 
       {/* Options panel */}
-      {open && !uploading && (
+      {open && (
         <>
-          {/* Backdrop */}
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-
           <div className={cn(
             'absolute bottom-full mb-2 z-40 start-0',
             'flex flex-col gap-1 rounded-2xl border bg-background p-2 shadow-lg',
             'animate-in slide-in-from-bottom-2 duration-150',
           )}>
-            {OPTIONS.map(({ type, label, icon: Icon, color }) => (
+            {OPTIONS.map(({ type, labelKey, icon: Icon, color }) => (
               <button
                 key={type}
                 type="button"
-                onClick={() => handleOptionClick(type)}
+                onClick={() => { fileInputRefs.current[type]?.click(); setOpen(false); }}
                 className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-colors hover:bg-accent"
               >
                 <Icon className={cn('h-5 w-5 shrink-0', color)} />
-                <span>{label}</span>
+                <span>{t(labelKey)}</span>
               </button>
             ))}
-            {/* Location option */}
             <button
               type="button"
               onClick={() => { setOpen(false); setLocationOpen(true); }}
               className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-colors hover:bg-accent"
             >
               <MapPin className="h-5 w-5 shrink-0 text-rose-500" />
-              <span>موقع</span>
+              <span>{t('attachTypeLocation')}</span>
             </button>
           </div>
         </>
       )}
 
-      {/* Location Picker dialog */}
       <LocationPicker
         open={locationOpen}
         onOpenChange={setLocationOpen}
         onConfirm={handleLocationConfirm}
       />
+
+      {imagePreviewFile && (
+        <ImagePreviewModal
+          file={imagePreviewFile}
+          open
+          onClose={() => setImagePreviewFile(null)}
+          onSend={handleImagePreviewSend}
+        />
+      )}
+
+      {videoPreviewFile && (
+        <VideoPreviewModal
+          file={videoPreviewFile}
+          open
+          onClose={() => setVideoPreviewFile(null)}
+          onSend={handleVideoPreviewSend}
+        />
+      )}
     </div>
   );
 }

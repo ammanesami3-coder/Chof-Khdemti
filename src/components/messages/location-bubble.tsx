@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { MapPin } from 'lucide-react';
 import { LocationViewer } from './location-viewer';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 
 const BubbleMap = dynamic(
   () => import('./location-map-inner').then((m) => m.BubbleMap),
@@ -25,7 +26,7 @@ export function parseLocationContent(content: string | null): { lat: number; lng
   try {
     const obj = JSON.parse(content);
     if (typeof obj.lat === 'number' && typeof obj.lng === 'number') {
-      return { lat: obj.lat, lng: obj.lng, name: obj.name ?? 'موقع مشترك' };
+      return { lat: obj.lat, lng: obj.lng, name: obj.name ?? '' };
     }
     return null;
   } catch {
@@ -42,6 +43,7 @@ type Props = {
 };
 
 export function LocationBubble({ content, isSent, senderName }: Props) {
+  const { t } = useLang();
   const [viewerOpen, setViewerOpen] = useState(false);
   const loc = parseLocationContent(content);
 
@@ -49,7 +51,7 @@ export function LocationBubble({ content, isSent, senderName }: Props) {
     return (
       <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground">
         <MapPin className="h-4 w-4 shrink-0" />
-        <span>موقع غير متاح</span>
+        <span>{t('locationUnavailable')}</span>
       </div>
     );
   }
@@ -59,7 +61,7 @@ export function LocationBubble({ content, isSent, senderName }: Props) {
       <button
         type="button"
         onClick={() => setViewerOpen(true)}
-        aria-label="عرض الموقع"
+        aria-label={t('viewLocationAriaLabel')}
         className={cn(
           'group w-[280px] overflow-hidden rounded-2xl text-start',
           'transition-opacity hover:opacity-90 active:opacity-80',
@@ -78,7 +80,7 @@ export function LocationBubble({ content, isSent, senderName }: Props) {
         )}>
           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-70" />
           <div className="min-w-0">
-            <p className="truncate text-xs font-semibold leading-tight">{loc.name}</p>
+            <p className="truncate text-xs font-semibold leading-tight">{loc.name || t('sharedLocation')}</p>
             <p className="text-[10px] opacity-60">
               {loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}
             </p>
@@ -87,7 +89,7 @@ export function LocationBubble({ content, isSent, senderName }: Props) {
             'ms-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
             isSent ? 'bg-primary-foreground/20' : 'bg-foreground/10',
           )}>
-            عرض
+            {t('viewLabel')}
           </span>
         </div>
       </button>
@@ -97,7 +99,7 @@ export function LocationBubble({ content, isSent, senderName }: Props) {
         onOpenChange={setViewerOpen}
         lat={loc.lat}
         lng={loc.lng}
-        name={loc.name}
+        name={loc.name || t('sharedLocation')}
         senderName={senderName}
       />
     </>

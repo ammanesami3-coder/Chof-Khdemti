@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SharedPostEmbed } from './shared-post-embed';
 import { sharePostToProfile } from '@/lib/actions/shares';
+import { useLang } from '@/lib/i18n/language-context';
 import type { PostWithAuthor } from '@/lib/validations/post';
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export function ShareToProfileSheet({ post, onBack, onClose }: Props) {
+  const { t } = useLang();
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -42,7 +44,7 @@ export function ShareToProfileSheet({ post, onBack, onClose }: Props) {
       return;
     }
 
-    toast.success('تمت مشاركة المنشور على ملفك الشخصي');
+    toast.success(t('sharedToProfileToast'));
     onClose();
     router.refresh();
   }
@@ -54,7 +56,7 @@ export function ShareToProfileSheet({ post, onBack, onClose }: Props) {
         <button
           onClick={onBack}
           className="rounded-full p-2 transition-colors hover:bg-muted text-muted-foreground"
-          aria-label="رجوع"
+          aria-label={t('backAriaLabel')}
         >
           <ArrowRight className="size-4" />
         </button>
@@ -63,8 +65,8 @@ export function ShareToProfileSheet({ post, onBack, onClose }: Props) {
             <LayoutList className="size-4 text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold">مشاركة على ملفك الشخصي</p>
-            <p className="text-xs text-muted-foreground">سيظهر في الفيد الخاص بك</p>
+            <p className="text-sm font-semibold">{t('shareOnMyProfileTitle')}</p>
+            <p className="text-xs text-muted-foreground">{t('shareOnMyProfileDesc')}</p>
           </div>
         </div>
       </div>
@@ -73,7 +75,7 @@ export function ShareToProfileSheet({ post, onBack, onClose }: Props) {
       <Textarea
         value={comment}
         onChange={(e) => setComment(e.target.value)}
-        placeholder="أضف تعليقاً... (اختياري)"
+        placeholder={t('addOptionalCaptionPlaceholder')}
         className="min-h-[80px] resize-none text-sm"
         maxLength={500}
         dir="rtl"
@@ -85,7 +87,7 @@ export function ShareToProfileSheet({ post, onBack, onClose }: Props) {
       {/* Share button */}
       <Button onClick={handleShare} disabled={loading} className="w-full gap-2">
         {loading ? <Loader2 className="size-4 animate-spin" /> : <LayoutList className="size-4" />}
-        {loading ? 'جاري المشاركة...' : 'مشاركة على ملفي'}
+        {loading ? t('sharingProgress') : t('shareOnMyProfileBtn')}
       </Button>
     </div>
   );

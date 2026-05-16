@@ -1,41 +1,23 @@
-import { Bell, CreditCard } from 'lucide-react';
-import Link from 'next/link';
-import { buttonVariants } from '@/components/ui/button';
-import { BackButton } from '@/components/shared/back-button';
-import { SoundSettings } from '@/components/settings/sound-settings';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { SettingsClient } from './settings-client';
 
 export const metadata = { title: 'الإعدادات — Chof Khdemti' };
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const [userRes, profileRes] = await Promise.all([
+    supabase.from('users').select('username, full_name, account_type').eq('id', user.id).single(),
+    supabase.from('profiles').select('avatar_url').eq('user_id', user.id).maybeSingle(),
+  ]);
+
   return (
-    <main className="mx-auto max-w-lg px-4 py-8">
-      <div className="mb-6 flex items-center gap-2">
-        <BackButton fallback="/feed" />
-        <h1 className="text-2xl font-bold">الإعدادات</h1>
-      </div>
-
-      {/* Notifications section */}
-      <section className="mb-8">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          <Bell className="size-4" />
-          الإشعارات
-        </h2>
-        <SoundSettings />
-      </section>
-
-      {/* Subscription shortcut */}
-      <section>
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          <CreditCard className="size-4" />
-          الاشتراك
-        </h2>
-        <Link
-          href="/settings/subscription"
-          className={buttonVariants({ variant: 'outline' }) + ' w-full justify-start'}
-        >
-          إدارة الاشتراك والدفع
-        </Link>
-      </section>
-    </main>
+    <SettingsClient
+      userData={userRes.data ?? null}
+      avatarUrl={profileRes.data?.avatar_url ?? null}
+    />
   );
 }

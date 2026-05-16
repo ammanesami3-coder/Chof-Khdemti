@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 
 // Leaflet map loaded client-side only
 const PickerMap = dynamic(
@@ -34,10 +35,10 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
       addr.suburb    ||
       addr.county    ||
       json.display_name?.split(',').slice(0, 2).join(', ') ||
-      'موقع مشترك'
+      ''
     );
   } catch {
-    return 'موقع مشترك';
+    return '';
   }
 }
 
@@ -58,6 +59,7 @@ type Props = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
+  const { t } = useLang();
   const DEFAULT_LAT = 33.5731;  // Casablanca as default
   const DEFAULT_LNG = -7.5898;
 
@@ -74,8 +76,8 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
-        const name = await reverseGeocode(lat, lng);
-        setPicked({ lat, lng, name });
+        const resolvedName = await reverseGeocode(lat, lng);
+        setPicked({ lat, lng, name: resolvedName || t('sharedLocation') });
         setLoading(false);
       },
       () => {
@@ -90,7 +92,7 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
     setMapName('...');
     const name = await reverseGeocode(lat, lng);
     setMapName(name);
-    setPicked({ lat, lng, name: name || 'موقع مشترك' });
+    setPicked({ lat, lng, name: name || t('sharedLocation') });
   }, []);
 
   const handleConfirm = () => {
@@ -115,12 +117,12 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[85dvh] max-w-lg flex-col gap-0 overflow-hidden p-0">
-        <DialogTitle className="sr-only">إرسال موقع</DialogTitle>
+        <DialogTitle className="sr-only">{t('sendLocationTitle')}</DialogTitle>
 
         {/* Header */}
         <div className="flex shrink-0 items-center gap-2 border-b px-4 py-3">
           <MapPin className="h-4 w-4 text-primary" />
-          <span className="font-semibold">إرسال موقع</span>
+          <span className="font-semibold">{t('sendLocationTitle')}</span>
         </div>
 
         {/* Tabs */}
@@ -134,7 +136,7 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
             )}
             onClick={() => setTab('current')}
           >
-            موقعي الحالي
+            {t('currentLocationTab')}
           </button>
           <button
             className={cn(
@@ -145,7 +147,7 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
             )}
             onClick={handleOpenMap}
           >
-            اختيار من الخريطة
+            {t('chooseFromMapTab')}
           </button>
         </div>
 
@@ -159,11 +161,11 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
                     <Navigation className="h-7 w-7 text-primary" />
                   </div>
                   <p className="text-center text-sm text-muted-foreground">
-                    سيتم مشاركة موقعك الحالي مع الطرف الآخر
+                    {t('locationShareHint')}
                   </p>
                   <Button onClick={handleGetCurrent} className="w-full max-w-xs">
                     <Navigation className="me-2 h-4 w-4" />
-                    تحديد موقعي الحالي
+                    {t('detectMyLocation')}
                   </Button>
                 </>
               )}
@@ -171,24 +173,24 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
               {loading && (
                 <div className="flex flex-col items-center gap-3">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-sm text-muted-foreground">جاري تحديد الموقع…</p>
+                  <p className="text-sm text-muted-foreground">{t('locatingProgress')}</p>
                 </div>
               )}
 
               {picked && !loading && (
                 <div className="w-full max-w-xs space-y-3">
                   <div className="rounded-xl border bg-accent/30 p-3 text-center">
-                    <p className="text-xs text-muted-foreground">الموقع المحدد</p>
+                    <p className="text-xs text-muted-foreground">{t('confirmedLocationLabel')}</p>
                     <p className="mt-0.5 font-semibold">{picked.name}</p>
                     <p className="text-[10px] text-muted-foreground">
                       {picked.lat.toFixed(5)}, {picked.lng.toFixed(5)}
                     </p>
                   </div>
                   <Button onClick={handleConfirm} className="w-full">
-                    إرسال الموقع
+                    {t('sendLocation')}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={handleGetCurrent} className="w-full">
-                    إعادة التحديد
+                    {t('relocate')}
                   </Button>
                 </div>
               )}
@@ -207,7 +209,7 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
                 />
                 {/* Hint */}
                 <div className="absolute bottom-3 left-1/2 z-[1000] -translate-x-1/2 rounded-full bg-background/90 px-3 py-1 text-[11px] shadow backdrop-blur-sm">
-                  اضغط على الخريطة أو اسحب المؤشر لاختيار الموقع
+                  {t('mapPickerHint')}
                 </div>
               </div>
 
@@ -219,7 +221,7 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
                 {mapName === '...' && (
                   <p className="mb-2 flex items-center justify-center gap-1 text-xs text-muted-foreground">
                     <Loader2 className="h-3 w-3 animate-spin" />
-                    جاري تحديد الاسم…
+                    {t('geocodingProgress')}
                   </p>
                 )}
                 <Button
@@ -227,7 +229,7 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
                   disabled={!picked}
                   onClick={handleConfirm}
                 >
-                  إرسال هذا الموقع
+                  {t('sendThisLocation')}
                 </Button>
               </div>
             </div>

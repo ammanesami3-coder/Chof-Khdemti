@@ -76,7 +76,7 @@ export async function sharePostToStory(
 
   if (!userRes.data) return { error: 'بيانات المستخدم غير موجودة' };
 
-  revalidatePath('/feed');
+  revalidatePath('/');
 
   return {
     status: {
@@ -143,7 +143,7 @@ export async function sharePostToProfile(
   const newPost = newPostId ? { id: newPostId } : null;
   if (!newPost) return { error: 'خطأ في الإنشاء' };
 
-  revalidatePath('/feed');
+  revalidatePath('/');
   const { data: userData } = await supabase
     .from('users')
     .select('username')

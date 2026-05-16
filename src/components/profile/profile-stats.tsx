@@ -1,3 +1,7 @@
+'use client';
+
+import { useLang } from '@/lib/i18n/language-context';
+
 type Props = {
   postsCount: number;
   followersCount: number;
@@ -5,11 +9,12 @@ type Props = {
 };
 
 export function ProfileStats({ postsCount, followersCount, followingCount }: Props) {
+  const { t } = useLang();
   return (
     <div className="grid grid-cols-3 divide-x divide-x-reverse divide-border border-y border-border py-3 text-center">
-      <Stat label="منشورات" value={postsCount} />
-      <Stat label="متابِعون" value={followersCount} />
-      <Stat label="يتابع" value={followingCount} />
+      <Stat label={t('posts')} value={postsCount} />
+      <Stat label={t('followers')} value={followersCount} />
+      <Stat label={t('following')} value={followingCount} />
     </div>
   );
 }

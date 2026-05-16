@@ -4,13 +4,13 @@ import { useState } from 'react';
 import { Download, X, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
 import { DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { getProxyDownloadUrl, isOfficeMime } from '@/lib/cloudinary-utils';
+import { useLang } from '@/lib/i18n/language-context';
 
-// Strips Cloudinary upload-signature so the URL works as a public delivery URL.
 function stripSignature(url: string) {
   return url.replace(/\/s--[^/]+--\//, '/');
 }
 
-const MAX_OFFICE_BYTES = 10 * 1024 * 1024; // 10 MB — Office Online Viewer limit
+const MAX_OFFICE_BYTES = 10 * 1024 * 1024;
 
 type Props = {
   url:       string;
@@ -21,16 +21,14 @@ type Props = {
 };
 
 export function DocumentViewerModal({ url, fileName, mimeType, fileSize, onClose }: Props) {
+  const { t } = useLang();
+
   const isPdf      = !!(mimeType?.includes('pdf') || fileName.toLowerCase().endsWith('.pdf'));
   const isOffice   = isOfficeMime(mimeType);
   const tooLarge   = isOffice && fileSize != null && fileSize > MAX_OFFICE_BYTES;
   const canPreview = isPdf || (isOffice && !tooLarge);
 
-  // Download URL → proxy route with filename → Content-Disposition: attachment
-  const downloadUrl = getProxyDownloadUrl(url, fileName);
-
-  // Preview URL → proxy route without filename → Content-Disposition: inline
-  // Built from the ORIGINAL Cloudinary URL (not from downloadUrl or any other proxy URL)
+  const downloadUrl     = getProxyDownloadUrl(url, fileName);
   const proxyPreviewUrl = `/api/cloudinary/view?url=${encodeURIComponent(url)}`;
 
   return (
@@ -48,13 +46,13 @@ export function DocumentViewerModal({ url, fileName, mimeType, fileSize, onClose
             className="flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium hover:bg-accent transition-colors"
           >
             <Download className="h-3.5 w-3.5" />
-            تحميل
+            {t('downloadLabel')}
           </a>
           <button
             type="button"
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-accent transition-colors"
-            aria-label="إغلاق"
+            aria-label={t('closeLabel')}
           >
             <X className="h-4 w-4" />
           </button>
@@ -67,22 +65,28 @@ export function DocumentViewerModal({ url, fileName, mimeType, fileSize, onClose
           <PdfFrame
             proxyUrl={proxyPreviewUrl}
             downloadUrl={downloadUrl}
+            errorTitle={t('fileViewErrorTitle')}
+            errorBody={t('fileViewErrorHint')}
+            openInTabLabel={t('openInTabLabel')}
+            downloadLabel={t('downloadLabel')}
           />
         )}
 
         {isOffice && !tooLarge && (
-          // Office Online fetches directly from Cloudinary — pass the clean public URL
-          <OfficeFrame cloudinaryUrl={url} />
+          <OfficeFrame
+            cloudinaryUrl={url}
+            officeNote={t('officeViewerNote')}
+          />
         )}
 
         {!canPreview && (
           <Fallback
-            title={tooLarge ? 'الملف كبير جداً للمعاينة' : 'هذا النوع غير مدعوم للمعاينة'}
-            body={tooLarge
-              ? 'المعاينة المباشرة تعمل على ملفات أقل من 10 MB'
-              : 'حمّل الملف وافتحه بالتطبيق المناسب على جهازك'}
+            title={tooLarge ? t('fileTooLargeTitle') : t('fileTypeUnsupportedTitle')}
+            body={tooLarge ? t('fileTooLargeHint') : t('fileTypeUnsupportedHint')}
             downloadUrl={downloadUrl}
             openUrl={proxyPreviewUrl}
+            openInTabLabel={t('openInTabLabel')}
+            downloadLabel={t('downloadLabel')}
           />
         )}
       </div>
@@ -91,12 +95,14 @@ export function DocumentViewerModal({ url, fileName, mimeType, fileSize, onClose
 }
 
 // ── PDF viewer ──────────────────────────────────────────────────────────────────
-// Receives the already-computed proxy URL and places it directly in an iframe.
-// The proxy route fetches from Cloudinary server-side and returns:
-//   Content-Type: application/pdf  +  Content-Disposition: inline
-// → browser renders the PDF natively without any CORS issues.
 
-function PdfFrame({ proxyUrl, downloadUrl }: { proxyUrl: string; downloadUrl: string }) {
+function PdfFrame({
+  proxyUrl, downloadUrl, errorTitle, errorBody, openInTabLabel, downloadLabel,
+}: {
+  proxyUrl: string; downloadUrl: string;
+  errorTitle: string; errorBody: string;
+  openInTabLabel: string; downloadLabel: string;
+}) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -113,10 +119,12 @@ function PdfFrame({ proxyUrl, downloadUrl }: { proxyUrl: string; downloadUrl: st
         />
       ) : (
         <Fallback
-          title="تعذّر عرض الملف"
-          body="حاول فتح الملف في تبويب جديد أو تحميله مباشرة"
+          title={errorTitle}
+          body={errorBody}
           downloadUrl={downloadUrl}
           openUrl={proxyUrl}
+          openInTabLabel={openInTabLabel}
+          downloadLabel={downloadLabel}
         />
       )}
     </div>
@@ -124,13 +132,9 @@ function PdfFrame({ proxyUrl, downloadUrl }: { proxyUrl: string; downloadUrl: st
 }
 
 // ── Office Online Viewer ────────────────────────────────────────────────────────
-// Microsoft's servers fetch the file URL directly — pass the clean Cloudinary URL.
-// Our proxy is NOT used here: Office Online needs a publicly reachable URL,
-// and localhost/dev proxies won't work. Cloudinary public URLs always work.
 
-function OfficeFrame({ cloudinaryUrl }: { cloudinaryUrl: string }) {
+function OfficeFrame({ cloudinaryUrl, officeNote }: { cloudinaryUrl: string; officeNote: string }) {
   const [loaded, setLoaded] = useState(false);
-  // Strip signature — the public delivery URL is what Microsoft needs
   const cleanUrl  = stripSignature(cloudinaryUrl);
   const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(cleanUrl)}`;
 
@@ -145,7 +149,7 @@ function OfficeFrame({ cloudinaryUrl }: { cloudinaryUrl: string }) {
       />
       {loaded && (
         <p className="absolute bottom-2 inset-x-0 text-center text-[10px] text-muted-foreground pointer-events-none select-none">
-          المعاينة عبر Microsoft Office Online · الملف يُعالَج على سيرفرات Microsoft
+          {officeNote}
         </p>
       )}
     </div>
@@ -163,9 +167,10 @@ function Spinner() {
 }
 
 function Fallback({
-  title, body, downloadUrl, openUrl,
+  title, body, downloadUrl, openUrl, openInTabLabel, downloadLabel,
 }: {
   title: string; body: string; downloadUrl: string; openUrl: string;
+  openInTabLabel: string; downloadLabel: string;
 }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
@@ -182,7 +187,7 @@ function Fallback({
           className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-accent transition-colors"
         >
           <ExternalLink className="h-4 w-4" />
-          فتح في تبويب
+          {openInTabLabel}
         </a>
         <a
           href={downloadUrl}
@@ -191,7 +196,7 @@ function Fallback({
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <Download className="h-4 w-4" />
-          تحميل
+          {downloadLabel}
         </a>
       </div>
     </div>

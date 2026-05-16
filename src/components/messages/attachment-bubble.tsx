@@ -5,24 +5,37 @@ import { useState } from 'react';
 import {
   Download, Eye,
   FileText, FileSpreadsheet, Presentation, File as FileIcon,
+  Film,
 } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
+
+const ImageLightboxLazy = dynamic(
+  () => import('@/components/shared/image-lightbox').then(m => m.ImageLightbox),
+  { ssr: false },
+);
 import { getProxyDownloadUrl, getFileTypeLabel } from '@/lib/cloudinary-utils';
+import { UploadOverlay } from './upload-overlay';
 import type { AttachmentMetadata } from '@/lib/actions/messages';
 
-// Lazy-load the heavy viewer modal (blob fetch + iframe)
 const DocumentViewerModal = dynamic(
   () => import('./document-viewer-modal').then(m => m.DocumentViewerModal),
   { ssr: false },
 );
 
 type Props = {
-  messageType: 'image' | 'video' | 'document' | 'audio';
-  url:         string;
-  metadata:    AttachmentMetadata;
-  isSent:      boolean;
-  caption?:    string | null;
+  messageType:    'image' | 'video' | 'document' | 'audio';
+  url:            string;
+  metadata:       AttachmentMetadata;
+  isSent:         boolean;
+  caption?:       string | null;
+  // Upload state
+  uploadStatus?:  'uploading' | 'failed';
+  uploadProgress?: number; // 0-100
+  onCancelUpload?: () => void;
+  onRetryUpload?:  () => void;
+  previewUrl?:    string; // local blob URL for image preview during upload
 };
 
 function formatBytes(bytes: number) {
@@ -41,46 +54,70 @@ function DocIcon({ mime }: { mime?: string }) {
   return <FileText className="h-6 w-6 text-muted-foreground" />;
 }
 
-export function AttachmentBubble({ messageType, url, metadata, isSent, caption }: Props) {
+export function AttachmentBubble({
+  messageType, url, metadata, isSent, caption,
+  uploadStatus, uploadProgress, onCancelUpload, onRetryUpload, previewUrl,
+}: Props) {
+  const { t } = useLang();
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [viewerOpen,   setViewerOpen]   = useState(false);
 
   const filename    = metadata.filename ?? (metadata.mime_type?.includes('pdf') ? 'document.pdf' : 'document');
   const downloadUrl = getProxyDownloadUrl(url, filename);
   const typeLabel   = getFileTypeLabel(metadata.mime_type, filename);
+  const isUploading = uploadStatus === 'uploading';
+  const isFailed    = uploadStatus === 'failed';
 
   // ── Image ──────────────────────────────────────────────────────────────────
 
   if (messageType === 'image') {
-    const thumb = metadata.thumbnail_url ?? url;
-    return (
-      <div className="flex flex-col gap-1.5">
-        <button
-          type="button"
-          onClick={() => setLightboxOpen(true)}
-          className="block overflow-hidden rounded-xl"
-          aria-label="عرض الصورة"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={thumb}
-            alt={metadata.filename ?? 'صورة'}
-            className="max-h-72 w-full object-cover transition-opacity hover:opacity-90"
-            loading="lazy"
-          />
-        </button>
-        {caption && <p className="px-0.5 text-sm">{caption}</p>}
+    const displaySrc = (isUploading || isFailed) && previewUrl ? previewUrl : (metadata.thumbnail_url ?? url);
 
-        <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-          <DialogContent className="max-w-3xl border-0 bg-black/90 p-2">
+    return (
+      <div className="flex flex-col">
+        {/* Image — no inner rounding; outer bubble wrapper handles it */}
+        <div className="relative overflow-hidden">
+          <button
+            type="button"
+            onClick={() => { if (!uploadStatus) setLightboxOpen(true); }}
+            disabled={!!uploadStatus}
+            className={cn('block w-full', !uploadStatus && 'cursor-pointer hover:opacity-90')}
+            aria-label={t('viewImageAriaLabel')}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={url}
-              alt={metadata.filename ?? 'صورة'}
-              className="max-h-[90vh] w-full object-contain"
+              src={displaySrc}
+              alt={metadata.filename ?? t('imageLabel')}
+              className="max-h-72 w-full object-cover"
+              loading="lazy"
             />
-          </DialogContent>
-        </Dialog>
+          </button>
+
+          {uploadStatus && (
+            <UploadOverlay
+              status={uploadStatus}
+              progress={isUploading ? uploadProgress : undefined}
+              onCancel={onCancelUpload}
+              onRetry={onRetryUpload}
+            />
+          )}
+        </div>
+
+        {caption && (
+          <p className="px-3.5 pb-2.5 pt-1.5 text-sm leading-relaxed">
+            {caption}
+          </p>
+        )}
+
+        {!uploadStatus && (
+          <ImageLightboxLazy
+            src={url}
+            alt={metadata.filename ?? t('imageLabel')}
+            open={lightboxOpen}
+            onClose={() => setLightboxOpen(false)}
+            allowDownload
+          />
+        )}
       </div>
     );
   }
@@ -89,18 +126,44 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
 
   if (messageType === 'video') {
     return (
-      <div className="flex flex-col gap-1.5">
-        <div className="overflow-hidden rounded-xl">
-          <video
-            src={url}
-            poster={metadata.thumbnail_url}
-            controls
-            preload="none"
-            playsInline
-            className="max-h-72 w-full rounded-xl object-cover"
-          />
+      <div className="flex flex-col">
+        <div className="relative overflow-hidden">
+          {isUploading || isFailed ? (
+            <div className={cn(
+              'flex h-48 w-full flex-col items-center justify-center gap-2',
+              isSent ? 'bg-primary-foreground/10' : 'bg-black/10',
+            )}>
+              <Film className="h-8 w-8 opacity-40" />
+              {metadata.filename && (
+                <p className="max-w-[180px] truncate text-xs opacity-50">{metadata.filename}</p>
+              )}
+            </div>
+          ) : (
+            <video
+              src={url}
+              poster={metadata.thumbnail_url}
+              controls
+              preload="none"
+              playsInline
+              className="max-h-72 w-full object-cover"
+            />
+          )}
+
+          {uploadStatus && (
+            <UploadOverlay
+              status={uploadStatus}
+              progress={isUploading ? uploadProgress : undefined}
+              onCancel={onCancelUpload}
+              onRetry={onRetryUpload}
+            />
+          )}
         </div>
-        {caption && <p className="px-0.5 text-sm">{caption}</p>}
+
+        {caption && (
+          <p className="px-3.5 pb-2.5 pt-1.5 text-sm leading-relaxed">
+            {caption}
+          </p>
+        )}
       </div>
     );
   }
@@ -111,39 +174,48 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
     return (
       <div className="flex flex-col gap-1.5">
         <div className={cn(
-          'flex items-center gap-3 rounded-xl px-3 py-2.5',
-          isSent ? 'bg-primary-foreground/10' : 'bg-black/5',
+          'relative overflow-hidden rounded-xl',
         )}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-lg">
-            🎵
+          <div className={cn(
+            'flex items-center gap-3 rounded-xl px-3 py-2.5',
+            isSent ? 'bg-primary-foreground/10' : 'bg-black/5',
+          )}>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-lg">
+              🎵
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium">{metadata.filename ?? t('audioFileFallback')}</p>
+              {metadata.size && (
+                <p className="text-[10px] text-muted-foreground">{formatBytes(metadata.size)}</p>
+              )}
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium">{metadata.filename ?? 'ملف صوتي'}</p>
-            {metadata.size && (
-              <p className="text-[10px] text-muted-foreground">{formatBytes(metadata.size)}</p>
-            )}
-          </div>
+
+          {/* Audio player only shown when not uploading */}
+          {!uploadStatus && (
+            <audio src={url} controls className="w-full" preload="none" />
+          )}
+
+          {uploadStatus && (
+            <UploadOverlay
+              status={uploadStatus}
+              progress={isUploading ? uploadProgress : undefined}
+              onCancel={onCancelUpload}
+              onRetry={onRetryUpload}
+            />
+          )}
         </div>
-        <audio src={url} controls className="w-full" preload="none" />
         {caption && <p className="px-0.5 text-sm">{caption}</p>}
       </div>
     );
   }
 
   // ── Documents (PDF, DOCX, XLSX, PPTX …) ───────────────────────────────────
-  //
-  // WhatsApp-style card:
-  //  ┌──────────────────────────────────┐
-  //  │ [icon]  filename.pdf             │
-  //  │         30.9 KB · PDF            │
-  //  ├──────────────────────────────────┤
-  //  │   [👁 معاينة]  │  [⬇ تحميل]    │
-  //  └──────────────────────────────────┘
 
   return (
     <div className="flex flex-col gap-1.5">
       <div className={cn(
-        'overflow-hidden rounded-xl border',
+        'relative overflow-hidden rounded-xl border',
         isSent ? 'border-primary-foreground/20' : 'border-border',
       )}>
         {/* File info */}
@@ -162,43 +234,52 @@ export function AttachmentBubble({ messageType, url, metadata, isSent, caption }
           </div>
         </div>
 
-        {/* Separator */}
-        <div className={cn('h-px', isSent ? 'bg-primary-foreground/15' : 'bg-border')} />
+        {/* Action buttons — hidden while uploading */}
+        {!uploadStatus && (
+          <>
+            <div className={cn('h-px', isSent ? 'bg-primary-foreground/15' : 'bg-border')} />
+            <div className={cn('flex', isSent ? 'bg-primary-foreground/5' : 'bg-background/60')}>
+              <button
+                type="button"
+                onClick={() => setViewerOpen(true)}
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
+                  isSent ? 'hover:bg-primary-foreground/10' : 'hover:bg-black/5',
+                )}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                {t('previewLabel')}
+              </button>
+              <div className={cn('w-px self-stretch', isSent ? 'bg-primary-foreground/15' : 'bg-border')} />
+              <a
+                href={downloadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
+                  isSent ? 'hover:bg-primary-foreground/10' : 'hover:bg-black/5',
+                )}
+              >
+                <Download className="h-3.5 w-3.5" />
+                {t('downloadLabel')}
+              </a>
+            </div>
+          </>
+        )}
 
-        {/* Action buttons */}
-        <div className={cn('flex', isSent ? 'bg-primary-foreground/5' : 'bg-background/60')}>
-          <button
-            type="button"
-            onClick={() => setViewerOpen(true)}
-            className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
-              isSent ? 'hover:bg-primary-foreground/10' : 'hover:bg-black/5',
-            )}
-          >
-            <Eye className="h-3.5 w-3.5" />
-            معاينة
-          </button>
-
-          <div className={cn('w-px self-stretch', isSent ? 'bg-primary-foreground/15' : 'bg-border')} />
-
-          <a
-            href={downloadUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
-              isSent ? 'hover:bg-primary-foreground/10' : 'hover:bg-black/5',
-            )}
-          >
-            <Download className="h-3.5 w-3.5" />
-            تحميل
-          </a>
-        </div>
+        {/* Upload overlay */}
+        {uploadStatus && (
+          <UploadOverlay
+            status={uploadStatus}
+            progress={isUploading ? uploadProgress : undefined}
+            onCancel={onCancelUpload}
+            onRetry={onRetryUpload}
+          />
+        )}
       </div>
 
       {caption && <p className="px-0.5 text-sm">{caption}</p>}
 
-      {/* Viewer modal — mounted only when open to avoid premature blob fetch */}
       <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
         {viewerOpen && (
           <DocumentViewerModal

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import Hls from "hls.js";
+import { useLang } from "@/lib/i18n/language-context";
 import type { PostMedia } from "@/lib/validations/post";
 
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "";
@@ -24,6 +25,7 @@ function buildFallbackUrl(publicId: string) {
 const VIDEO_PLAYING_EVENT = "video:singleton-play";
 
 export function OptimizedVideo({ item, className = "" }: OptimizedVideoProps) {
+  const { t } = useLang();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -180,7 +182,7 @@ export function OptimizedVideo({ item, className = "" }: OptimizedVideoProps) {
         playsInline
         preload="none"
         className="h-full w-full object-contain"
-        aria-label="مقطع فيديو"
+        aria-label={t('videoAriaLabel')}
       />
       {loading && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">

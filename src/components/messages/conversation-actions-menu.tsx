@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 import {
   pinConversation,
   unpinConversation,
@@ -40,15 +41,16 @@ type ActionListProps = {
 };
 
 function ActionList({ conv, onAction, onClose, compact }: ActionListProps) {
+  const { t } = useLang();
   const [muteStep, setMuteStep] = useState(false);
   const pinned = conv.is_pinned;
   const muted  = isMutedNow(conv);
 
-  const DURATIONS: Array<{ key: MuteDuration; label: string }> = [
-    { key: '1h',    label: 'ساعة واحدة' },
-    { key: '8h',    label: '٨ ساعات' },
-    { key: '24h',   label: '٢٤ ساعة' },
-    { key: 'forever', label: 'دائماً' },
+  const DURATIONS: Array<{ key: MuteDuration; labelKey: 'mute1h' | 'mute8h' | 'mute24h' | 'muteForever' }> = [
+    { key: '1h',      labelKey: 'mute1h' },
+    { key: '8h',      labelKey: 'mute8h' },
+    { key: '24h',     labelKey: 'mute24h' },
+    { key: 'forever', labelKey: 'muteForever' },
   ];
 
   const handleMuteClick = () => {
@@ -77,16 +79,16 @@ function ActionList({ conv, onAction, onClose, compact }: ActionListProps) {
           className={cn(btn, 'text-muted-foreground')}
         >
           <ChevronRight className="h-4 w-4 rotate-180" />
-          رجوع
+          {t('cancel')}
         </button>
-        {DURATIONS.map(({ key, label }) => (
+        {DURATIONS.map(({ key, labelKey }) => (
           <button
             key={key}
             onClick={() => handleDuration(key)}
             className={btn}
           >
             <Clock className="h-4 w-4 text-muted-foreground" />
-            {label}
+            {t(labelKey)}
           </button>
         ))}
       </>
@@ -106,13 +108,13 @@ function ActionList({ conv, onAction, onClose, compact }: ActionListProps) {
         className={btn}
       >
         {pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-        {pinned ? 'إلغاء التثبيت' : 'تثبيت المحادثة'}
+        {pinned ? t('unpinConversation') : t('pinConversation')}
       </button>
 
       {/* Mute */}
       <button onClick={handleMuteClick} className={btn}>
         {muted ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-        {muted ? 'إلغاء الكتم' : 'كتم الإشعارات'}
+        {muted ? t('unmuteConversation') : t('muteConversation')}
         {!muted && <ChevronRight className="h-3.5 w-3.5 ms-auto text-muted-foreground" />}
       </button>
 
@@ -126,7 +128,7 @@ function ActionList({ conv, onAction, onClose, compact }: ActionListProps) {
           className={btn}
         >
           <CheckCheck className="h-4 w-4" />
-          تعليم كمقروءة
+          {t('markAsRead')}
         </button>
       )}
 
@@ -145,7 +147,7 @@ function ActionList({ conv, onAction, onClose, compact }: ActionListProps) {
         className={cn(btn, 'text-destructive')}
       >
         <Trash2 className="h-4 w-4" />
-        حذف المحادثة
+        {t('deleteConversation')}
       </button>
     </>
   );
@@ -167,6 +169,7 @@ type Props = {
 const MENU_W = 230;
 
 export function ConversationActionsMenu({ conv, trigger, onClose, onOptimisticUpdate }: Props) {
+  const { t } = useLang();
   const [, startTransition] = useTransition();
   const mountedRef = useRef(false);
 
@@ -189,7 +192,7 @@ export function ConversationActionsMenu({ conv, trigger, onClose, onOptimisticUp
       onClose();
       startTransition(async () => {
         const res = await fn();
-        if (res.error) toast.error('حدث خطأ، حاول مجدداً');
+        if (res.error) toast.error(t('genericError'));
       });
     },
     [conv.id, onOptimisticUpdate, onClose],
@@ -241,7 +244,7 @@ export function ConversationActionsMenu({ conv, trigger, onClose, onOptimisticUp
       {/* Menu box */}
       <div
         role="menu"
-        aria-label="خيارات المحادثة"
+        aria-label={t('conversationOptionsAriaLabel')}
         className={cn(
           'fixed z-[61] rounded-xl border bg-popover text-popover-foreground shadow-xl py-1.5 overflow-hidden',
           'animate-in fade-in-0 zoom-in-95 duration-150 origin-top-start',

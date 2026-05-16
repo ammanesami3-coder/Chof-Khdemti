@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { X, MapPin } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { formatCoordinates } from '@/lib/google-maps';
+import { useLang } from '@/lib/i18n/language-context';
 
 const ViewerMap = dynamic(
   () => import('./location-map-inner').then((m) => m.ViewerMap),
@@ -20,10 +21,11 @@ type Props = {
 };
 
 export function LocationViewerModal({ open, onOpenChange, lat, lng, name, senderName }: Props) {
+  const { t } = useLang();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[92dvh] max-w-2xl flex-col gap-0 overflow-hidden p-0">
-        <DialogTitle className="sr-only">عرض الموقع</DialogTitle>
+        <DialogTitle className="sr-only">{t('viewLocationTitle')}</DialogTitle>
 
         {/* Header */}
         <div className="flex shrink-0 items-center gap-3 border-b bg-background px-4 py-3">
@@ -36,7 +38,7 @@ export function LocationViewerModal({ open, onOpenChange, lat, lng, name, sender
             type="button"
             onClick={() => onOpenChange(false)}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full hover:bg-accent transition-colors"
-            aria-label="إغلاق"
+            aria-label={t('closeLabel')}
           >
             <X className="h-4 w-4" />
           </button>

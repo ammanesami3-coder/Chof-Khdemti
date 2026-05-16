@@ -1,42 +1,45 @@
+'use client';
+
 import Link from 'next/link';
 import { Lock, Check } from 'lucide-react';
 import { SUBSCRIPTION_PRICE_DISPLAY } from '@/lib/constants/subscription';
+import { useLang } from '@/lib/i18n/language-context';
 import type { SubscriptionStatus } from '@/types/subscription';
 
 type Props = {
   status?: SubscriptionStatus;
 };
 
-type Config = {
-  title: string;
-  description: string;
-  cta: string;
-};
-
-const STATUS_CONFIG: Partial<Record<SubscriptionStatus, Config>> = {
-  trial_ended: {
-    title: 'انتهت تجربتك المجانية',
-    description: `اشترك بـ ${SUBSCRIPTION_PRICE_DISPLAY} لتستمر في الرد على رسائل زبائنك بدون حدود`,
-    cta: 'اشترك الآن',
-  },
-  past_due: {
-    title: 'فشل الدفع — حدّث طريقة الدفع',
-    description: 'حدّث معلومات بطاقتك لاستعادة الوصول الكامل إلى المحادثات',
-    cta: 'تحديث الدفع',
-  },
-  cancelled: {
-    title: 'اشتراكك ملغى — جدّد للعودة',
-    description: `جدّد اشتراكك بـ ${SUBSCRIPTION_PRICE_DISPLAY} للرد على رسائل زبائنك`,
-    cta: 'جدّد الاشتراك',
-  },
-};
-
-const BULLETS = ['محادثات بلا قيود', 'دعم فني مخصص', 'إلغاء في أي وقت'];
-
-const FALLBACK: Config = STATUS_CONFIG.trial_ended!;
-
 export function UpgradePrompt({ status = 'trial_ended' }: Props) {
-  const cfg = STATUS_CONFIG[status] ?? FALLBACK;
+  const { t } = useLang();
+
+  type Config = { title: string; description: string; cta: string };
+
+  const STATUS_CONFIG: Partial<Record<SubscriptionStatus, Config>> = {
+    trial_ended: {
+      title: t('trialEndedTitle'),
+      description: t('trialEndedDesc').replace('{price}', SUBSCRIPTION_PRICE_DISPLAY),
+      cta: t('trialEndedCta'),
+    },
+    past_due: {
+      title: t('pastDueTitle'),
+      description: t('pastDueDesc'),
+      cta: t('pastDueCta'),
+    },
+    cancelled: {
+      title: t('cancelledTitle'),
+      description: t('cancelledDesc').replace('{price}', SUBSCRIPTION_PRICE_DISPLAY),
+      cta: t('cancelledCta'),
+    },
+  };
+
+  const BULLETS = [
+    t('unlimitedConversationsBullet'),
+    t('personalSupportBullet'),
+    t('cancelAnytimeBullet'),
+  ];
+
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.trial_ended!;
 
   return (
     <div className="border-t">
@@ -80,7 +83,7 @@ export function UpgradePrompt({ status = 'trial_ended' }: Props) {
               href="/settings/subscription"
               className="flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              اعرف المزيد
+              {t('knowMoreBtn')}
             </Link>
           </div>
         </div>

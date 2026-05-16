@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { useLang } from '@/lib/i18n/language-context';
 
 type Props = {
   error: Error & { digest?: string };
@@ -11,6 +12,8 @@ type Props = {
 };
 
 export default function AppError({ error, reset }: Props) {
+  const { t } = useLang();
+
   useEffect(() => {
     console.error('[app]', error);
   }, [error]);
@@ -21,18 +24,18 @@ export default function AppError({ error, reset }: Props) {
         <AlertTriangle className="size-8 text-red-600" aria-hidden="true" />
       </div>
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold">حدث خطأ</h2>
+        <h2 className="text-xl font-semibold">{t('errorTitle')}</h2>
         <p className="text-sm text-muted-foreground">
-          تعذّر تحميل هذه الصفحة. تحقق من اتصالك ثم حاول مجدداً.
+          {t('appErrorDesc')}
         </p>
       </div>
       <div className="flex gap-3">
         <Button onClick={reset} className="gap-2">
           <RefreshCw className="size-4" aria-hidden="true" />
-          إعادة المحاولة
+          {t('retry')}
         </Button>
-        <Link href="/feed" className={buttonVariants({ variant: 'outline' })}>
-          الفيد
+        <Link href="/" className={buttonVariants({ variant: 'outline' })}>
+          {t('goHome')}
         </Link>
       </div>
     </div>

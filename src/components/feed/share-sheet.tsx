@@ -8,6 +8,7 @@ import {
   Tv2, ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLang } from '@/lib/i18n/language-context';
 import { cn } from '@/lib/utils';
 import type { PostWithAuthor } from '@/lib/validations/post';
 import { ShareToStorySheet } from './share-to-story-sheet';
@@ -132,6 +133,7 @@ type Props = {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function ShareSheet({ post, open, onClose, isAuthenticated }: Props) {
+  const { t } = useLang();
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
@@ -155,16 +157,16 @@ export function ShareSheet({ post, open, onClose, isAuthenticated }: Props) {
   if (!mounted || !shouldRender) return null;
 
   const postUrl = `${window.location.origin}/post/${post.id}`;
-  const shareText = post.content?.slice(0, 120) ?? 'تفقّد هذا المنشور على Chof Khdemti';
+  const shareText = post.content?.slice(0, 120) ?? t('shareDefaultText');
 
   async function handleCopyLink() {
     try {
       await navigator.clipboard.writeText(postUrl);
       setCopied(true);
-      toast.success('تم نسخ الرابط');
+      toast.success(t('linkCopiedSuccess'));
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      toast.error('تعذّر نسخ الرابط');
+      toast.error(t('copyLinkFailed'));
     }
   }
 
@@ -203,11 +205,11 @@ export function ShareSheet({ post, open, onClose, isAuthenticated }: Props) {
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="text-base font-semibold">مشاركة المنشور</h2>
+          <h2 className="text-base font-semibold">{t('shareSheetTitle')}</h2>
           <button
             onClick={onClose}
             className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="إغلاق"
+            aria-label={t('closeLabel')}
           >
             <X className="size-4" />
           </button>
@@ -259,7 +261,7 @@ export function ShareSheet({ post, open, onClose, isAuthenticated }: Props) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-semibold">{post.author.full_name}</p>
                   <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground leading-relaxed">
-                    {post.content ?? (post.media.length > 0 ? `${post.media.length} وسائط` : 'منشور')}
+                    {post.content ?? (post.media.length > 0 ? `${post.media.length} ${t('mediaFilesLabel')}` : t('post'))}
                   </p>
                 </div>
               </div>
@@ -268,21 +270,21 @@ export function ShareSheet({ post, open, onClose, isAuthenticated }: Props) {
               <div className="grid grid-cols-4 gap-3">
                 <ShareOption
                   icon={<Tv2 className="size-6" />}
-                  label="قصتي"
+                  label={t('shareToMyStory')}
                   gradient="bg-gradient-to-br from-purple-500 to-pink-500"
                   onClick={() => setSubSheet('story')}
                   disabled={!isAuthenticated}
                 />
                 <ShareOption
                   icon={<LayoutList className="size-6" />}
-                  label="بروفايلي"
+                  label={t('shareToMyProfile')}
                   gradient="bg-gradient-to-br from-blue-500 to-cyan-500"
                   onClick={() => setSubSheet('profile')}
                   disabled={!isAuthenticated}
                 />
                 <ShareOption
                   icon={<MessageCircle className="size-6" />}
-                  label="رسالة"
+                  label={t('shareViaMessage')}
                   gradient="bg-gradient-to-br from-green-500 to-emerald-500"
                   onClick={() => setSubSheet('message')}
                   disabled={!isAuthenticated}
@@ -291,7 +293,7 @@ export function ShareSheet({ post, open, onClose, isAuthenticated }: Props) {
                   icon={
                     copied ? <Check className="size-6" /> : <Link2 className="size-6" />
                   }
-                  label={copied ? 'تم النسخ' : 'نسخ الرابط'}
+                  label={copied ? t('linkCopied') : t('copyLinkLabel')}
                   gradient={
                     copied
                       ? 'bg-green-600'
@@ -304,31 +306,31 @@ export function ShareSheet({ post, open, onClose, isAuthenticated }: Props) {
               {/* External sharing */}
               <div className="border-t pt-3">
                 <p className="mb-2 px-1 text-xs font-medium text-muted-foreground">
-                  مشاركة خارجية
+                  {t('externalShareLabel')}
                 </p>
                 <div className="space-y-0.5">
                   <ExternalRow
                     href={`https://wa.me/?text=${encodeURIComponent(`${shareText}\n${postUrl}`)}`}
                     icon={<WhatsAppIcon />}
                     bgClass="bg-[#25D366]"
-                    label="واتساب"
-                    description="مشاركة عبر واتساب"
+                    label={t('whatsappLabel')}
+                    description={t('whatsappDesc')}
                   />
                   <ExternalRow
                     href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`}
                     icon={<FacebookIcon />}
                     bgClass="bg-[#1877F2]"
-                    label="فيسبوك"
-                    description="مشاركة على فيسبوك"
+                    label={t('facebookLabel')}
+                    description={t('facebookDesc')}
                   />
                   <ExternalRow
                     icon={<InstagramIcon />}
                     bgClass="bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400"
-                    label="انستغرام"
-                    description="انسخ الرابط ثم شاركه يدوياً"
+                    label={t('instagramLabel')}
+                    description={t('instagramDesc')}
                     onClick={() => {
                       navigator.clipboard.writeText(postUrl);
-                      toast.success('تم نسخ الرابط — الصقه في انستغرام');
+                      toast.success(t('instagramCopiedHint'));
                     }}
                   />
                 </div>
@@ -337,7 +339,7 @@ export function ShareSheet({ post, open, onClose, isAuthenticated }: Props) {
               {/* Share count hint */}
               {post.shares_count > 0 && (
                 <p className="text-center text-xs text-muted-foreground">
-                  {post.shares_count} مشاركة
+                  {post.shares_count} {t('shareCountLabel')}
                 </p>
               )}
             </div>

@@ -17,7 +17,7 @@ export default async function OnboardingPage() {
     .eq('user_id', user.id)
     .single();
 
-  if (profile?.onboarding_complete) redirect('/feed');
+  if (profile?.onboarding_complete) redirect('/');
 
   const { data: userData } = await supabase
     .from('users')

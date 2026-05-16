@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ar } from "date-fns/locale";
+import { ar, fr, enUS } from "date-fns/locale";
 import { Send } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { AuthGate } from "@/components/shared/auth-gate";
@@ -12,6 +12,7 @@ import {
   useEditComment,
   useAddComment,
 } from "@/hooks/use-comments";
+import { useLang } from "@/lib/i18n/language-context";
 import type { RecentComment } from "@/lib/validations/post";
 
 type CurrentUser = {
@@ -40,6 +41,7 @@ export function CommentItem({
   depth = 0,
   isPending = false,
 }: Props) {
+  const { t, lang } = useLang();
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(comment.content);
   const [showReply, setShowReply] = useState(false);
@@ -65,11 +67,12 @@ export function CommentItem({
     !isPending &&
     Date.now() - new Date(comment.created_at).getTime() < 15 * 60 * 1000;
 
+  const dateLocale = lang === 'ar' ? ar : lang === 'fr' ? fr : enUS;
   const timeAgo = isPending
-    ? "جاري الإرسال..."
+    ? t('sendingComment')
     : formatDistanceToNow(new Date(comment.created_at), {
         addSuffix: true,
-        locale: ar,
+        locale: dateLocale,
       });
 
   function handleLike() {
@@ -175,7 +178,7 @@ export function CommentItem({
                   onClick={handleEditSubmit}
                   disabled={editMutation.isPending}
                   className="shrink-0 rounded-full p-1 text-primary hover:bg-primary/10 disabled:opacity-50"
-                  aria-label="حفظ التعديل"
+                  aria-label={t('saveCommentEdit')}
                 >
                   <Send className="size-3.5" />
                 </button>
@@ -206,7 +209,7 @@ export function CommentItem({
                   : "hover:text-foreground"
               }
             >
-              إعجاب
+              {localIsLiked ? t('commentLiked') : t('commentLike')}
             </button>
           </AuthGate>
 
@@ -218,7 +221,7 @@ export function CommentItem({
                 disabled={isPending}
                 className="hover:text-foreground"
               >
-                رد
+                {t('commentReply')}
               </button>
             </AuthGate>
           )}
@@ -233,7 +236,7 @@ export function CommentItem({
               }}
               className="hover:text-foreground"
             >
-              تعديل
+              {t('commentEdit')}
             </button>
           )}
 
@@ -243,7 +246,7 @@ export function CommentItem({
               disabled={deleteMutation.isPending}
               className="text-destructive hover:text-destructive/80"
             >
-              حذف
+              {t('commentDelete')}
             </button>
           )}
         </div>
@@ -264,7 +267,7 @@ export function CommentItem({
                   }
                   if (e.key === "Escape") setShowReply(false);
                 }}
-                placeholder="اكتب رداً..."
+                placeholder={t('writeReplyPlaceholder')}
                 maxLength={500}
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
@@ -272,7 +275,7 @@ export function CommentItem({
                 onClick={handleReplySubmit}
                 disabled={!replyText.trim() || addReplyMutation.isPending}
                 className="shrink-0 text-primary disabled:opacity-30"
-                aria-label="إرسال الرد"
+                aria-label={t('sendReply')}
               >
                 <Send className="size-3.5" />
               </button>

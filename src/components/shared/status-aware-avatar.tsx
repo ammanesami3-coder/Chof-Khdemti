@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { getActiveStatusForUser } from '@/lib/actions/status';
+import { useLang } from '@/lib/i18n/language-context';
 import type { AvatarSize } from './user-avatar';
 import type { StatusGroup } from '@/lib/types/status.types';
 
@@ -80,6 +81,7 @@ export function StatusAwareAvatar({
   className,
   currentUserId = '',
 }: Props) {
+  const { t } = useLang();
   const queryClient = useQueryClient();
   const [viewerOpen, setViewerOpen] = useState(false);
 
@@ -156,7 +158,7 @@ export function StatusAwareAvatar({
         <button
           type="button"
           onClick={() => setViewerOpen(true)}
-          aria-label={`مشاهدة حالة ${user.full_name}`}
+          aria-label={`${t('viewStatusOfPrefix')} ${user.full_name}`}
           className={cn(
             'inline-flex shrink-0 rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             hasUnviewed
@@ -198,7 +200,7 @@ export function StatusAwareAvatar({
   return (
     <Link
       href={`/profile/${user.username}`}
-      aria-label={`زيارة ملف ${user.full_name}`}
+      aria-label={`${t('visitProfileOfPrefix')} ${user.full_name}`}
       className={cn(
         'inline-flex shrink-0 rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         className,

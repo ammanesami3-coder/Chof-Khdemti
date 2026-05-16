@@ -1,8 +1,12 @@
+"use client";
+
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLang } from "@/lib/i18n/language-context";
 
 export function PostCardSkeleton() {
+  const { t } = useLang();
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3" aria-busy="true" aria-label="جاري التحميل">
+    <div className="rounded-xl border bg-card p-4 space-y-3" aria-busy="true" aria-label={t('loadingAriaLabel')}>
       {/* Header */}
       <div className="flex items-center gap-3">
         <Skeleton className="size-10 shrink-0 rounded-full" />

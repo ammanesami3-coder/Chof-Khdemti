@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 
 // Fix Leaflet default marker icon paths (broken in Next.js / webpack)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,9 +46,9 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function formatDist(km: number): string {
-  if (km < 1) return `${Math.round(km * 1000)} م`;
-  return `${km.toFixed(1)} كم`;
+function formatDist(km: number, mLabel: string, kmLabel: string): string {
+  if (km < 1) return `${Math.round(km * 1000)} ${mLabel}`;
+  return `${km.toFixed(1)} ${kmLabel}`;
 }
 
 // ── PickerClick: updates marker on click for the picker map ───────────────────
@@ -96,6 +97,7 @@ type PickerMapProps = {
 };
 
 export function PickerMap({ lat, lng, onPick, className }: PickerMapProps) {
+  const { t } = useLang();
   const markerRef = useRef<L.Marker>(null);
 
   return (
@@ -120,7 +122,7 @@ export function PickerMap({ lat, lng, onPick, className }: PickerMapProps) {
           },
         }}
       >
-        <Popup>الموقع المختار</Popup>
+        <Popup>{t('selectedLocationLabel')}</Popup>
       </Marker>
     </MapContainer>
   );
@@ -138,6 +140,7 @@ type ViewerMapProps = {
 };
 
 export function ViewerMap({ lat, lng, senderName, className }: ViewerMapProps) {
+  const { t } = useLang();
   const [myPos, setMyPos]       = useState<[number, number] | null>(null);
   const [tracking, setTracking] = useState(false);
   const [distance, setDistance] = useState<string | null>(null);
@@ -150,7 +153,7 @@ export function ViewerMap({ lat, lng, senderName, className }: ViewerMapProps) {
       (pos) => {
         const { latitude, longitude } = pos.coords;
         setMyPos([latitude, longitude]);
-        setDistance(formatDist(haversineKm(lat, lng, latitude, longitude)));
+        setDistance(formatDist(haversineKm(lat, lng, latitude, longitude), t('metersUnit'), t('kmUnit')));
       },
       () => setTracking(false),
       { enableHighAccuracy: true },
@@ -192,7 +195,7 @@ export function ViewerMap({ lat, lng, senderName, className }: ViewerMapProps) {
               : 'bg-primary/10 text-primary hover:bg-primary/20',
           )}
         >
-          {tracking ? '⏹ إيقاف التتبع' : '📍 بدء التتبع'}
+          {tracking ? t('stopTrackingLabel') : t('startTrackingLabel')}
         </button>
         <a
           href={gmapsUrl}
@@ -200,7 +203,7 @@ export function ViewerMap({ lat, lng, senderName, className }: ViewerMapProps) {
           rel="noopener noreferrer"
           className="ms-auto rounded-full bg-accent px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent/80"
         >
-          🗺 فتح في Google Maps
+          {t('openInGoogleMaps')}
         </a>
       </div>
 
@@ -225,7 +228,7 @@ export function ViewerMap({ lat, lng, senderName, className }: ViewerMapProps) {
           {myPos && (
             <>
               <Marker position={myPos} icon={greenIcon}>
-                <Popup>موقعك الحالي</Popup>
+                <Popup>{t('myCurrentLocation')}</Popup>
               </Marker>
               <Polyline
                 positions={[[lat, lng], myPos]}

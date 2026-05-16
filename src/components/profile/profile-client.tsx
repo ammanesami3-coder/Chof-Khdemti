@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useSyncExternalStore, useTransition } from 'react';
 import { toast } from 'sonner';
 import { ProfileHeader } from './profile-header';
 import { ProfileStats } from './profile-stats';
 import { followUser, unfollowUser } from '@/lib/actions/follow';
+import { followStore } from '@/lib/stores/follow-store';
 import { StatusViewer } from '@/components/status/status-viewer';
 import { ImageLightbox } from '@/components/shared/image-lightbox';
 import {
@@ -12,6 +13,7 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useLang } from '@/lib/i18n/language-context';
 import type { StatusWithUser, StatusGroup } from '@/lib/types/status.types';
 
 type ProfileUser = {
@@ -61,7 +63,11 @@ export function ProfileClient({
   followingCount,
   profileStatus,
 }: Props) {
-  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const { t } = useLang();
+  const followMap = useSyncExternalStore(followStore.subscribe, followStore.getSnapshot);
+  const isFollowing = followMap.has(user.id)
+    ? (followMap.get(user.id) as boolean)
+    : initialIsFollowing;
   const [followersCount, setFollowersCount] = useState(initialFollowersCount);
   const [isPending, startTransition] = useTransition();
   const [statusOpen, setStatusOpen] = useState(false);
@@ -72,7 +78,7 @@ export function ProfileClient({
 
   function toggleFollow() {
     const wasFollowing = isFollowing;
-    setIsFollowing(!wasFollowing);
+    followStore.setFollowing(user.id, !wasFollowing);
     setFollowersCount((c) => c + (wasFollowing ? -1 : 1));
 
     startTransition(async () => {
@@ -81,7 +87,7 @@ export function ProfileClient({
         : await followUser(user.id);
 
       if (result.error) {
-        setIsFollowing(wasFollowing);
+        followStore.setFollowing(user.id, wasFollowing);
         setFollowersCount((c) => c + (wasFollowing ? 1 : -1));
         toast.error(result.error);
       }
@@ -164,7 +170,7 @@ export function ProfileClient({
       {/* ── Avatar-choice dialog (shown when both status + photo exist) ──── */}
       <Dialog open={avatarChoiceOpen} onOpenChange={setAvatarChoiceOpen}>
         <DialogContent className="max-w-[280px] overflow-hidden rounded-2xl p-0 [&>button:last-child]:hidden">
-          <DialogTitle className="sr-only">اختر ما تريد مشاهدته</DialogTitle>
+          <DialogTitle className="sr-only">{t('chooseWhatToView')}</DialogTitle>
 
           {/* wrapper div keeps our buttons out of [&>button] scope */}
           <div className="flex flex-col">
@@ -180,7 +186,7 @@ export function ProfileClient({
                   <img src={profile.avatar_url!} alt="" className="size-9 object-cover" />
                 </span>
               </span>
-              <span className="text-sm font-medium">مشاهدة الحالة</span>
+              <span className="text-sm font-medium">{t('viewStatus')}</span>
             </button>
 
             {/* Option 2: view profile photo */}
@@ -193,7 +199,7 @@ export function ProfileClient({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={profile.avatar_url!} alt="" className="size-full object-cover" />
               </span>
-              <span className="text-sm font-medium">صورة الملف الشخصي</span>
+              <span className="text-sm font-medium">{t('viewProfilePhoto')}</span>
             </button>
           </div>
         </DialogContent>
@@ -212,7 +218,7 @@ export function ProfileClient({
       {profile.cover_url && (
         <ImageLightbox
           src={profile.cover_url}
-          alt="غلاف الملف الشخصي"
+          alt={t('coverPhotoAlt')}
           open={coverLightboxOpen}
           onClose={() => setCoverLightboxOpen(false)}
           allowDownload

@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { SelectNative } from '@/components/ui/select-native';
 import { CRAFTS } from '@/lib/constants/crafts';
 import { CITIES } from '@/lib/constants/cities';
+import { useLang } from '@/lib/i18n/language-context';
 
 export function ExploreFilters() {
+  const { t } = useLang();
   const router = useRouter();
   const searchParams = useSearchParams();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -60,7 +62,7 @@ export function ExploreFilters() {
         <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
-          placeholder="ابحث باسم الحرفي..."
+          placeholder={t('searchByArtisanPlaceholder')}
           value={searchValue}
           onChange={(e) => handleSearch(e.target.value)}
           className="ps-9"
@@ -73,7 +75,7 @@ export function ExploreFilters() {
         onChange={(e) => updateParam('craft', e.target.value)}
         className="sm:w-44"
       >
-        <option value="">كل التخصصات</option>
+        <option value="">{t('allCrafts')}</option>
         {CRAFTS.map((c) => (
           <option key={c.id} value={c.id}>
             {c.name_ar}
@@ -87,7 +89,7 @@ export function ExploreFilters() {
         onChange={(e) => updateParam('city', e.target.value)}
         className="sm:w-40"
       >
-        <option value="">كل المدن</option>
+        <option value="">{t('allCities')}</option>
         {CITIES.map((c) => (
           <option key={c.id} value={c.id}>
             {c.name_ar}
@@ -99,7 +101,7 @@ export function ExploreFilters() {
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={clearFilters} className="shrink-0 gap-1.5">
           <X className="size-4" />
-          مسح
+          {t('clearFiltersLabel')}
         </Button>
       )}
     </div>

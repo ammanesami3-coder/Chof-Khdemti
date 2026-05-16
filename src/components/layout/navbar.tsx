@@ -1,12 +1,15 @@
-import Link from 'next/link';
-import { Home, Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { TrialIndicator } from '@/components/subscription/trial-indicator';
 import { UserMenu } from './user-menu';
 import { NavMessagesLink } from './nav-messages-link';
 import { ThemeToggle } from './theme-toggle';
 import { NotificationsNavLink } from '@/components/notifications/notifications-nav-link';
-import { buttonVariants } from '@/components/ui/button';
+import { GlobalSearchBar } from './global-search-bar';
+import { NavLinks } from './nav-links';
+import { MobileSearchButton } from './mobile-search-button';
+import { NavbarWrapper } from './navbar-wrapper';
+import { AppLogo } from './app-logo';
+import { GuestNavButtons } from './guest-nav-buttons';
 
 async function getNavUser() {
   const supabase = await createClient();
@@ -30,76 +33,58 @@ async function getNavUser() {
   };
 }
 
-const STATIC_NAV_LINKS = [
-  { href: '/feed', label: 'الفيد', icon: Home },
-  { href: '/explore', label: 'اكتشاف', icon: Search },
-] as const;
-
-const HEADER_CLASS =
-  "sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60";
-const NAV_CLASS = "mx-auto flex h-14 max-w-4xl items-center justify-between px-4";
-const NAV_LINK_CLASS =
-  "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground";
+const NAV_CLASS = 'mx-auto flex h-14 max-w-5xl items-center gap-2 px-4';
 
 export async function Navbar() {
   const navUser = await getNavUser();
 
-  /* ── نسخة الزوار (غير مسجّلين) ─────────────────────────────────────── */
+  /* ── نسخة الزوار ─────────────────────────────────────── */
   if (!navUser) {
     return (
-      <header className={HEADER_CLASS}>
+      <NavbarWrapper>
         <nav className={NAV_CLASS}>
-          <Link href="/" className="text-base font-bold text-primary">
-            Chof Khdemti
-          </Link>
+          <AppLogo size="sm" />
+
+          <div className="hidden flex-1 max-w-sm sm:block">
+            <GlobalSearchBar />
+          </div>
 
           <div className="hidden items-center gap-1 sm:flex">
-            <Link href="/explore" className={NAV_LINK_CLASS}>
-              <Search className="h-4 w-4" />
-              اكتشاف
-            </Link>
+            <NavLinks />
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 ms-auto">
+            <div className="sm:hidden">
+              <MobileSearchButton />
+            </div>
             <ThemeToggle />
-            <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-              دخول
-            </Link>
-            <Link href="/signup" className={buttonVariants({ size: "sm" })}>
-              حساب جديد
-            </Link>
+            <GuestNavButtons />
           </div>
         </nav>
-      </header>
+      </NavbarWrapper>
     );
   }
 
-  /* ── نسخة المستخدم المسجّل ───────────────────────────────────────────── */
+  /* ── نسخة المستخدم المسجّل ─────────────────────────── */
   return (
-    <header className={HEADER_CLASS}>
+    <NavbarWrapper>
       <nav className={NAV_CLASS}>
-        {/* يمين (start في RTL) — الشعار */}
-        <Link href="/feed" className="text-base font-bold text-primary">
-          Chof Khdemti
-        </Link>
+        <AppLogo size="sm" />
 
-        {/* وسط — روابط التنقل (مخفية على الموبايل) */}
+        <div className="hidden flex-1 max-w-md sm:block">
+          <GlobalSearchBar />
+        </div>
+
         <div className="hidden items-center gap-1 sm:flex">
-          {STATIC_NAV_LINKS.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} className={NAV_LINK_CLASS}>
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          ))}
+          <NavLinks />
           <NavMessagesLink />
           <NotificationsNavLink />
         </div>
 
-        {/* يسار (end في RTL) — مؤشر الاشتراك + أيقونات الموبايل + الأفاتار */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 ms-auto">
           <TrialIndicator />
-          {/* أيقونات الموبايل (مخفية في الديسكتوب) */}
           <div className="flex items-center sm:hidden">
+            <MobileSearchButton />
             <NavMessagesLink showLabel={false} />
             <NotificationsNavLink showLabel={false} />
           </div>
@@ -107,6 +92,6 @@ export async function Navbar() {
           <UserMenu user={navUser} />
         </div>
       </nav>
-    </header>
+    </NavbarWrapper>
   );
 }

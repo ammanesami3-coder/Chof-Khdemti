@@ -3,9 +3,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { ar } from 'date-fns/locale';
+import { ar, fr, enUS } from 'date-fns/locale';
 import { Heart, MessageCircle, Reply, UserPlus, ThumbsUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 import type { NotificationItem } from '@/hooks/use-notifications';
 
 type Props = {
@@ -14,32 +15,12 @@ type Props = {
   onClose?: () => void;
 };
 
-const TYPE_CONFIG = {
-  like: {
-    text: 'أعجب بمنشورك',
-    icon: Heart,
-    iconClass: 'bg-red-100 text-red-500 dark:bg-red-900/40 dark:text-red-400',
-  },
-  comment: {
-    text: 'علّق على منشورك',
-    icon: MessageCircle,
-    iconClass: 'bg-blue-100 text-blue-500 dark:bg-blue-900/40 dark:text-blue-400',
-  },
-  comment_reply: {
-    text: 'ردّ على تعليقك',
-    icon: Reply,
-    iconClass: 'bg-purple-100 text-purple-500 dark:bg-purple-900/40 dark:text-purple-400',
-  },
-  comment_like: {
-    text: 'أعجب بتعليقك',
-    icon: ThumbsUp,
-    iconClass: 'bg-orange-100 text-orange-500 dark:bg-orange-900/40 dark:text-orange-400',
-  },
-  follow: {
-    text: 'بدأ متابعتك',
-    icon: UserPlus,
-    iconClass: 'bg-green-100 text-green-500 dark:bg-green-900/40 dark:text-green-400',
-  },
+const TYPE_ICON_CLASS = {
+  like: { icon: Heart, iconClass: 'bg-red-100 text-red-500 dark:bg-red-900/40 dark:text-red-400' },
+  comment: { icon: MessageCircle, iconClass: 'bg-blue-100 text-blue-500 dark:bg-blue-900/40 dark:text-blue-400' },
+  comment_reply: { icon: Reply, iconClass: 'bg-purple-100 text-purple-500 dark:bg-purple-900/40 dark:text-purple-400' },
+  comment_like: { icon: ThumbsUp, iconClass: 'bg-orange-100 text-orange-500 dark:bg-orange-900/40 dark:text-orange-400' },
+  follow: { icon: UserPlus, iconClass: 'bg-green-100 text-green-500 dark:bg-green-900/40 dark:text-green-400' },
 } as const;
 
 function getDestination(n: NotificationItem): string {
@@ -58,13 +39,23 @@ const initials = (name: string) =>
   name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
 export function NotificationItemCard({ notification: n, onRead, onClose }: Props) {
-  const config = TYPE_CONFIG[n.type];
+  const { t, lang } = useLang();
+  const config = TYPE_ICON_CLASS[n.type];
   const Icon = config.icon;
   const href = getDestination(n);
 
+  const typeTextMap = {
+    like: t('likedYourPost'),
+    comment: t('commentedOnPost'),
+    comment_reply: t('repliedToComment'),
+    comment_like: t('likedYourComment'),
+    follow: t('startedFollowing'),
+  } as const;
+
+  const dateLocale = lang === 'ar' ? ar : lang === 'fr' ? fr : enUS;
   const timeAgo = formatDistanceToNow(new Date(n.created_at), {
     addSuffix: true,
-    locale: ar,
+    locale: dateLocale,
   });
 
   function handleClick() {
@@ -114,7 +105,7 @@ export function NotificationItemCard({ notification: n, onRead, onClose }: Props
         <p className="text-sm leading-snug text-foreground">
           <span className="font-semibold">{n.actor.full_name}</span>
           {' '}
-          <span className="text-foreground/80">{config.text}</span>
+          <span className="text-foreground/80">{typeTextMap[n.type]}</span>
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground" suppressHydrationWarning>{timeAgo}</p>
       </div>

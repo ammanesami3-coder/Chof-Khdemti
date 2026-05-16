@@ -8,6 +8,7 @@ import { MoreHorizontal, Pin, BellOff } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { cn } from '@/lib/utils';
 import { useLongPress } from '@/hooks/use-long-press';
+import { useLang } from '@/lib/i18n/language-context';
 import {
   ConversationActionsMenu,
   type MenuTrigger,
@@ -36,6 +37,7 @@ function isMutedNow(conv: ConversationRow): boolean {
 }
 
 export function ConversationListItem({ conv, currentUserId, onOptimisticUpdate }: Props) {
+  const { t } = useLang();
   const router = useRouter();
   const [menuTrigger, setMenuTrigger] = useState<MenuTrigger | null>(null);
   const longPressTriggered = useRef(false);
@@ -147,10 +149,10 @@ export function ConversationListItem({ conv, currentUserId, onOptimisticUpdate }
             </span>
             <div className="flex min-w-0 items-center gap-1.5">
               {is_pinned && (
-                <Pin className="h-3 w-3 shrink-0 text-primary/70" aria-label="محادثة مثبتة" />
+                <Pin className="h-3 w-3 shrink-0 text-primary/70" aria-label={t('pinnedConversationAriaLabel')} />
               )}
               {muted && (
-                <BellOff className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="مكتومة" />
+                <BellOff className="h-3 w-3 shrink-0 text-muted-foreground" aria-label={t('mutedConversationAriaLabel')} />
               )}
               <span className={cn('truncate text-sm', isUnread ? 'font-semibold' : 'font-medium')}>
                 {partner_full_name}
@@ -175,7 +177,7 @@ export function ConversationListItem({ conv, currentUserId, onOptimisticUpdate }
             >
               {last_message_content
                 ? isSentByMe
-                  ? `أنت: ${last_message_content}`
+                  ? `${t('youLabel')}: ${last_message_content}`
                   : last_message_content
                 : `@${partner_username}`}
             </p>
@@ -186,7 +188,7 @@ export function ConversationListItem({ conv, currentUserId, onOptimisticUpdate }
         <button
           ref={dotsRef}
           type="button"
-          aria-label="خيارات المحادثة"
+          aria-label={t('conversationOptionsAriaLabel')}
           onClick={handleDotsClick}
           className={cn(
             'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',

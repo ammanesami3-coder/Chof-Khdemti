@@ -16,6 +16,7 @@ import {
 import type { StatusGroup, StatusWithUser } from '@/lib/types/status.types';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { useLang } from '@/lib/i18n/language-context';
 import { cn } from '@/lib/utils';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -59,6 +60,8 @@ export function StatusViewer({
   onViewed,
   onDeleted,
 }: Props) {
+  const { t } = useLang();
+
   // ── SSR guard ──────────────────────────────────────────────────────────────
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -332,7 +335,7 @@ export function StatusViewer({
     if (result.error) {
       toast.error(result.error);
     } else {
-      toast.success('تم إرسال الرد');
+      toast.success(t('replySent'));
       setReplyText('');
       setIsReplyFocused(false);
       setPaused(false);
@@ -355,7 +358,7 @@ export function StatusViewer({
     const result = await deleteStatus(story.id);
     if (result.error) { toast.error(result.error); return; }
     onDeleted(story.id);
-    toast.success('حُذفت الحالة');
+    toast.success(t('statusDeleted'));
     if (storyIdx < (group?.statuses.length ?? 0) - 1) {
       setStoryIdx((i) => i + 1);
     } else if (groupIdx < groups.length - 1) {
@@ -391,7 +394,7 @@ export function StatusViewer({
         <button
           type="button"
           onClick={goPrev}
-          aria-label="المجموعة السابقة"
+          aria-label={t('prevGroupAriaLabel')}
           className={cn(
             'absolute right-4 top-1/2 z-30 -translate-y-1/2',
             'hidden sm:flex size-11 items-center justify-center',
@@ -410,7 +413,7 @@ export function StatusViewer({
         <button
           type="button"
           onClick={goNext}
-          aria-label="المجموعة التالية"
+          aria-label={t('nextGroupAriaLabel')}
           className={cn(
             'absolute left-4 top-1/2 z-30 -translate-y-1/2',
             'hidden sm:flex size-11 items-center justify-center',
@@ -429,7 +432,7 @@ export function StatusViewer({
         ref={containerRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`حالة ${story.user.full_name}`}
+        aria-label={`${t('storyAriaLabel')} ${story.user.full_name}`}
         className={cn(
           'relative w-full h-full overflow-hidden bg-black',
           'sm:w-[430px] sm:h-[92dvh] sm:rounded-2xl sm:shadow-2xl',
@@ -492,7 +495,7 @@ export function StatusViewer({
               type="button"
               onClick={(e) => { e.stopPropagation(); handleToggleViewers(); }}
               className="flex items-center gap-1.5 rounded-full bg-black/30 px-2.5 py-1.5 text-white backdrop-blur-sm hover:bg-black/50 transition-colors"
-              aria-label="المشاهدون"
+              aria-label={t('viewersLabel')}
             >
               <Eye className="size-3.5" />
               <span className="text-xs font-medium">{story.views_count}</span>
@@ -505,7 +508,7 @@ export function StatusViewer({
               type="button"
               onClick={(e) => { e.stopPropagation(); handleDelete(); }}
               className="rounded-full p-2 bg-black/30 text-white/80 backdrop-blur-sm hover:bg-red-500/40 hover:text-white transition-colors"
-              aria-label="حذف"
+              aria-label={t('delete')}
             >
               <Trash2 className="size-4" />
             </button>
@@ -516,7 +519,7 @@ export function StatusViewer({
             type="button"
             onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
             className="rounded-full p-2 bg-black/30 text-white/80 backdrop-blur-sm hover:bg-white/20 hover:text-white transition-colors"
-            aria-label="إغلاق"
+            aria-label={t('closeLabel')}
           >
             <X className="size-4.5" />
           </button>
@@ -593,12 +596,12 @@ export function StatusViewer({
           <button
             className="absolute right-0 top-[80px] bottom-[80px] z-10 w-1/3 focus-visible:outline-none"
             onClick={(e) => { e.stopPropagation(); goPrev(); }}
-            aria-label="السابق"
+            aria-label={t('prevSlide')}
           />
           <button
             className="absolute left-0 top-[80px] bottom-[80px] z-10 w-1/3 focus-visible:outline-none"
             onClick={(e) => { e.stopPropagation(); goNext(); }}
-            aria-label="التالي"
+            aria-label={t('nextSlide')}
           />
         </div>
 
@@ -616,8 +619,8 @@ export function StatusViewer({
                 📎
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wide leading-none mb-0.5">منشور مشارَك</p>
-                <p className="text-sm font-semibold text-white leading-snug">اضغط لعرض المنشور الأصلي</p>
+                <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wide leading-none mb-0.5">{t('sharedPostBadge')}</p>
+                <p className="text-sm font-semibold text-white leading-snug">{t('viewOriginalPost')}</p>
               </div>
               <svg viewBox="0 0 20 20" className="size-4 fill-none stroke-white/70 stroke-2 shrink-0" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10 3H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5" />
@@ -678,7 +681,7 @@ export function StatusViewer({
                 }}
                 onFocus={() => { setIsReplyFocused(true); setPaused(true); setShowReactions(false); }}
                 onBlur={() => { setIsReplyFocused(false); setPaused(false); }}
-                placeholder="ردّ على الحالة..."
+                placeholder={t('statusReplyPlaceholder')}
                 className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/50"
                 dir="rtl"
               />
@@ -709,7 +712,7 @@ export function StatusViewer({
               className="flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-white backdrop-blur-sm transition-colors hover:bg-white/25 active:scale-95"
             >
               <Eye className="size-4" />
-              <span className="text-sm font-medium">{story.views_count} مشاهدة</span>
+              <span className="text-sm font-medium">{story.views_count} {t('viewerCountSuffix')}</span>
             </button>
           </div>
         )}
@@ -730,13 +733,14 @@ export function StatusViewer({
               <div className="flex items-center gap-2">
                 <Eye className="size-4 text-white/60" />
                 <span className="text-sm font-semibold text-white">
-                  {viewers.length > 0 ? `${viewers.length} مشاهدة` : 'المشاهدات'}
+                  {viewers.length > 0 ? `${viewers.length} ${t('viewerCountSuffix')}` : t('viewersLabel')}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setShowViewers(false)}
                 className="rounded-full p-1.5 text-white/50 transition-colors hover:text-white"
+                aria-label={t('closeLabel')}
               >
                 <X className="size-4" />
               </button>
@@ -747,7 +751,7 @@ export function StatusViewer({
               {viewers.length === 0 ? (
                 <div className="flex flex-col items-center py-10">
                   <Eye className="size-8 text-white/20 mb-3" />
-                  <p className="text-sm text-white/40">لا توجد مشاهدات بعد</p>
+                  <p className="text-sm text-white/40">{t('noViewersYet')}</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">

@@ -1,7 +1,10 @@
+'use client';
+
 import { formatDistanceToNow } from 'date-fns';
-import { ar } from 'date-fns/locale';
+import { ar, fr, enUS } from 'date-fns/locale';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { StarRating } from './star-rating';
+import { useLang } from '@/lib/i18n/language-context';
 
 export type RatingCardData = {
   id: string;
@@ -17,8 +20,10 @@ export type RatingCardData = {
 };
 
 export function RatingCard({ stars, comment, created_at, updated_at, customer }: RatingCardData) {
+  const { t, lang } = useLang();
   const wasEdited = created_at !== updated_at;
   const displayDate = wasEdited ? updated_at : created_at;
+  const dateLocale = lang === 'ar' ? ar : lang === 'fr' ? fr : enUS;
 
   return (
     <div className="space-y-2.5 border-b py-4 last:border-b-0">
@@ -38,8 +43,8 @@ export function RatingCard({ stars, comment, created_at, updated_at, customer }:
       )}
 
       <p className="text-xs text-muted-foreground">
-        {formatDistanceToNow(new Date(displayDate), { locale: ar, addSuffix: true })}
-        {wasEdited && ' · معدَّل'}
+        {formatDistanceToNow(new Date(displayDate), { locale: dateLocale, addSuffix: true })}
+        {wasEdited && ` ${t('wasEditedLabel')}`}
       </p>
     </div>
   );

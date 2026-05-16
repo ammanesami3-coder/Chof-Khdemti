@@ -10,30 +10,31 @@ import { Textarea } from '@/components/ui/textarea';
 import { createStatus } from '@/lib/actions/status';
 import type { StatusWithUser } from '@/lib/types/status.types';
 import { uploadToCloudinary } from '@/lib/cloudinary-upload';
+import { useLang } from '@/lib/i18n/language-context';
 import { cn } from '@/lib/utils';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Background color IDs ───────────────────────────────────────────────────────
 
-const BG_OPTIONS = [
-  { id: 'blue',    value: '#1877F2', label: 'أزرق' },
-  { id: 'red',     value: '#DC2626', label: 'أحمر' },
-  { id: 'green',   value: '#16A34A', label: 'أخضر' },
-  { id: 'purple',  value: '#7C3AED', label: 'بنفسجي' },
-  { id: 'orange',  value: '#EA580C', label: 'برتقالي' },
-  { id: 'black',   value: '#1A1A1A', label: 'أسود' },
-  { id: 'pink',    value: '#DB2777', label: 'وردي' },
-  { id: 'teal',    value: '#0891B2', label: 'فيروزي' },
-  { id: 'warm',    value: 'linear-gradient(135deg,#f093fb,#f5576c)', label: 'دافئ' },
-  { id: 'cool',    value: 'linear-gradient(135deg,#4facfe,#00f2fe)', label: 'بارد' },
-  { id: 'nature',  value: 'linear-gradient(135deg,#43e97b,#38f9d7)', label: 'طبيعة' },
-  { id: 'sunset',  value: 'linear-gradient(135deg,#fa709a,#fee140)', label: 'غروب' },
+const BG_OPTIONS_BASE = [
+  { id: 'blue',    value: '#1877F2',                                       labelKey: 'bgBlue'    },
+  { id: 'red',     value: '#DC2626',                                       labelKey: 'bgRed'     },
+  { id: 'green',   value: '#16A34A',                                       labelKey: 'bgGreen'   },
+  { id: 'purple',  value: '#7C3AED',                                       labelKey: 'bgPurple'  },
+  { id: 'orange',  value: '#EA580C',                                       labelKey: 'bgOrange'  },
+  { id: 'black',   value: '#1A1A1A',                                       labelKey: 'bgBlack'   },
+  { id: 'pink',    value: '#DB2777',                                       labelKey: 'bgPink'    },
+  { id: 'teal',    value: '#0891B2',                                       labelKey: 'bgTeal'    },
+  { id: 'warm',    value: 'linear-gradient(135deg,#f093fb,#f5576c)',       labelKey: 'bgWarm'    },
+  { id: 'cool',    value: 'linear-gradient(135deg,#4facfe,#00f2fe)',       labelKey: 'bgCool'    },
+  { id: 'nature',  value: 'linear-gradient(135deg,#43e97b,#38f9d7)',       labelKey: 'bgNature'  },
+  { id: 'sunset',  value: 'linear-gradient(135deg,#fa709a,#fee140)',       labelKey: 'bgSunset'  },
 ] as const;
 
-const FONT_STYLES = [
-  { id: 'default', label: 'عادي',   className: 'font-sans' },
-  { id: 'bold',    label: 'عريض',   className: 'font-sans font-black' },
-  { id: 'serif',   label: 'كلاسيك', className: 'font-serif' },
-  { id: 'mono',    label: 'كود',    className: 'font-mono' },
+const FONT_STYLES_BASE = [
+  { id: 'default', labelKey: 'fontDefault', className: 'font-sans' },
+  { id: 'bold',    labelKey: 'fontBold',    className: 'font-sans font-black' },
+  { id: 'serif',   labelKey: 'fontSerif',   className: 'font-serif' },
+  { id: 'mono',    labelKey: 'fontMono',    className: 'font-mono' },
 ] as const;
 
 type Step = 'choose' | 'text' | 'media';
@@ -47,13 +48,14 @@ type Props = {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
+  const { t } = useLang();
   const [step, setStep] = useState<Step>('choose');
   const [isPending, startTransition] = useTransition();
 
   // Text state
   const [content, setContent] = useState('');
-  const [bgValue, setBgValue] = useState<string>(BG_OPTIONS[0].value);
-  const [fontStyle, setFontStyle] = useState<string>(FONT_STYLES[0].id);
+  const [bgValue, setBgValue] = useState<string>(BG_OPTIONS_BASE[0].value);
+  const [fontStyle, setFontStyle] = useState<string>(FONT_STYLES_BASE[0].id);
 
   // Media state
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -67,8 +69,8 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
   function reset() {
     setStep('choose');
     setContent('');
-    setBgValue(BG_OPTIONS[0].value);
-    setFontStyle(FONT_STYLES[0].id);
+    setBgValue(BG_OPTIONS_BASE[0].value);
+    setFontStyle(FONT_STYLES_BASE[0].id);
     setMediaFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
@@ -89,11 +91,11 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
     bgValue.includes('38f9d7') ||
     bgValue.includes('00f2fe');
   const textColor = isLightBg ? '#1A1A1A' : '#FFFFFF';
-  const fontClass = FONT_STYLES.find((f) => f.id === fontStyle)?.className ?? 'font-sans';
+  const fontClass = FONT_STYLES_BASE.find((f) => f.id === fontStyle)?.className ?? 'font-sans';
 
   // ── Publish text ───────────────────────────────────────────────────────────
   function publishText() {
-    if (!content.trim()) { toast.error('اكتب شيئاً'); return; }
+    if (!content.trim()) { toast.error(t('writeFirst')); return; }
     startTransition(async () => {
       const result = await createStatus({
         content_type: 'text',
@@ -106,7 +108,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
       if (result.error) { toast.error(result.error); return; }
       if (result.data) {
         onCreated(result.data);
-        toast.success('نُشرت قصتك!');
+        toast.success(t('storyPublished'));
         handleClose();
       }
     });
@@ -114,7 +116,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
 
   // ── Publish media ──────────────────────────────────────────────────────────
   async function publishMedia() {
-    if (!mediaFile) { toast.error('اختر ملفاً'); return; }
+    if (!mediaFile) { toast.error(t('chooseFileFirst')); return; }
     setIsUploading(true);
     try {
       const isVideo = mediaFile.type.startsWith('video/');
@@ -132,11 +134,11 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
       if (result.error) { toast.error(result.error); return; }
       if (result.data) {
         onCreated(result.data);
-        toast.success('نُشرت قصتك!');
+        toast.success(t('storyPublished'));
         handleClose();
       }
     } catch {
-      toast.error('فشل الرفع — حاول مرة أخرى');
+      toast.error(t('uploadFailed'));
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -181,11 +183,12 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
         {step === 'choose' && (
           <>
             <div className="flex items-center justify-between px-5 pt-4 pb-3">
-              <h2 className="text-base font-bold">إنشاء قصة</h2>
+              <h2 className="text-base font-bold">{t('createStory')}</h2>
               <button
                 type="button"
                 onClick={handleClose}
                 className="rounded-full p-1.5 text-muted-foreground hover:bg-muted transition-colors"
+                aria-label={t('closeLabel')}
               >
                 <X className="size-4.5" />
               </button>
@@ -202,8 +205,8 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                   <Type className="size-6" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold">قصة نصية</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">اكتب بألوان وخطوط مختلفة</p>
+                  <p className="font-semibold">{t('textStoryTitle')}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('textStorySubtitle')}</p>
                 </div>
                 <ChevronRight className="size-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
               </button>
@@ -221,8 +224,8 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                   <Camera className="size-6" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold">صورة أو فيديو</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">شارك لحظة من يومك</p>
+                  <p className="font-semibold">{t('mediaStoryTitle')}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('mediaStorySubtitle')}</p>
                 </div>
                 <ChevronRight className="size-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
               </button>
@@ -239,10 +242,11 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                 type="button"
                 onClick={() => setStep('choose')}
                 className="rounded-full p-1.5 text-muted-foreground hover:bg-muted transition-colors"
+                aria-label={t('closeLabel')}
               >
                 <X className="size-4" />
               </button>
-              <span className="flex-1 text-sm font-semibold">قصة نصية</span>
+              <span className="flex-1 text-sm font-semibold">{t('textStoryHeader')}</span>
               <Button
                 size="sm"
                 onClick={publishText}
@@ -254,7 +258,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                 ) : (
                   <Check className="size-3.5" />
                 )}
-                {isPending ? 'جارٍ النشر...' : 'نشر'}
+                {isPending ? t('statusPublishing') : t('publishStory')}
               </Button>
             </div>
 
@@ -270,7 +274,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                     style={{ color: textColor }}
                   >
                     {content || (
-                      <span style={{ opacity: 0.55 }}>اكتب حالتك هنا...</span>
+                      <span style={{ opacity: 0.55 }}>{t('statusPreviewPlaceholder')}</span>
                     )}
                   </p>
                 </div>
@@ -281,7 +285,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                 <Textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="ما الذي يدور في ذهنك؟"
+                  placeholder={t('statusTextPlaceholder')}
                   maxLength={500}
                   rows={3}
                   className="resize-none text-sm"
@@ -293,30 +297,33 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
 
               {/* Background picker */}
               <div className="px-4 pb-3">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">الخلفية</p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">{t('bgLabel')}</p>
                 <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-                  {BG_OPTIONS.map(({ id, value, label }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setBgValue(value)}
-                      title={label}
-                      className={cn(
-                        'size-8 shrink-0 rounded-full shadow-sm transition-all duration-150 hover:scale-110',
-                        bgValue === value && 'scale-110 ring-2 ring-foreground ring-offset-2 ring-offset-background',
-                      )}
-                      style={{ background: value }}
-                      aria-label={label}
-                    />
-                  ))}
+                  {BG_OPTIONS_BASE.map(({ id, value, labelKey }) => {
+                    const label = t(labelKey);
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setBgValue(value)}
+                        title={label}
+                        className={cn(
+                          'size-8 shrink-0 rounded-full shadow-sm transition-all duration-150 hover:scale-110',
+                          bgValue === value && 'scale-110 ring-2 ring-foreground ring-offset-2 ring-offset-background',
+                        )}
+                        style={{ background: value }}
+                        aria-label={label}
+                      />
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Font picker */}
               <div className="px-4 pb-5">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">الخط</p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">{t('fontLabel')}</p>
                 <div className="flex gap-1.5 flex-wrap">
-                  {FONT_STYLES.map((f) => (
+                  {FONT_STYLES_BASE.map((f) => (
                     <button
                       key={f.id}
                       type="button"
@@ -329,7 +336,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                         f.className,
                       )}
                     >
-                      {f.label}
+                      {t(f.labelKey)}
                     </button>
                   ))}
                 </div>
@@ -347,10 +354,11 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                 type="button"
                 onClick={() => { reset(); setStep('choose'); }}
                 className="rounded-full p-1.5 text-muted-foreground hover:bg-muted transition-colors"
+                aria-label={t('closeLabel')}
               >
                 <X className="size-4" />
               </button>
-              <span className="flex-1 text-sm font-semibold">قصة مرئية</span>
+              <span className="flex-1 text-sm font-semibold">{t('mediaStoryHeader')}</span>
               {previewUrl && (
                 <Button
                   size="sm"
@@ -363,7 +371,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                   ) : (
                     <Check className="size-3.5" />
                   )}
-                  {isUploading ? `${uploadProgress}%` : 'نشر'}
+                  {isUploading ? `${uploadProgress}%` : t('publishStory')}
                 </Button>
               )}
             </div>
@@ -379,8 +387,8 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                     <Camera className="size-8 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">انقر لاختيار ملف</p>
-                    <p className="text-xs text-muted-foreground mt-1">صور وفيديوهات — حتى 25 ميغابايت</p>
+                    <p className="text-sm font-semibold">{t('clickToChooseFile')}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('fileSizeHint')}</p>
                   </div>
                 </button>
               ) : (
@@ -412,6 +420,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                         setPreviewUrl(null);
                       }}
                       className="absolute end-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                      aria-label={t('closeLabel')}
                     >
                       <X className="size-4" />
                     </button>
@@ -422,7 +431,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                     <Textarea
                       value={caption}
                       onChange={(e) => setCaption(e.target.value)}
-                      placeholder="أضف وصفاً (اختياري)"
+                      placeholder={t('captionOptional')}
                       maxLength={200}
                       rows={2}
                       className="resize-none text-sm"
@@ -455,7 +464,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
                       onClick={() => fileInputRef.current?.click()}
                       className="text-xs text-primary hover:underline"
                     >
-                      اختر ملفاً آخر
+                      {t('chooseAnotherFile')}
                     </button>
                   </div>
                 </>

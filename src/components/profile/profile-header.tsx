@@ -1,3 +1,5 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { BadgeCheck, MapPin, Briefcase, Clock, MessageCircle, Pencil } from 'lucide-react';
@@ -6,6 +8,7 @@ import { AuthGate } from '@/components/shared/auth-gate';
 import { RatingDisplay } from '@/components/rating/rating-display';
 import { getCraftById } from '@/lib/constants/crafts';
 import { CITIES } from '@/lib/constants/cities';
+import { useLang } from '@/lib/i18n/language-context';
 
 type ProfileUser = {
   id: string;
@@ -62,6 +65,7 @@ export function ProfileHeader({
   onCoverClick,
   onRatingClick,
 }: Props) {
+  const { t } = useLang();
   const isOwnProfile = currentUser?.id === user.id;
 
   const craft = profile.craft_category ? getCraftById(profile.craft_category) : null;
@@ -89,11 +93,11 @@ export function ProfileHeader({
             type="button"
             onClick={onCoverClick}
             className="absolute inset-0 w-full cursor-zoom-in focus-visible:outline-none"
-            aria-label="عرض صورة الغلاف بالحجم الكامل"
+            aria-label={t('viewCoverFullAriaLabel')}
           >
             <Image
               src={profile.cover_url}
-              alt="غلاف الملف الشخصي"
+              alt={t('coverPhotoAlt')}
               fill
               className="object-cover"
               sizes="100vw"
@@ -108,7 +112,7 @@ export function ProfileHeader({
             <Link href="/profile/edit">
               <Button size="sm" variant="secondary" className="gap-1.5 opacity-90">
                 <Pencil className="size-3.5" />
-                تعديل الملف
+                {t('editProfileBtn')}
               </Button>
             </Link>
           </div>
@@ -122,7 +126,7 @@ export function ProfileHeader({
             /* Gradient ring — user has an active status */
             <button
               onClick={onViewStatus}
-              aria-label="عرض الحالة"
+              aria-label={t('viewStatusAriaLabel')}
               className="rounded-full bg-gradient-to-tr from-red-600 via-orange-400 to-green-500 p-[3px] transition-opacity hover:opacity-90"
             >
               <div className="rounded-full border-4 border-background bg-muted shadow-md">
@@ -148,7 +152,7 @@ export function ProfileHeader({
             <button
               type="button"
               onClick={profile.avatar_url ? onAvatarClick : undefined}
-              aria-label={profile.avatar_url ? "عرض صورة الملف الشخصي" : undefined}
+              aria-label={profile.avatar_url ? t('viewProfilePhotoAriaLabel') : undefined}
               className={`relative size-32 overflow-hidden rounded-full border-4 border-background bg-muted shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${profile.avatar_url && onAvatarClick ? "cursor-zoom-in" : "cursor-default"}`}
             >
               {profile.avatar_url ? (
@@ -178,7 +182,7 @@ export function ProfileHeader({
             <div className="flex items-center gap-1.5">
               <h1 className="truncate text-xl font-bold">{user.full_name}</h1>
               {profile.is_verified && (
-                <BadgeCheck className="size-5 shrink-0 text-blue-500 dark:text-blue-400" aria-label="موثّق" />
+                <BadgeCheck className="size-5 shrink-0 text-blue-500 dark:text-blue-400" aria-label={t('verifiedBadgeAriaLabel')} />
               )}
             </div>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
@@ -195,7 +199,7 @@ export function ProfileHeader({
                 <Link href={`/messages/new?to=${user.username}`}>
                   <Button size="sm" variant="outline" className="min-h-10 gap-1.5">
                     <MessageCircle className="size-4" />
-                    مراسلة
+                    {t('messageBtn')}
                   </Button>
                 </Link>
               </AuthGate>
@@ -213,7 +217,7 @@ export function ProfileHeader({
                   disabled={isPending}
                   className="min-h-10 min-w-20"
                 >
-                  {isPending ? '...' : isFollowing ? 'متابَع' : 'متابعة'}
+                  {isPending ? '...' : isFollowing ? t('unfollow') : t('follow')}
                 </Button>
               </AuthGate>
             )}
@@ -237,7 +241,7 @@ export function ProfileHeader({
           {profile.years_experience != null && (
             <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
               <Clock className="size-3" />
-              {profile.years_experience} سنة خبرة
+              {profile.years_experience} {t('yearsExpSuffix')}
             </span>
           )}
           {user.account_type === 'artisan' && (

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { CornerUpLeft, Copy, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ export function MessageActionSheet({
   onDeleteForMe,
   onDeleteForEveryone,
 }: Props) {
+  const { t } = useLang();
   const [visible, setVisible] = useState(false);
   const firstActionRef        = useRef<HTMLButtonElement>(null);
 
@@ -129,7 +131,7 @@ export function MessageActionSheet({
     {
       key:     'reply',
       icon:    <CornerUpLeft className="h-4 w-4" />,
-      label:   'رد',
+      label:   t('replyAriaLabel'),
       onClick: () => { onReply(); handleClose(); },
       danger:  false,
       show:    true,
@@ -138,7 +140,7 @@ export function MessageActionSheet({
     {
       key:     'copy',
       icon:    <Copy className="h-4 w-4" />,
-      label:   'نسخ',
+      label:   t('copyText'),
       onClick: () => { onCopy(); handleClose(); },
       danger:  false,
       show:    !!active.content,
@@ -147,7 +149,7 @@ export function MessageActionSheet({
     {
       key:     'delete-me',
       icon:    <Trash2 className="h-4 w-4" />,
-      label:   'حذف لدي',
+      label:   t('deleteForMeLabel'),
       onClick: () => { onDeleteForMe(); handleClose(); },
       danger:  true,
       show:    true,
@@ -156,7 +158,7 @@ export function MessageActionSheet({
     {
       key:     'delete-all',
       icon:    <Trash2 className="h-4 w-4" />,
-      label:   'حذف لدى الجميع',
+      label:   t('deleteForEveryoneLabel'),
       onClick: () => { onDeleteForEveryone(); handleClose(); },
       danger:  true,
       show:    active.canDeleteForEveryone,
@@ -229,7 +231,7 @@ export function MessageActionSheet({
       {/* Actions list */}
       <div
         role="menu"
-        aria-label="خيارات الرسالة"
+        aria-label={t('messageOptionsAriaLabel')}
         className={cn(
           'fixed z-[9993] overflow-hidden rounded-2xl border bg-background shadow-xl',
           'transition-all duration-200',

@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { CommentItem } from "@/components/feed/comment-item";
 import { useComments, useAddComment } from "@/hooks/use-comments";
+import { useLang } from "@/lib/i18n/language-context";
 import type { PostWithAuthor } from "@/lib/validations/post";
 
 const MAX_CONTENT = 500;
@@ -31,6 +32,7 @@ type Props = {
 };
 
 export function CommentsDialog({ open, onOpenChange, post, currentUser }: Props) {
+  const { t } = useLang();
   const [text, setText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -96,7 +98,7 @@ export function CommentsDialog({ open, onOpenChange, post, currentUser }: Props)
         {/* ── Header ──────────────────────────────────────────────── */}
         <DialogHeader className="border-b px-4 py-3">
           <DialogTitle className="text-sm">
-            التعليقات
+            {t('commentsHeader')}
             {post.comments_count > 0 && (
               <span className="ms-1.5 text-xs font-normal text-muted-foreground">
                 ({post.comments_count})
@@ -115,7 +117,7 @@ export function CommentsDialog({ open, onOpenChange, post, currentUser }: Props)
         <div
           ref={scrollRef}
           className="flex-1 overflow-y-auto px-4 py-3"
-          aria-label="قائمة التعليقات"
+          aria-label={t('commentsListAriaLabel')}
         >
           {isLoading && (
             <div className="flex justify-center py-8">
@@ -125,7 +127,7 @@ export function CommentsDialog({ open, onOpenChange, post, currentUser }: Props)
 
           {!isLoading && allComments.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              كن أول من يعلّق!
+              {t('beFirstToComment')}
             </p>
           )}
 
@@ -161,17 +163,17 @@ export function CommentsDialog({ open, onOpenChange, post, currentUser }: Props)
                 value={text}
                 onChange={(e) => setText(e.target.value.slice(0, MAX_CONTENT))}
                 onKeyDown={handleKeyDown}
-                placeholder="أضف تعليقاً..."
+                placeholder={t('addCommentPlaceholder')}
                 rows={2}
                 className="min-h-0 resize-none text-sm"
-                aria-label="كتابة تعليق"
+                aria-label={t('writeCommentAriaLabel')}
               />
               <Button
                 type="button"
                 size="icon"
                 onClick={handleSubmit}
                 disabled={!text.trim() || addMutation.isPending}
-                aria-label="إرسال التعليق"
+                aria-label={t('sendCommentAriaLabel')}
                 className="shrink-0 self-end"
               >
                 {addMutation.isPending ? (
