@@ -187,10 +187,10 @@ export function ShareSheet({ post, open, onClose, isAuthenticated }: Props) {
       <div
         className={cn(
           'fixed z-[61] w-full bg-background shadow-2xl',
-          // Mobile: bottom sheet
-          'bottom-0 start-0 end-0 rounded-t-2xl',
-          // Desktop: centered modal (use physical left-1/2 so RTL doesn't flip it)
-          'sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[420px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl',
+          // Mobile: full-width bottom sheet — physical props so dir doesn't affect them
+          'bottom-0 left-0 right-0 rounded-t-2xl',
+          // Desktop: centered modal — reset left/right then re-center with left-1/2
+          'sm:bottom-auto sm:left-1/2 sm:right-auto sm:top-1/2 sm:w-[420px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl',
           'transition-all duration-350 ease-out',
           isVisible
             ? 'translate-y-0 opacity-100 sm:scale-100'

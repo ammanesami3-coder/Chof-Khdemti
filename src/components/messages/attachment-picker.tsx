@@ -292,7 +292,7 @@ export function AttachmentPicker({
           <div
             dir={dir}
             className={cn(
-            'absolute bottom-full mb-2 z-40 start-0',
+            'absolute bottom-full mb-2 z-40 right-0',
             'flex flex-col gap-1 rounded-2xl border bg-background p-2 shadow-lg',
             'animate-in slide-in-from-bottom-2 duration-150',
           )}>
