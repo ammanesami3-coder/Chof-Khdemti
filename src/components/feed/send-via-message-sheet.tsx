@@ -32,7 +32,7 @@ function UserInitials({ name }: { name: string }) {
 }
 
 export function SendViaMessageSheet({ post, onBack, onClose }: Props) {
-  const { t } = useLang();
+  const { t, dir } = useLang();
   const [users, setUsers] = useState<ShareableUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [search, setSearch] = useState('');
@@ -118,7 +118,7 @@ export function SendViaMessageSheet({ post, onBack, onClose }: Props) {
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('searchPeoplePlaceholder')}
             className="ps-9 h-9 text-sm"
-            dir="rtl"
+            dir={dir}
           />
         </div>
       </div>

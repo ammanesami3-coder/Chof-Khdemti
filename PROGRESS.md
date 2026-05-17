@@ -802,3 +802,46 @@ if (!isConversationMuted(conversations, msg.conversation_id)) {
 ✓ npm run build → 0 errors, 0 warnings
 ✓ 26 صفحة تُولَّد بنجاح
 ```
+
+---
+
+## إصلاحات Layout وتوجيه اللغة — مايو 2026 (جلسة 3)
+
+### الإصلاح #A — الشريطان الجانبيان يختفيان عند التنقل لصفحات أخرى ✅
+
+- حُذف `LeftSidebar` من `(app)/layout.tsx` — الشريطان الجانبيان موجودان الآن فقط في `app/page.tsx` (الصفحة الرئيسية)
+- صفحات `/messages`, `/explore`, `/profile`, `/settings` وغيرها أصبحت بعرض كامل بدون شرائط جانبية
+
+### الإصلاح #B — الشريطان الجانبيان لا يتحركان أثناء scroll العمود الأوسط ✅
+
+- استُبدل نمط `position: sticky + align-self: flex-start` بتخطيط viewport كامل:
+  - `<div className="flex h-screen flex-col overflow-hidden">` على الصفحة الرئيسية
+  - العمود الأوسط `<main>` وحده يستعمل `overflow-y-auto`
+  - الشريطان الجانبيان `h-full` لا `h-[calc(100vh-...)]` — يبقيان ثابتَين دائماً
+- `IntersectionObserver` للـ infinite scroll يعمل بشكل صحيح لأنه يستعمل `root: null` (viewport)
+
+### الإصلاح #C — Navbar ثابت دائماً ✅
+
+- `NavbarWrapper` يستعمل `sticky top-0 z-50 shrink-0` في تخطيط الصفحة الرئيسية
+
+### الإصلاح #D — أيقونة فتح الشريط الجانبي تختفي على الموبايل (المستخدم المسجّل) ✅
+
+- `<MobileMenuButton />` أُعيد إضافته إلى mobile nav المستخدم المسجّل في `navbar.tsx`
+  - كان موجوداً في nav الضيف لكن غاب عن nav المستخدم المسجّل بعد إعادة تصميم Navbar
+
+### الإصلاح #E — عناصر لا تظهر كاملاً عند التبديل للفرنسية/الإنجليزية ✅
+
+**السبب:** عدة مكوّنات بها `dir="rtl"` أو `direction: 'rtl'` مُشفَّر مباشرةً، فعند التبديل للغة LTR تبقى RTL
+
+**الإصلاحات:**
+- `share-sheet.tsx`: `style={{ direction: 'rtl' }}` → `dir={dir}` + `{ dir } = useLang()`
+- `comments-sheet.tsx`: `<div dir="rtl">` → `<div dir={dir}>` + `{ dir } = useLang()`
+- `share-to-profile-sheet.tsx`: `<Textarea dir="rtl">` → `dir={dir}` + `{ dir } = useLang()`
+- `send-via-message-sheet.tsx`: `<Input dir="rtl">` → `dir={dir}` + `{ dir } = useLang()`
+- `attachment-picker.tsx`: panel options `<div>` → أُضيف `dir={dir}` + `{ dir } = useLang()`
+
+#### النتائج
+```
+✓ npm run build → 0 errors, 0 warnings
+✓ 26 صفحة تُولَّد بنجاح
+```

@@ -70,7 +70,7 @@ export function AttachmentPicker({
   onLocationSent,
   disabled,
 }: Props) {
-  const { t } = useLang();
+  const { t, dir } = useLang();
   const [open,             setOpen]             = useState(false);
   const [locationOpen,     setLocationOpen]     = useState(false);
   const [imagePreviewFile, setImagePreviewFile] = useState<File | null>(null);
@@ -289,7 +289,9 @@ export function AttachmentPicker({
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className={cn(
+          <div
+            dir={dir}
+            className={cn(
             'absolute bottom-full mb-2 z-40 start-0',
             'flex flex-col gap-1 rounded-2xl border bg-background p-2 shadow-lg',
             'animate-in slide-in-from-bottom-2 duration-150',

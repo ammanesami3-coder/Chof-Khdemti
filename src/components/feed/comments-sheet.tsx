@@ -39,7 +39,7 @@ export function CommentsSheet({
   autoFocus = false,
   highlightCommentId,
 }: Props) {
-  const { t } = useLang();
+  const { t, dir } = useLang();
 
   // ── SSR guard ─────────────────────────────────────────────────────────────────
   const [mounted, setMounted] = useState(false);
@@ -233,7 +233,7 @@ export function CommentsSheet({
   if (!mounted || !shouldRender) return null;
 
   return createPortal(
-    <div dir="rtl">
+    <div dir={dir}>
       {/* Backdrop */}
       <div
         onClick={onClose}

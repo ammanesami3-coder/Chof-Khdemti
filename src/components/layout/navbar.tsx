@@ -114,6 +114,7 @@ export async function Navbar() {
 
       {/* Mobile (<md): compact bar — bottom nav handles navigation */}
       <nav className="flex md:hidden items-center h-14 px-3 gap-1">
+        <MobileMenuButton />
         <AppLogo size="sm" />
         <MobileSearchButton />
         <div className="flex-1" />

@@ -18,7 +18,7 @@ type Props = {
 };
 
 export function ShareToProfileSheet({ post, onBack, onClose }: Props) {
-  const { t } = useLang();
+  const { t, dir } = useLang();
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -78,7 +78,7 @@ export function ShareToProfileSheet({ post, onBack, onClose }: Props) {
         placeholder={t('addOptionalCaptionPlaceholder')}
         className="min-h-[80px] resize-none text-sm"
         maxLength={500}
-        dir="rtl"
+        dir={dir}
       />
 
       {/* Original post preview */}

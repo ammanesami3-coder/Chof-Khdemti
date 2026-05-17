@@ -133,7 +133,7 @@ type Props = {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function ShareSheet({ post, open, onClose, isAuthenticated }: Props) {
-  const { t } = useLang();
+  const { t, dir } = useLang();
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
@@ -196,7 +196,8 @@ export function ShareSheet({ post, open, onClose, isAuthenticated }: Props) {
             ? 'translate-y-0 opacity-100 sm:scale-100'
             : 'translate-y-full opacity-0 sm:translate-y-0 sm:scale-95'
         )}
-        style={{ maxHeight: '92dvh', direction: 'rtl' }}
+        dir={dir}
+        style={{ maxHeight: '92dvh' }}
       >
         {/* Drag handle — mobile */}
         <div className="flex justify-center pt-2.5 pb-0 sm:hidden">
