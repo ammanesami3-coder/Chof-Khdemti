@@ -102,8 +102,7 @@ export async function RightSidebar({ currentUserId }: Props) {
   return (
     <aside
       dir="rtl"
-      className="hidden xl:flex w-[284px] shrink-0 flex-col overflow-y-auto pb-6 sidebar-scroll"
-      style={{ position: 'sticky', top: '3.5rem', height: 'calc(100vh - 3.5rem)', alignSelf: 'flex-start' }}
+      className="hidden xl:flex h-full w-[284px] shrink-0 flex-col overflow-y-auto pb-6 sidebar-scroll"
     >
       <div className="space-y-5 p-3">
 

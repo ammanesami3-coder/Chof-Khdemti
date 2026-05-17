@@ -129,8 +129,7 @@ export function LeftSidebar({ user }: { user: SidebarUser | null }) {
   return (
     <aside
       dir="rtl"
-      className="hidden lg:flex h-[calc(100vh-3.5rem)] w-[284px] shrink-0 flex-col overflow-y-auto border-e bg-background/80 pb-4 sidebar-scroll"
-      style={{ position: 'sticky', top: '3.5rem', alignSelf: 'flex-start' }}
+      className="hidden lg:flex h-full w-[284px] shrink-0 flex-col overflow-y-auto border-e bg-background/80 pb-4 sidebar-scroll"
     >
       <div className="flex-1 space-y-0.5 p-3">
 

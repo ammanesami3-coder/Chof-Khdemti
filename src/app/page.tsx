@@ -59,21 +59,18 @@ export default async function HomePage({ searchParams }: Props) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen pb-16 md:pb-0">
+      {/* Viewport layout: navbar fixed at top, two sidebars stay put, only the center column scrolls */}
+      <div className="flex h-screen flex-col overflow-hidden">
         <Navbar />
         <MobileSidebar user={sidebarUser} />
 
-        {currentUser && (
-          <>
-            <GlobalRealtimeProvider currentUserId={currentUser.id} />
-            <MobileBottomNav username={currentUser.username} />
-          </>
-        )}
-
-        {/* 3-column body — sidebars at edges, feed centered at max 643px (17cm) */}
-        <div dir="ltr" className="flex">
+        <div dir="ltr" className="flex flex-1 overflow-hidden min-h-0">
           <LeftSidebar user={sidebarUser} />
-          <main dir="rtl" className="flex-1 min-w-0 py-4 lg:py-6 px-3 sm:px-0">
+
+          <main
+            dir="rtl"
+            className="flex-1 overflow-y-auto min-w-0 py-4 lg:py-6 px-3 sm:px-0 pb-20 md:pb-6"
+          >
             <div className="mx-auto max-w-[680px]">
               {currentUser && (
                 <StatusBar currentUser={currentUser} initialGroups={initialGroups} />
@@ -85,8 +82,16 @@ export default async function HomePage({ searchParams }: Props) {
               />
             </div>
           </main>
+
           <RightSidebar currentUserId={currentUser?.id} />
         </div>
+
+        {currentUser && (
+          <>
+            <GlobalRealtimeProvider currentUserId={currentUser.id} />
+            <MobileBottomNav username={currentUser.username} />
+          </>
+        )}
       </div>
     </SidebarProvider>
   );

@@ -3,7 +3,6 @@ import { Navbar } from '@/components/layout/navbar';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { GlobalRealtimeProvider } from '@/components/providers/global-realtime-provider';
 import { SidebarProvider } from '@/components/layout/sidebar-context';
-import { LeftSidebar } from '@/components/layout/left-sidebar';
 import { MobileSidebar } from '@/components/layout/mobile-sidebar';
 import type { SidebarUser } from '@/components/layout/left-sidebar';
 
@@ -34,12 +33,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Navbar />
         <MobileSidebar user={sidebarUser} />
 
-        {/* Body: left sidebar at far left + main content */}
-        <div dir="ltr" className="mx-auto flex max-w-[1440px]">
-          <LeftSidebar user={sidebarUser} />
-          <div dir="rtl" className="flex-1 min-w-0">
-            {children}
-          </div>
+        <div dir="rtl" className="mx-auto max-w-[1440px]">
+          {children}
         </div>
 
         {user && username && (
