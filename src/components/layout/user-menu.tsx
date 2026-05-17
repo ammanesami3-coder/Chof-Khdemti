@@ -34,7 +34,7 @@ export function UserMenu({ user }: { user: NavUser }) {
         className="rounded-full ring-2 ring-transparent transition-all hover:ring-primary focus-visible:outline-none focus-visible:ring-primary"
         aria-label={t('userMenuAriaLabel')}
       >
-        <UserAvatar user={user} size="sm" linkable={false} />
+        <UserAvatar user={user} size="md" linkable={false} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <div className="px-2 py-1.5">

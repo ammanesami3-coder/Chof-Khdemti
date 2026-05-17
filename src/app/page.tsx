@@ -6,6 +6,10 @@ import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { GlobalRealtimeProvider } from '@/components/providers/global-realtime-provider';
 import { StatusBar } from '@/components/status/status-bar';
 import { HomeFeed } from '@/components/feed/home-feed';
+import { SidebarProvider } from '@/components/layout/sidebar-context';
+import { LeftSidebar } from '@/components/layout/left-sidebar';
+import { MobileSidebar } from '@/components/layout/mobile-sidebar';
+import { RightSidebar } from '@/components/layout/right-sidebar';
 
 export const metadata = {
   title: 'Chof Khdemti — منصة الحرفيين المغاربة',
@@ -49,25 +53,41 @@ export default async function HomePage({ searchParams }: Props) {
     currentUser ? getActiveStatuses() : Promise.resolve([]),
   ]);
 
+  const sidebarUser = currentUser
+    ? { username: currentUser.username, full_name: currentUser.full_name, avatar_url: currentUser.avatar_url }
+    : null;
+
   return (
-    <div className="min-h-screen pb-16 sm:pb-0">
-      <Navbar />
-      {currentUser && (
-        <>
-          <GlobalRealtimeProvider currentUserId={currentUser.id} />
-          <MobileBottomNav username={currentUser.username} />
-        </>
-      )}
-      <main className="mx-auto max-w-2xl px-4 py-6">
+    <SidebarProvider>
+      <div className="min-h-screen pb-16 md:pb-0">
+        <Navbar />
+        <MobileSidebar user={sidebarUser} />
+
         {currentUser && (
-          <StatusBar currentUser={currentUser} initialGroups={initialGroups} />
+          <>
+            <GlobalRealtimeProvider currentUserId={currentUser.id} />
+            <MobileBottomNav username={currentUser.username} />
+          </>
         )}
-        <HomeFeed
-          currentUser={currentUser}
-          initialFeed={initialFeed}
-          composeOnMount={compose === '1'}
-        />
-      </main>
-    </div>
+
+        {/* 3-column body — sidebars at edges, feed centered at max 643px (17cm) */}
+        <div dir="ltr" className="flex">
+          <LeftSidebar user={sidebarUser} />
+          <main dir="rtl" className="flex-1 min-w-0 py-4 lg:py-6 px-3 sm:px-0">
+            <div className="mx-auto max-w-[680px]">
+              {currentUser && (
+                <StatusBar currentUser={currentUser} initialGroups={initialGroups} />
+              )}
+              <HomeFeed
+                currentUser={currentUser}
+                initialFeed={initialFeed}
+                composeOnMount={compose === '1'}
+              />
+            </div>
+          </main>
+          <RightSidebar currentUserId={currentUser?.id} />
+        </div>
+      </div>
+    </SidebarProvider>
   );
 }

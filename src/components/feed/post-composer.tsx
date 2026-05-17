@@ -165,10 +165,11 @@ export function PostComposer({
         type="button"
         onClick={handleOpen}
         aria-label={t('createPostAriaLabel')}
+        style={{ background: 'var(--brand-gradient)', boxShadow: '0 4px 20px rgba(255,159,67,0.45)' }}
         className={cn(
-          "fixed z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg",
+          "fixed z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg",
           "bottom-[4.5rem] start-6 sm:bottom-6",
-          "transition-all duration-300 hover:bg-primary/90 active:scale-95",
+          "transition-all duration-300 hover:opacity-90 active:scale-95",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           fabVisible ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none",
         )}
@@ -233,7 +234,7 @@ export function PostComposer({
             <Button variant="outline" onClick={handleClose} disabled={isPending}>
               {t('cancel')}
             </Button>
-            <Button onClick={handleSubmit} disabled={!canPublish} className="min-w-24">
+            <Button variant="brand" onClick={handleSubmit} disabled={!canPublish} className="min-w-24">
               {isPending ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
               ) : (

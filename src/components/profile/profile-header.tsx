@@ -87,7 +87,8 @@ export function ProfileHeader({
   return (
     <div>
       {/* ── Cover ─────────────────────────────────────────── */}
-      <div className="relative h-44 w-full overflow-hidden bg-gradient-to-l from-red-600 to-green-600 sm:h-52">
+      <div className="relative h-44 w-full overflow-hidden sm:h-52"
+        style={{ background: 'var(--brand-gradient)' }}>
         {profile.cover_url && (
           <button
             type="button"
@@ -127,7 +128,8 @@ export function ProfileHeader({
             <button
               onClick={onViewStatus}
               aria-label={t('viewStatusAriaLabel')}
-              className="rounded-full bg-gradient-to-tr from-red-600 via-orange-400 to-green-500 p-[3px] transition-opacity hover:opacity-90"
+              className="rounded-full p-[3px] transition-opacity hover:opacity-90"
+              style={{ background: 'var(--brand-gradient)' }}
             >
               <div className="rounded-full border-4 border-background bg-muted shadow-md">
                 <div className="relative size-32 overflow-hidden rounded-full">
@@ -140,7 +142,7 @@ export function ProfileHeader({
                       sizes="128px"
                     />
                   ) : (
-                    <div className="flex size-full items-center justify-center bg-gradient-to-br from-red-500 to-green-600 text-3xl font-bold text-white">
+                    <div className="flex size-full items-center justify-center text-3xl font-bold text-white" style={{ background: 'var(--brand-gradient)' }}>
                       {initials}
                     </div>
                   )}
@@ -212,7 +214,7 @@ export function ProfileHeader({
               >
                 <Button
                   size="sm"
-                  variant={isFollowing ? 'outline' : 'default'}
+                  variant={isFollowing ? 'outline' : 'brand'}
                   onClick={onToggleFollow}
                   disabled={isPending}
                   className="min-h-10 min-w-20"

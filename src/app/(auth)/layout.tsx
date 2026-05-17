@@ -9,9 +9,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       {/* Logo + brand */}
       <div className="relative mb-8 text-center">
-        <div className="mx-auto mb-4 flex size-20 items-center justify-center rounded-2xl shadow-2xl shadow-orange-900/50 overflow-hidden ring-2 ring-white/10">
+        <div className="mx-auto mb-4 flex size-20 items-center justify-center rounded-2xl shadow-2xl overflow-hidden ring-2 ring-white/10"
+          style={{ boxShadow: '0 8px 32px rgba(255, 159, 67, 0.35)' }}>
           <Image
-            src="/logo.jpeg"
+            src="/logo.png"
             alt="Chof Khdemti"
             width={80}
             height={80}

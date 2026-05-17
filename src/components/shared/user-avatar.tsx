@@ -86,9 +86,10 @@ export function UserAvatar({
       ) : (
         <span
           className={cn(
-            "flex size-full items-center justify-center bg-gradient-to-br from-red-500 to-green-600 font-semibold text-white",
+            "flex size-full items-center justify-center font-semibold text-white",
             font,
           )}
+          style={{ background: 'var(--brand-gradient)' }}
         >
           {initials(user.full_name)}
         </span>

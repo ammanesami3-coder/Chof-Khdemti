@@ -214,7 +214,7 @@ export function EditProfileForm({ defaultValues, accountType, username }: Props)
 
         {/* ── Actions ─────────────────────────────────────── */}
         <div className="flex gap-3">
-          <Button type="submit" disabled={isPending} className="flex-1">
+          <Button variant="brand" type="submit" disabled={isPending} className="flex-1">
             {isPending ? 'جارٍ الحفظ...' : 'حفظ التغييرات'}
           </Button>
           <Button

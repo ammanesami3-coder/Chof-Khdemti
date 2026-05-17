@@ -24,7 +24,7 @@ function LogoImage({ size }: { size: Size }) {
     <>
       {/* Light mode */}
       <Image
-        src="/logo.jpeg"
+        src="/logo.png"
         alt="Chof Khdemti"
         width={px}
         height={px}
@@ -33,7 +33,7 @@ function LogoImage({ size }: { size: Size }) {
       />
       {/* Dark mode */}
       <Image
-        src="/logo-dark.jpeg"
+        src="/logo-dark.png"
         alt="Chof Khdemti"
         width={px}
         height={px}

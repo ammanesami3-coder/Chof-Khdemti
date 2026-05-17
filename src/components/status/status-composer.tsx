@@ -248,6 +248,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
               </button>
               <span className="flex-1 text-sm font-semibold">{t('textStoryHeader')}</span>
               <Button
+                variant="brand"
                 size="sm"
                 onClick={publishText}
                 disabled={isPending || !content.trim()}
@@ -361,6 +362,7 @@ export function StatusComposer({ open, onOpenChange, onCreated }: Props) {
               <span className="flex-1 text-sm font-semibold">{t('mediaStoryHeader')}</span>
               {previewUrl && (
                 <Button
+                  variant="brand"
                   size="sm"
                   onClick={publishMedia}
                   disabled={isUploading}

@@ -36,7 +36,7 @@ export function DarkModeSettings() {
           {isDark ? (
             <Moon className="size-4 text-foreground" />
           ) : (
-            <Sun className="size-4 text-amber-500" />
+            <Sun className="size-4 text-[#FF9F43]" />
           )}
         </span>
         <div>

@@ -82,17 +82,28 @@ async function verifyConversationMember(
   conversationId: string,
   userId: string,
 ) {
-  const { data: conv, error } = await supabase
-    .from('conversations')
-    .select('artisan_id, customer_id')
-    .eq('id', conversationId)
-    .single();
+  const [convRes, userRes] = await Promise.all([
+    supabase
+      .from('conversations')
+      .select('artisan_id, customer_id')
+      .eq('id', conversationId)
+      .single(),
+    supabase
+      .from('users')
+      .select('account_type')
+      .eq('id', userId)
+      .single(),
+  ]);
 
-  if (error || !conv) return { conv: null, isArtisan: false, isCustomer: false };
+  const conv = convRes.data;
+  if (convRes.error || !conv) return { conv: null, isArtisan: false, isCustomer: false, isArtisanAccount: false };
 
-  const isArtisan  = conv.artisan_id  === userId;
-  const isCustomer = conv.customer_id === userId;
-  return { conv, isArtisan, isCustomer };
+  const isArtisan        = conv.artisan_id  === userId;
+  const isCustomer       = conv.customer_id === userId;
+  // Only apply the subscription gate to users whose account_type is actually 'artisan'.
+  // A customer whose ID happens to sit in artisan_id (edge case / legacy data) must never be blocked.
+  const isArtisanAccount = userRes.data?.account_type === 'artisan';
+  return { conv, isArtisan, isCustomer, isArtisanAccount };
 }
 
 // ── sendMessage ───────────────────────────────────────────────────────────────
@@ -109,12 +120,12 @@ export async function sendMessage(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'يجب تسجيل الدخول' };
 
-  const { conv, isArtisan, isCustomer } = await verifyConversationMember(
+  const { conv, isArtisan, isCustomer, isArtisanAccount } = await verifyConversationMember(
     supabase, parsed.data.conversationId, user.id
   );
   if (!conv || (!isArtisan && !isCustomer)) return { error: 'غير مصرح' };
 
-  if (isArtisan) {
+  if (isArtisan && isArtisanAccount) {
     const { data: canReply } = await supabase.rpc('can_artisan_reply', { p_artisan_id: user.id });
     if (!canReply) return { error: 'subscription_required' };
   }
@@ -151,12 +162,12 @@ export async function sendVoiceMessage(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'يجب تسجيل الدخول' };
 
-  const { conv, isArtisan, isCustomer } = await verifyConversationMember(
+  const { conv, isArtisan, isCustomer, isArtisanAccount } = await verifyConversationMember(
     supabase, parsed.data.conversationId, user.id
   );
   if (!conv || (!isArtisan && !isCustomer)) return { error: 'غير مصرح' };
 
-  if (isArtisan) {
+  if (isArtisan && isArtisanAccount) {
     const { data: canReply } = await supabase.rpc('can_artisan_reply', { p_artisan_id: user.id });
     if (!canReply) return { error: 'subscription_required' };
   }
@@ -200,12 +211,12 @@ export async function sendAttachmentMessage(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'يجب تسجيل الدخول' };
 
-  const { conv, isArtisan, isCustomer } = await verifyConversationMember(
+  const { conv, isArtisan, isCustomer, isArtisanAccount } = await verifyConversationMember(
     supabase, parsed.data.conversationId, user.id
   );
   if (!conv || (!isArtisan && !isCustomer)) return { error: 'غير مصرح' };
 
-  if (isArtisan) {
+  if (isArtisan && isArtisanAccount) {
     const { data: canReply } = await supabase.rpc('can_artisan_reply', { p_artisan_id: user.id });
     if (!canReply) return { error: 'subscription_required' };
   }
@@ -354,12 +365,12 @@ export async function sendLocationMessage(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'يجب تسجيل الدخول' };
 
-  const { conv, isArtisan, isCustomer } = await verifyConversationMember(
+  const { conv, isArtisan, isCustomer, isArtisanAccount } = await verifyConversationMember(
     supabase, parsed.data.conversationId, user.id,
   );
   if (!conv || (!isArtisan && !isCustomer)) return { error: 'غير مصرح' };
 
-  if (isArtisan) {
+  if (isArtisan && isArtisanAccount) {
     const { data: canReply } = await supabase.rpc('can_artisan_reply', { p_artisan_id: user.id });
     if (!canReply) return { error: 'subscription_required' };
   }

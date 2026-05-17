@@ -209,6 +209,7 @@ export function SendViaMessageSheet({ post, onBack, onClose }: Props) {
       {/* Send button */}
       <div className="px-4 pt-3 pb-1">
         <Button
+          variant="brand"
           onClick={handleSend}
           disabled={!selected.size || sending}
           className="w-full gap-2"

@@ -180,7 +180,7 @@ export function ProfileClient({
               onClick={() => { setAvatarChoiceOpen(false); setStatusOpen(true); }}
               className="flex w-full items-center gap-3 border-b px-4 py-4 text-start transition-colors hover:bg-muted/60"
             >
-              <span className="inline-flex shrink-0 rounded-full bg-gradient-to-tr from-red-600 via-orange-400 to-green-500 p-[2px]">
+              <span className="inline-flex shrink-0 rounded-full p-[2px]" style={{ background: 'var(--brand-gradient)' }}>
                 <span className="block overflow-hidden rounded-full border-2 border-background">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={profile.avatar_url!} alt="" className="size-9 object-cover" />

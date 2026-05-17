@@ -103,7 +103,7 @@ export function VoiceRecorder({
     } catch {
       toast.error(t('micPermissionError'));
     }
-  }, [disabled]);
+  }, [t, disabled]);
 
   const stopAndSend = useCallback(async () => {
     const recorder = recorderRef.current;
@@ -186,7 +186,7 @@ export function VoiceRecorder({
 
     // Run upload in background (fire and forget)
     doUpload();
-  }, [conversationId, onPendingVoice, onVoiceProgress, onVoiceSent, onVoiceFailed, onVoiceCancelled]);
+  }, [t, conversationId, onPendingVoice, onVoiceProgress, onVoiceSent, onVoiceFailed, onVoiceCancelled]);
 
   const cancel = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -210,7 +210,7 @@ export function VoiceRecorder({
         className={cn(
           'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
           'bg-muted text-muted-foreground transition-colors',
-          'hover:bg-primary hover:text-primary-foreground',
+          'hover:bg-[#FF9F43]/15 hover:text-[#FF9F43]',
           'disabled:opacity-40 disabled:cursor-not-allowed',
           className,
         )}
@@ -248,7 +248,8 @@ export function VoiceRecorder({
         type="button"
         onClick={stopAndSend}
         aria-label={t('sendVoiceAriaLabel')}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:opacity-90"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition-opacity hover:opacity-90"
+        style={{ background: 'var(--brand-gradient)' }}
       >
         <Send className="h-4 w-4" />
       </button>

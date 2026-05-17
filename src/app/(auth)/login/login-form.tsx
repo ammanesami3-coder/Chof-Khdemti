@@ -111,7 +111,7 @@ export function LoginForm({ next }: LoginFormProps) {
               )}
             />
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button variant="brand" type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="ms-2 size-4 animate-spin" />}
               دخول
             </Button>

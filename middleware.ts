@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-// مسارات تتطلب تسجيل الدخول — /explore و /profile/[username] عامة متعمداً
-const PROTECTED_PATHS = ["/feed", "/messages", "/settings", "/profile/me", "/onboarding", "/notifications"];
+// مسارات تتطلب تسجيل الدخول — / و /explore و /profile/[username] عامة متعمداً
+const PROTECTED_PATHS = ["/messages", "/settings", "/profile/me", "/onboarding", "/notifications"];
 const AUTH_PATHS = ["/login", "/signup"];
 
 async function getOnboardingComplete(
@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
     // مسجّل ويحاول فتح صفحة auth → تحقق من onboarding
     if (isAuthPage) {
       const done = await getOnboardingComplete(supabase, user.id);
-      return NextResponse.redirect(new URL(done ? "/feed" : "/onboarding", request.url));
+      return NextResponse.redirect(new URL(done ? "/" : "/onboarding", request.url));
     }
 
     // مسجّل وعلى مسار محمي (وليس /onboarding نفسه ولا /logout) → تحقق من onboarding

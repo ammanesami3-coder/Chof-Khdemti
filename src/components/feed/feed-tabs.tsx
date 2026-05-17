@@ -57,13 +57,13 @@ export function FeedTabs({ currentUser, initialFollowingFeed, composeOnMount = f
         >
           <TabsTrigger
             value="following"
-            className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-primary data-active:bg-transparent data-active:shadow-none"
+            className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-[#FF9F43] data-active:bg-transparent data-active:shadow-none data-active:text-[#FF9F43]"
           >
             {t('feedTabFollowing')}
           </TabsTrigger>
           <TabsTrigger
             value="discover"
-            className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-primary data-active:bg-transparent data-active:shadow-none"
+            className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-[#FF9F43] data-active:bg-transparent data-active:shadow-none data-active:text-[#FF9F43]"
           >
             {t('feedTabDiscover')}
           </TabsTrigger>

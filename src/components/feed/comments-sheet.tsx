@@ -361,7 +361,8 @@ export function CommentsSheet({
                     type="button"
                     onClick={handleSubmit}
                     disabled={addMutation.isPending}
-                    className="shrink-0 text-primary transition-opacity disabled:opacity-40"
+                    className="shrink-0 transition-opacity disabled:opacity-40"
+                    style={{ color: 'var(--brand-accent)' }}
                     aria-label={t('sendCommentAriaLabel')}
                   >
                     {addMutation.isPending ? (

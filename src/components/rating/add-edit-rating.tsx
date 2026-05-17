@@ -44,9 +44,9 @@ export function AddEditRating({ artisanId, initialRating, canRate }: AddEditRati
     <>
       {myRating ? (
         /* ── تقييم موجود ── */
-        <div className="flex items-start justify-between gap-3 rounded-xl bg-amber-50 p-3 dark:bg-amber-950/20">
+        <div className="flex items-start justify-between gap-3 rounded-xl bg-[#FF9F43]/10 p-3 dark:bg-[#FF9F43]/8">
           <div className="space-y-1">
-            <p className="text-xs font-medium text-amber-700 dark:text-amber-400">{t('yourRatingLabel')}</p>
+            <p className="text-xs font-medium text-[#E88A38] dark:text-[#FFBA69]">{t('yourRatingLabel')}</p>
             <StarRating value={myRating.stars} readonly size="sm" />
             {myRating.comment && (
               <p className="text-sm text-foreground/80">{myRating.comment}</p>
@@ -55,7 +55,7 @@ export function AddEditRating({ artisanId, initialRating, canRate }: AddEditRati
           <Button
             size="sm"
             variant="ghost"
-            className="shrink-0 text-amber-700 hover:text-amber-800 dark:text-amber-400"
+            className="shrink-0 text-[#E88A38] hover:text-[#FF9F43] dark:text-[#FFBA69]"
             onClick={() => setOpen(true)}
           >
             <Pencil className="me-1 size-3.5" />
@@ -69,7 +69,7 @@ export function AddEditRating({ artisanId, initialRating, canRate }: AddEditRati
           className="w-full gap-2"
           onClick={() => setOpen(true)}
         >
-          <Star className="size-4 fill-amber-400 text-amber-400" />
+          <Star className="size-4 fill-[#FFBA69] text-[#FFBA69]" />
           {t('addRatingBtn')}
         </Button>
       )}

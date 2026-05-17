@@ -9,6 +9,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        brand: "text-white transition-opacity hover:opacity-90 active:opacity-80 focus-visible:ring-[#FF9F43]/50",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
@@ -44,12 +45,19 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  style,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  const brandStyle =
+    variant === 'brand'
+      ? { background: 'var(--brand-gradient)', ...style }
+      : style;
+
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      style={brandStyle}
       {...props}
     />
   )

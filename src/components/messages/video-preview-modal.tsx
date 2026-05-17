@@ -160,7 +160,6 @@ export function VideoPreviewModal({ file, open, onClose, onSend }: Props) {
       {/* Video player */}
       <div className="relative flex flex-1 items-center justify-center overflow-hidden px-3">
         {videoUrl && (
-          // eslint-disable-next-line jsx-a11y/media-has-caption
           <video
             ref={videoRef}
             src={videoUrl}

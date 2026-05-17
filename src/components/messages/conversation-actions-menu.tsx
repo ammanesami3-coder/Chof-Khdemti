@@ -195,7 +195,7 @@ export function ConversationActionsMenu({ conv, trigger, onClose, onOptimisticUp
         if (res.error) toast.error(t('genericError'));
       });
     },
-    [conv.id, onOptimisticUpdate, onClose],
+    [t, conv.id, onOptimisticUpdate, onClose],
   );
 
   if (!trigger) return null;

@@ -85,7 +85,7 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
-  }, []);
+  }, [t]);
 
   const handleMapPick = useCallback(async (lat: number, lng: number) => {
     setMapPos([lat, lng]);
@@ -93,7 +93,7 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
     const name = await reverseGeocode(lat, lng);
     setMapName(name);
     setPicked({ lat, lng, name: name || t('sharedLocation') });
-  }, []);
+  }, [t]);
 
   const handleConfirm = () => {
     if (!picked) return;
@@ -186,7 +186,7 @@ export function LocationPicker({ open, onOpenChange, onConfirm }: Props) {
                       {picked.lat.toFixed(5)}, {picked.lng.toFixed(5)}
                     </p>
                   </div>
-                  <Button onClick={handleConfirm} className="w-full">
+                  <Button variant="brand" onClick={handleConfirm} className="w-full">
                     {t('sendLocation')}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={handleGetCurrent} className="w-full">

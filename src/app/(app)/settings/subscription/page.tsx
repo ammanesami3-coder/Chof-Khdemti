@@ -49,12 +49,12 @@ const HERO: Record<SubscriptionStatus, HeroCfg> = {
     titleColor: 'text-green-800 dark:text-green-300',
   },
   past_due: {
-    gradient: 'from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20',
-    border: 'border-amber-200 dark:border-amber-800',
-    iconBg: 'bg-amber-100 dark:bg-amber-900/40',
+    gradient: 'from-[#FFF9E6] to-[#FFF3E0] dark:from-[#FF9F43]/10 dark:to-[#FF4D4D]/8',
+    border: 'border-[#FFD073] dark:border-[#E88A38]',
+    iconBg: 'bg-[#FF9F43]/15 dark:bg-[#FF9F43]/20',
     Icon: AlertTriangle,
-    iconColor: 'text-amber-600 dark:text-amber-400',
-    titleColor: 'text-amber-800 dark:text-amber-300',
+    iconColor: 'text-[#E88A38] dark:text-[#FFBA69]',
+    titleColor: 'text-[#D4631F] dark:text-[#FFD073]',
   },
   cancelled: {
     gradient: 'from-slate-50 to-gray-50 dark:from-slate-950/30 dark:to-gray-950/20',

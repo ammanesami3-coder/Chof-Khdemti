@@ -79,7 +79,7 @@ export function ArtisanCard({ artisan, currentUserId }: Props) {
         >
           <Button
             size="sm"
-            variant={isFollowing ? 'outline' : 'default'}
+            variant={isFollowing ? 'outline' : 'brand'}
             disabled={isPending}
             className="w-full min-h-9"
             onClick={(e) => {

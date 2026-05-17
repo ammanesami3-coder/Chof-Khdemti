@@ -25,7 +25,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-white/10 bg-red-700/95 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo.jpeg" alt="Chof Khdemti" width={36} height={36} className="rounded-lg" />
+            <Image src="/logo.png" alt="Chof Khdemti" width={36} height={36} className="rounded-lg" />
             <span className="text-xl font-bold text-white tracking-tight">Chof Khdemti</span>
           </Link>
           <nav className="flex items-center gap-3">
@@ -228,7 +228,7 @@ function TestimonialCard({ quote, name, role, stars }: { quote: string; name: st
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="flex gap-0.5">
-        {Array.from({ length: stars }).map((_, i) => <Star key={i} className="size-4 fill-amber-400 text-amber-400" />)}
+        {Array.from({ length: stars }).map((_, i) => <Star key={i} className="size-4 fill-[#FFBA69] text-[#FFBA69]" />)}
       </div>
       <p className="flex-1 text-sm leading-relaxed text-muted-foreground">«{quote}»</p>
       <div>

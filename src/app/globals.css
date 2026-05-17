@@ -50,6 +50,16 @@
 }
 
 :root {
+  /* Brand gradient system — Yellow → Orange → Red (from CH logo) */
+  --brand-start:  #FFD600;
+  --brand-mid:    #FF9F43;
+  --brand-end:    #FF4D4D;
+  --brand-accent: #FF9F43;           /* single accent for text/icon */
+  --brand-gradient: linear-gradient(135deg, #FFD600 0%, #FF9F43 55%, #FF4D4D 100%);
+  --brand-gradient-hover: linear-gradient(135deg, #E6C100 0%, #E88A38 55%, #E03D3D 100%);
+  --brand-soft: rgba(255, 159, 67, 0.08);
+  --brand-soft-hover: rgba(255, 159, 67, 0.14);
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -170,4 +180,153 @@
   .dark *::-webkit-scrollbar-thumb {
     background: oklch(0.35 0 0);
   }
+}
+
+/* ── Sidebar scrollbar — invisible by default, appears only on hover ──────── */
+
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sidebar-scroll:hover {
+  scrollbar-color: oklch(0.75 0 0 / 0.3) transparent;
+}
+.dark .sidebar-scroll:hover {
+  scrollbar-color: oklch(0.55 0 0 / 0.4) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: oklch(0.75 0 0 / 0.3);
+}
+.dark .sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: oklch(0.55 0 0 / 0.4);
+}
+
+/* ── Follow button (CSS-only gradient hover, usable in RSC) ─────────────── */
+
+.btn-follow {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid rgba(255, 159, 67, 0.55);
+  color: var(--brand-accent);
+  background: transparent;
+  border-radius: 9999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-follow:hover {
+  background: var(--brand-gradient);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* ── Brand utilities ─────────────────────────────────────────────────────── */
+
+.brand-gradient-bg {
+  background: var(--brand-gradient);
+}
+.brand-gradient-bg:hover {
+  background: var(--brand-gradient-hover);
+}
+
+/* CTA button with ripple micro-interaction */
+.btn-brand {
+  position: relative;
+  overflow: hidden;
+  background: var(--brand-gradient);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+  will-change: transform;
+}
+.btn-brand:hover  { opacity: 0.92; transform: translateY(-1px); }
+.btn-brand:active { transform: scale(0.97); opacity: 0.88; }
+.btn-brand::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.28) 0%, transparent 65%);
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+  pointer-events: none;
+}
+.btn-brand:active::after { transform: scale(2.5); opacity: 1; }
+
+/* ── Skeleton shimmer ────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+.skeleton-shimmer {
+  animation: shimmer 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg,
+    oklch(0.93 0 0) 0%,
+    oklch(0.97 0.018 75) 45%,
+    oklch(0.93 0 0) 100%
+  );
+  background-size: 200% auto;
+}
+.dark .skeleton-shimmer {
+  background: linear-gradient(90deg,
+    oklch(0.22 0 0) 0%,
+    oklch(0.28 0.015 75) 45%,
+    oklch(0.22 0 0) 100%
+  );
+  background-size: 200% auto;
+}
+
+/* ── Brand text helper ───────────────────────────────────────────────────── */
+.brand-text {
+  color: var(--brand-accent);
+}
+.dark .brand-text {
+  color: #FFBA69;
+}
+
+/* ── Brand gradient text ─────────────────────────────────────────────────── */
+.brand-gradient-text {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Story / Status gradient ring ───────────────────────────────────────── */
+
+.story-ring {
+  padding: 2.5px;
+  background: var(--brand-gradient);
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.story-ring-inner {
+  border: 2px solid var(--background);
+  border-radius: 9999px;
+  overflow: hidden;
 }

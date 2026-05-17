@@ -176,8 +176,8 @@ export function GlobalSearchBar({ className }: Props) {
           className={cn(
             'h-9 w-full rounded-full bg-muted/60 border border-transparent',
             'ps-9 pe-9 text-sm placeholder:text-muted-foreground',
-            'outline-none ring-0 transition-all',
-            'focus:bg-background focus:border-border focus:ring-1 focus:ring-ring',
+            'outline-none ring-0 transition-all duration-200',
+            'focus:bg-background focus:border-[#FF9F43]/50 focus:ring-2 focus:ring-[#FF9F43]/20',
           )}
           dir={dir}
         />

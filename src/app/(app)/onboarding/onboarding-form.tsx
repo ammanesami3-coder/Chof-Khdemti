@@ -237,7 +237,7 @@ function ArtisanStep2({ onSubmit, isPending }: {
           )}
         />
 
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button variant="brand" type="submit" className="w-full" disabled={isPending}>
           {isPending ? t('saving') : t('finishAndLaunch')}
         </Button>
       </form>
@@ -316,7 +316,7 @@ function CustomerStep2({ onSubmit, isPending }: {
           )}
         />
 
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button variant="brand" type="submit" className="w-full" disabled={isPending}>
           {isPending ? t('saving') : t('finishAndLaunch')}
         </Button>
       </form>

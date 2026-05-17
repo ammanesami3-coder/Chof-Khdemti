@@ -19,7 +19,7 @@ const TYPE_ICON_CLASS = {
   like: { icon: Heart, iconClass: 'bg-red-100 text-red-500 dark:bg-red-900/40 dark:text-red-400' },
   comment: { icon: MessageCircle, iconClass: 'bg-blue-100 text-blue-500 dark:bg-blue-900/40 dark:text-blue-400' },
   comment_reply: { icon: Reply, iconClass: 'bg-purple-100 text-purple-500 dark:bg-purple-900/40 dark:text-purple-400' },
-  comment_like: { icon: ThumbsUp, iconClass: 'bg-orange-100 text-orange-500 dark:bg-orange-900/40 dark:text-orange-400' },
+  comment_like: { icon: ThumbsUp, iconClass: 'bg-[#FF9F43]/15 text-[#FF9F43] dark:bg-[#FF9F43]/20 dark:text-[#FFBA69]' },
   follow: { icon: UserPlus, iconClass: 'bg-green-100 text-green-500 dark:bg-green-900/40 dark:text-green-400' },
 } as const;
 

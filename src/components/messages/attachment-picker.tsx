@@ -190,7 +190,7 @@ export function AttachmentPicker({
 
     doUpload(); // fire and forget
   }, [
-    conversationId, replyToMessageId,
+    t, conversationId, replyToMessageId,
     onPendingAttachment, onAttachmentProgress,
     onAttachmentSent, onAttachmentFailed, onAttachmentCancelled,
   ]);

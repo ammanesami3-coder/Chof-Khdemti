@@ -85,7 +85,7 @@ export function ShareToProfileSheet({ post, onBack, onClose }: Props) {
       <SharedPostEmbed post={sharedData} />
 
       {/* Share button */}
-      <Button onClick={handleShare} disabled={loading} className="w-full gap-2">
+      <Button variant="brand" onClick={handleShare} disabled={loading} className="w-full gap-2">
         {loading ? <Loader2 className="size-4 animate-spin" /> : <LayoutList className="size-4" />}
         {loading ? t('sharingProgress') : t('shareOnMyProfileBtn')}
       </Button>

@@ -672,7 +672,7 @@ export function ChatWindow({
 
     const result = await toggleMessageReaction(messageId, emoji);
     if (result.error) toast.error(t('reactionFailed'));
-  }, [currentUserId]);
+  }, [t, currentUserId]);
 
   // ── Delete handler ──────────────────────────────────────────
   const handleDeleteMessage = useCallback(async (messageId: string, forEveryone: boolean) => {
@@ -1403,6 +1403,7 @@ export function ChatWindow({
 
             {content.trim() && !isVoiceRecording ? (
               <Button
+                variant="brand"
                 size="icon"
                 className="h-10 w-10 shrink-0 rounded-full"
                 onClick={handleSend}

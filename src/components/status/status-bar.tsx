@@ -161,10 +161,10 @@ function CreateStoryCard({
         'transition-transform duration-150 hover:scale-[1.02] active:scale-[0.97]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
       )}
-      style={{ width: 108, height: 192 }}
+      style={{ width: 108, height: 151 }}
     >
       {/* Top section: avatar as background */}
-      <div className="relative overflow-hidden bg-muted" style={{ height: 138 }}>
+      <div className="relative overflow-hidden bg-muted" style={{ height: 107 }}>
         {currentUser.avatar_url ? (
           <Image
             src={currentUser.avatar_url}
@@ -178,13 +178,13 @@ function CreateStoryCard({
         )}
       </div>
 
-      {/* Plus badge — positioned on the card button (relative), straddles the photo/label boundary */}
-      <div className="absolute left-1/2 -translate-x-1/2 z-10 flex size-9 items-center justify-center rounded-full bg-primary shadow-lg ring-[3px] ring-card" style={{ top: 120 }}>
+      {/* Plus badge — straddles the photo/label boundary */}
+      <div className="absolute left-1/2 -translate-x-1/2 z-10 flex size-9 items-center justify-center rounded-full bg-primary shadow-lg ring-[3px] ring-card" style={{ top: 89 }}>
         <Plus className="size-5 text-primary-foreground" strokeWidth={2.5} />
       </div>
 
       {/* Bottom section: label */}
-      <div className="flex h-[54px] flex-col items-center justify-end pb-3 pt-5 bg-card">
+      <div className="flex h-[44px] flex-col items-center justify-end pb-2.5 pt-5 bg-card">
         <span className="text-center text-[11.5px] font-semibold text-foreground leading-tight">
           {t('createStory')}
         </span>
@@ -219,7 +219,7 @@ function StoryCard({
         'transition-transform duration-150 hover:scale-[1.02] active:scale-[0.97]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
       )}
-      style={{ width: 108, height: 192 }}
+      style={{ width: 108, height: 151 }}
     >
       {/* ── Story background ─── */}
       {story.content_type === 'text' ? (
@@ -256,10 +256,8 @@ function StoryCard({
       {/* ── Avatar with ring at top-start ─── */}
       <div className="absolute top-2.5 start-2.5 z-10">
         <div
-          className={cn(
-            'rounded-full p-[2.5px] shadow-md',
-            hasRing ? 'bg-[#1877F2]' : 'bg-white/40',
-          )}
+          className="rounded-full p-[2.5px] shadow-md"
+          style={hasRing ? { background: 'var(--brand-gradient)' } : { background: 'rgba(255,255,255,0.4)' }}
         >
           <div className="rounded-full overflow-hidden ring-[2px] ring-card">
             <UserAvatar user={user} size="sm" linkable={false} />
@@ -276,7 +274,7 @@ function StoryCard({
 
       {/* ── Unviewed border ring ─── */}
       {hasRing && (
-        <div className="pointer-events-none absolute inset-0 rounded-xl ring-[2.5px] ring-inset ring-[#1877F2]/50" />
+        <div className="pointer-events-none absolute inset-0 rounded-xl ring-[2.5px] ring-inset ring-[#FF9F43]/60" />
       )}
     </button>
   );

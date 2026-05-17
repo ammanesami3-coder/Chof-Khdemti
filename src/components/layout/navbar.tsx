@@ -1,15 +1,15 @@
 import { createClient } from '@/lib/supabase/server';
 import { TrialIndicator } from '@/components/subscription/trial-indicator';
 import { UserMenu } from './user-menu';
-import { NavMessagesLink } from './nav-messages-link';
 import { ThemeToggle } from './theme-toggle';
-import { NotificationsNavLink } from '@/components/notifications/notifications-nav-link';
 import { GlobalSearchBar } from './global-search-bar';
-import { NavLinks } from './nav-links';
-import { MobileSearchButton } from './mobile-search-button';
 import { NavbarWrapper } from './navbar-wrapper';
 import { AppLogo } from './app-logo';
 import { GuestNavButtons } from './guest-nav-buttons';
+import { MobileMenuButton } from './mobile-menu-button';
+import { MobileSearchButton } from './mobile-search-button';
+import { MobileNotifButton } from './mobile-notif-button';
+import { CenterNav, GuestCenterNav } from './center-nav';
 
 async function getNavUser() {
   const supabase = await createClient();
@@ -33,7 +33,7 @@ async function getNavUser() {
   };
 }
 
-const NAV_CLASS = 'mx-auto flex h-14 max-w-5xl items-center gap-2 px-4';
+/* ─────────────────────────────────────────────────────────────────────────── */
 
 export async function Navbar() {
   const navUser = await getNavUser();
@@ -42,24 +42,36 @@ export async function Navbar() {
   if (!navUser) {
     return (
       <NavbarWrapper>
-        <nav className={NAV_CLASS}>
-          <AppLogo size="sm" />
-
-          <div className="hidden flex-1 max-w-sm sm:block">
-            <GlobalSearchBar />
-          </div>
-
-          <div className="hidden items-center gap-1 sm:flex">
-            <NavLinks />
-          </div>
-
-          <div className="flex items-center gap-1 ms-auto">
-            <div className="sm:hidden">
-              <MobileSearchButton />
+        {/* Desktop (md+): 3-column */}
+        <nav className="relative hidden md:flex items-stretch h-14 px-4">
+          {/* RIGHT: Logo + Search */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <AppLogo size="md" />
+            <div className="w-[220px] lg:w-[252px] xl:w-[268px]">
+              <GlobalSearchBar />
             </div>
+          </div>
+
+          {/* CENTER: Home + Artisans (absolutely centered) */}
+          <div className="absolute left-1/2 top-0 bottom-0 flex items-stretch -translate-x-1/2">
+            <GuestCenterNav />
+          </div>
+
+          {/* LEFT: Theme + Login/Signup */}
+          <div className="flex items-center gap-2 ms-auto flex-shrink-0">
             <ThemeToggle />
             <GuestNavButtons />
           </div>
+        </nav>
+
+        {/* Mobile (<md): compact bar */}
+        <nav className="flex md:hidden items-center h-14 px-3 gap-1">
+          <AppLogo size="sm" />
+          <MobileSearchButton />
+          <div className="flex-1" />
+          <ThemeToggle />
+          <GuestNavButtons />
+          <MobileMenuButton />
         </nav>
       </NavbarWrapper>
     );
@@ -68,29 +80,47 @@ export async function Navbar() {
   /* ── نسخة المستخدم المسجّل ─────────────────────────── */
   return (
     <NavbarWrapper>
-      <nav className={NAV_CLASS}>
-        <AppLogo size="sm" />
-
-        <div className="hidden flex-1 max-w-md sm:block">
-          <GlobalSearchBar />
-        </div>
-
-        <div className="hidden items-center gap-1 sm:flex">
-          <NavLinks />
-          <NavMessagesLink />
-          <NotificationsNavLink />
-        </div>
-
-        <div className="flex items-center gap-1 ms-auto">
-          <TrialIndicator />
-          <div className="flex items-center sm:hidden">
-            <MobileSearchButton />
-            <NavMessagesLink showLabel={false} />
-            <NotificationsNavLink showLabel={false} />
+      {/*
+        Desktop (md+) — Facebook-style 3-column layout (RTL):
+          RIGHT: Logo (md) + Search (220→268px)
+          CENTER: 5 nav icons, absolute-centered
+          LEFT:  TrialIndicator + ThemeToggle + UserMenu avatar (md)
+      */}
+      <nav className="relative hidden md:flex items-stretch h-14 px-4">
+        {/* RIGHT: Logo + Search */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <AppLogo size="md" />
+          <div className="w-[220px] lg:w-[252px] xl:w-[268px]">
+            <GlobalSearchBar />
           </div>
+        </div>
+
+        {/* CENTER: 5 nav icons (absolute — always at 50% of navbar) */}
+        <div className="absolute left-1/2 top-0 bottom-0 flex items-stretch -translate-x-1/2 pointer-events-none">
+          <div className="pointer-events-auto">
+            <CenterNav />
+          </div>
+        </div>
+
+        {/* LEFT: account status + theme toggle + profile avatar
+            In RTL flex, DOM order [Trial][Theme][UserMenu] renders visually as
+            [UserMenu (far-left screen edge)] [Theme] [Trial (closest to center)] */}
+        <div className="flex items-center gap-1.5 ms-auto flex-shrink-0">
+          <TrialIndicator />
           <ThemeToggle />
           <UserMenu user={navUser} />
         </div>
+      </nav>
+
+      {/* Mobile (<md): compact bar — bottom nav handles navigation */}
+      <nav className="flex md:hidden items-center h-14 px-3 gap-1">
+        <AppLogo size="sm" />
+        <MobileSearchButton />
+        <div className="flex-1" />
+        <TrialIndicator />
+        <MobileNotifButton />
+        <ThemeToggle />
+        <UserMenu user={navUser} />
       </nav>
     </NavbarWrapper>
   );

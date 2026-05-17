@@ -22,7 +22,7 @@ export function SuccessToast() {
       queryClient.invalidateQueries({ queryKey: ['subscription-status'] });
       router.replace(pathname, { scroll: false });
     }
-  }, [params, router, pathname, queryClient]);
+  }, [t, params, router, pathname, queryClient]);
 
   return null;
 }

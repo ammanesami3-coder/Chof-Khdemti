@@ -158,7 +158,7 @@ export function ViewerMap({ lat, lng, senderName, className }: ViewerMapProps) {
       () => setTracking(false),
       { enableHighAccuracy: true },
     );
-  }, [lat, lng]);
+  }, [t, lat, lng]);
 
   const stopTracking = useCallback(() => {
     if (watchIdRef.current !== null) {

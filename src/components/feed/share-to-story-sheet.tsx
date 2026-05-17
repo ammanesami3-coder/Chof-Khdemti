@@ -138,7 +138,7 @@ export function ShareToStorySheet({ post, onBack, onClose }: Props) {
       </p>
 
       {/* Share button */}
-      <Button onClick={handleShare} disabled={loading} className="w-full gap-2">
+      <Button variant="brand" onClick={handleShare} disabled={loading} className="w-full gap-2">
         {loading ? <Loader2 className="size-4 animate-spin" /> : <Tv2 className="size-4" />}
         {loading ? t('sharingProgress') : t('shareInMyStoryBtn')}
       </Button>

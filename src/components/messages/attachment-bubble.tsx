@@ -49,7 +49,7 @@ function DocIcon({ mime }: { mime?: string }) {
   if (mime.includes('pdf'))                                               return <FileText className="h-6 w-6 text-red-500" />;
   if (mime.includes('spreadsheet') || mime.includes('excel') || mime.includes('csv'))
                                                                           return <FileSpreadsheet className="h-6 w-6 text-green-600" />;
-  if (mime.includes('presentation') || mime.includes('powerpoint'))       return <Presentation className="h-6 w-6 text-orange-500" />;
+  if (mime.includes('presentation') || mime.includes('powerpoint'))       return <Presentation className="h-6 w-6 text-[#FF9F43]" />;
   if (mime.includes('word') || mime.includes('msword'))                   return <FileText className="h-6 w-6 text-blue-500" />;
   return <FileText className="h-6 w-6 text-muted-foreground" />;
 }

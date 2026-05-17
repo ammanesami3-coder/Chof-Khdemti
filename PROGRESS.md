@@ -1,6 +1,6 @@
 # PROGRESS.md — Chof Khdemti
 
-## المرحلة الحالية: ✅ 5.5 مكتملة — جاهز للمرحلة 6 (الإطلاق)
+## المرحلة الحالية: ✅ 5.5 مكتملة + تحديثات الهوية البصرية — جاهز للمرحلة 6 (الإطلاق)
 
 ---
 
@@ -745,4 +745,60 @@ if (!isConversationMuted(conversations, msg.conversation_id)) {
 
 -- 2. دالة mark_conversation_read (security definer):
 --    supabase/migrations/0031_mark_conversation_read_fn.sql
+```
+
+---
+
+## تحديثات ما بعد المرحلة 5.5 — الهوية البصرية وتحسينات UI
+
+### الجلسة: تحديث الهوية البصرية الكاملة + تحسينات Navbar الموبايل
+
+#### 1. عرض البطاقات (17 سم)
+- عدّلنا `px-3 sm:px-0` على `<main>` في `app/page.tsx` لإزالة الـ padding الأفقي على شاشات ≥640px
+- النتيجة: بطاقات المنشورات بعرض 643px (17 سم) بالضبط
+
+#### 2. تحديث الهوية البصرية — التدرج اللوني الجديد
+- **التدرج الجديد:** أصفر `#FFD600` → برتقالي `#FF9F43` → أحمر `#FF4D4D` (مستوحى من شعار CH)
+- **متغيرات CSS جديدة** في `globals.css`: `--brand-gradient`, `--brand-accent`, `--brand-soft`
+- استُبدل كل استعمال لـ `orange`, `amber`, والتدرجات القديمة في:
+  - `center-nav.tsx`, `left-sidebar.tsx`, `mobile-bottom-nav.tsx`, `mobile-sidebar.tsx`
+  - `right-sidebar.tsx`, `global-search-bar.tsx`, `status-bar.tsx`, `status-aware-avatar.tsx`
+  - `profile-header.tsx`, `profile-client.tsx`, `star-rating.tsx`, `add-edit-rating.tsx`
+  - `notification-item.tsx`, `trial-indicator.tsx`, `feed-tabs.tsx`
+  - `settings/subscription/page.tsx`, `auth/layout.tsx`, `landing-page/page.tsx`
+  - `attachment-bubble.tsx`, `dark-mode-settings.tsx`, `rating-form.tsx`
+
+#### 3. Navbar الموبايل — تحسينات
+- **استُبدل** شريط البحث (`GlobalSearchBar`) بأيقونة بحث فقط (`MobileSearchButton`) تنتقل لـ `/search`
+- **أُضيفت** أيقونة الإشعارات (`MobileNotifButton`) مع badge العدد بين `ThemeToggle` و `UserMenu`
+- ملفان جديدان: `mobile-search-button.tsx`, `mobile-notif-button.tsx`
+
+#### 4. زر `brand` جديد في `button.tsx`
+- أُضيف `variant="brand"` يطبق `var(--brand-gradient)` تلقائياً عبر `style` prop
+- طُبّق على جميع أزرار CTA الرئيسية في المنصة:
+  - زر إرسال الرسالة (`chat-window.tsx`)
+  - زر إرسال التسجيل الصوتي + hover الميكروفون (`voice-recorder.tsx`)
+  - أيقونة إرسال التعليق (`inline-comments.tsx`, `comments-sheet.tsx`)
+  - FAB نشر المنشور + زر النشر (`post-composer.tsx`)
+  - زر تسجيل الدخول + إنشاء الحساب (`login-form.tsx`, `signup-form.tsx`)
+  - زر حفظ Onboarding + تعديل البروفايل + إرسال التقييم
+  - زر متابعة الحرفي في `profile-header.tsx` و `artisan-card.tsx`
+  - أزرار المشاركة في `share-to-profile-sheet.tsx`, `share-to-story-sheet.tsx`, `send-via-message-sheet.tsx`
+  - زر تأكيد الموقع (`location-picker.tsx`)
+  - زر نشر الحالة (`status-composer.tsx`)
+
+#### 5. إصلاح تدرج الغلاف والصورة الرمزية
+- **cover fallback** في `profile-header.tsx`: من تدرج أزرق → `var(--brand-gradient)`
+- **avatar fallback** (الحروف الأولى) في `profile-header.tsx` و `user-avatar.tsx`: من `from-red-500 to-green-600` → `var(--brand-gradient)`
+
+#### 6. إصلاح تحذيرات ESLint
+- أُضيف `t` (دالة الترجمة) لمصفوفات deps في `useCallback`/`useEffect` في:
+  `attachment-picker.tsx`, `chat-window.tsx`, `conversation-actions-menu.tsx`,
+  `location-map-inner.tsx`, `location-picker.tsx`, `voice-recorder.tsx`, `success-toast.tsx`
+- حُذف directive `eslint-disable` غير المستعمل في `video-preview-modal.tsx`
+
+#### النتائج
+```
+✓ npm run build → 0 errors, 0 warnings
+✓ 26 صفحة تُولَّد بنجاح
 ```

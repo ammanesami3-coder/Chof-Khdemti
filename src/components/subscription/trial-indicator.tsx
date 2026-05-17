@@ -29,7 +29,7 @@ export function TrialIndicator() {
       return (
         <Link
           href="/settings/subscription"
-          className={`${BASE} bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400`}
+          className={`${BASE} bg-[#FF9F43]/15 text-[#E88A38] hover:bg-[#FF9F43]/25 dark:bg-[#FF9F43]/20 dark:text-[#FFBA69]`}
         >
           <AlertTriangle className="h-3 w-3" />
           {dateStr

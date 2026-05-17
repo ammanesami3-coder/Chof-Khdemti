@@ -116,7 +116,7 @@ export function RatingForm({ artisanId, existingRating, onSuccess, onCancel }: R
           )}
           <span
             className={`text-xs tabular-nums ${
-              commentValue.length >= 480 ? 'text-amber-500' : 'text-muted-foreground'
+              commentValue.length >= 480 ? 'text-[#FF9F43]' : 'text-muted-foreground'
             }`}
           >
             {commentValue.length}/500
@@ -130,7 +130,7 @@ export function RatingForm({ artisanId, existingRating, onSuccess, onCancel }: R
             {t('cancelLabel')}
           </Button>
         )}
-        <Button type="submit" disabled={starsValue === 0 || isPending}>
+        <Button variant="brand" type="submit" disabled={starsValue === 0 || isPending}>
           {isPending ? t('sendingRatingProgress') : isEditing ? t('updateRatingBtn') : t('submitRatingBtn')}
         </Button>
       </div>

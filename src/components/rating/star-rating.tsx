@@ -29,12 +29,12 @@ function StarIcon({ type, px, hover }: { type: StarType; px: number; hover: bool
       <Star
         width={px}
         height={px}
-        className={hover ? 'text-amber-500 fill-amber-500' : 'text-amber-400 fill-amber-400'}
+        className={hover ? 'text-[#FF9F43] fill-[#FF9F43]' : 'text-[#FFBA69] fill-[#FFBA69]'}
       />
     );
   }
   if (type === 'half') {
-    return <StarHalf width={px} height={px} className="text-amber-400 fill-amber-400" />;
+    return <StarHalf width={px} height={px} className="text-[#FFBA69] fill-[#FFBA69]" />;
   }
   return <Star width={px} height={px} className="text-gray-300" />;
 }
@@ -76,7 +76,7 @@ export function StarRating({
         tabIndex={isInteractive ? 0 : undefined}
         className={cn(
           'inline-flex items-center gap-0.5 focus:outline-none',
-          isInteractive && 'focus-visible:ring-2 focus-visible:ring-amber-400 rounded-sm',
+          isInteractive && 'focus-visible:ring-2 focus-visible:ring-[#FF9F43] rounded-sm',
         )}
         onKeyDown={handleKeyDown}
         onMouseLeave={() => isInteractive && setHoverValue(0)}

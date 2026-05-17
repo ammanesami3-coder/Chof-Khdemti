@@ -161,12 +161,11 @@ export function StatusAwareAvatar({
           aria-label={`${t('viewStatusOfPrefix')} ${user.full_name}`}
           className={cn(
             'inline-flex shrink-0 rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            hasUnviewed
-              ? 'bg-gradient-to-tr from-red-600 via-orange-400 to-green-500'
-              : 'bg-muted',
+            !hasUnviewed && 'bg-muted',
             RING_PAD[size],
             className,
           )}
+          style={hasUnviewed ? { background: 'var(--brand-gradient)' } : undefined}
         >
           <span
             className={cn(
