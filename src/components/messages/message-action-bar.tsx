@@ -53,6 +53,9 @@ export function MessageActionBar({
     if (!emojiOpen && emojiButtonRef.current) {
       const rect = emojiButtonRef.current.getBoundingClientRect();
       const PICKER_HEIGHT = 56;
+      // EmojiPicker is 6×32px buttons + gaps/padding/border ≈ 216px wide.
+      const PICKER_WIDTH = 220;
+      const GAP = 8;
       const style: React.CSSProperties = { position: 'fixed', zIndex: 9999 };
 
       if (rect.top < PICKER_HEIGHT + 8) {
@@ -61,11 +64,13 @@ export function MessageActionBar({
         style.bottom = window.innerHeight - rect.top + 4;
       }
 
-      if (isSent) {
-        style.right = window.innerWidth - rect.right;
-      } else {
-        style.left = rect.left;
-      }
+      // Align to the button's side, then clamp inside the viewport so the
+      // picker — and its first emoji — is never clipped at a screen edge.
+      const desiredLeft = isSent ? rect.right - PICKER_WIDTH : rect.left;
+      style.left = Math.max(
+        GAP,
+        Math.min(desiredLeft, window.innerWidth - PICKER_WIDTH - GAP),
+      );
 
       setPickerStyle(style);
     }

@@ -12,6 +12,7 @@ const QUICK_EMOJIS = ['❤️', '👍', '😂', '😮', '😢', '🙏'] as const
 
 const VIEWPORT_GAP  = 12;  // px from screen edge
 const REACTIONS_H   = 56;  // estimated height of reactions bar
+const REACTIONS_W   = 280; // width of reactions bar: 6×40 + gaps + padding + border
 const ACTIONS_H     = 240; // estimated height of actions list
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -125,6 +126,12 @@ export function MessageActionSheet({
     VIEWPORT_GAP,
     Math.min(reactionsTop, viewH - REACTIONS_H - VIEWPORT_GAP),
   );
+  // The reactions bar is wider than the actions menu — clamp it with its own
+  // width so the first emoji isn't clipped at the viewport edge.
+  const clampedReactionsLeft = Math.max(
+    VIEWPORT_GAP,
+    Math.min(menuLeft, viewW - REACTIONS_W - VIEWPORT_GAP),
+  );
 
   // ── Action items ───────────────────────────────────────────────────────────
   const actions = [
@@ -205,7 +212,7 @@ export function MessageActionSheet({
         )}
         style={{
           top:  clampedReactionsTop,
-          left: menuLeft,
+          left: clampedReactionsLeft,
         }}
         onClick={(e) => e.stopPropagation()}
       >

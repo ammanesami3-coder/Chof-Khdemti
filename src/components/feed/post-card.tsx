@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTran
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
+import cloudinaryLoader from "@/lib/cloudinary-loader";
 import useEmblaCarousel from "embla-carousel-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar, fr, enUS } from "date-fns/locale";
@@ -128,11 +129,9 @@ function SingleMedia({
 
 function MediaCarousel({
   media,
-  priority = false,
   onImageClick,
 }: {
   media: PostMedia[];
-  priority?: boolean;
   onImageClick?: (imageIndex: number) => void;
 }) {
   const { t } = useLang();
@@ -166,8 +165,10 @@ function MediaCarousel({
       aria-label={t('mediaGalleryAriaLabel')}
       aria-roledescription="carousel"
     >
-      {/* Slides */}
-      <div ref={emblaRef} className="overflow-hidden">
+      {/* Slides — forced LTR so Embla's scroll math matches the flex layout.
+          In an RTL document the flex strip flows right-to-left while Embla
+          defaults to ltr, so every slide past the first lands off-screen. */}
+      <div ref={emblaRef} className="overflow-hidden" dir="ltr">
         <div className="flex">
           {media.map((item, i) => (
             <div
@@ -190,18 +191,22 @@ function MediaCarousel({
                     }
                     onImageClick?.(imgIdx);
                   }}
-                  className="relative block aspect-square w-full cursor-zoom-in bg-muted focus-visible:outline-none"
+                  className="block w-full cursor-zoom-in overflow-hidden bg-muted focus-visible:outline-none"
                   aria-label={t('viewFullImageAriaLabel')}
                 >
-                  <Image
-                    src={item.url}
-                    alt=""
-                    fill
-                    priority={priority && i === 0}
-                    loading="eager"
-                    className="object-cover"
-                    sizes="(max-width: 672px) calc(100vw - 32px), 640px"
-                  />
+                  <div className="aspect-square">
+                    {/* Plain <img>: next/image's fill + lazy machinery left
+                        off-screen embla slides blank. A direct, Cloudinary-
+                        optimized URL renders reliably on every slide. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={cloudinaryLoader({ src: item.url, width: 1280 })}
+                      alt=""
+                      loading="eager"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
                 </button>
               )}
             </div>
@@ -593,7 +598,6 @@ export function PostCard({
           ) : (
             <MediaCarousel
               media={post.media}
-              priority={priority}
               onImageClick={(idx) => { setLightboxIndex(idx); setLightboxOpen(true); }}
             />
           )}
