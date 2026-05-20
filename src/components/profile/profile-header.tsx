@@ -6,6 +6,8 @@ import { BadgeCheck, MapPin, Briefcase, Clock, MessageCircle, Pencil } from 'luc
 import { Button } from '@/components/ui/button';
 import { AuthGate } from '@/components/shared/auth-gate';
 import { RatingDisplay } from '@/components/rating/rating-display';
+import { PresenceText } from '@/components/shared/presence-text';
+import { useIsOnline } from '@/hooks/use-is-online';
 import { getCraftById } from '@/lib/constants/crafts';
 import { CITIES } from '@/lib/constants/cities';
 import { useLang } from '@/lib/i18n/language-context';
@@ -47,6 +49,7 @@ type Props = {
   onAvatarClick?: () => void;
   onCoverClick?: () => void;
   onRatingClick?: () => void;
+  lastSeenAt?: string | null;
 };
 
 export function ProfileHeader({
@@ -64,9 +67,11 @@ export function ProfileHeader({
   onAvatarClick,
   onCoverClick,
   onRatingClick,
+  lastSeenAt,
 }: Props) {
   const { t } = useLang();
   const isOwnProfile = currentUser?.id === user.id;
+  const isOnline = useIsOnline(user.id);
 
   const craft = profile.craft_category ? getCraftById(profile.craft_category) : null;
   const cityName = profile.city
@@ -122,7 +127,7 @@ export function ProfileHeader({
 
       {/* ── Avatar overlap ────────────────────────────────── */}
       <div className="relative px-4">
-        <div className="-mt-16 mb-3 inline-block">
+        <div className="relative -mt-16 mb-3 inline-block">
           {hasActiveStatus && onViewStatus ? (
             /* Gradient ring — user has an active status */
             <button
@@ -172,6 +177,12 @@ export function ProfileHeader({
               )}
             </button>
           )}
+          {isOnline && (
+            <span
+              aria-hidden="true"
+              className="absolute bottom-3 end-3 size-6 rounded-full border-[3px] border-background bg-green-500 shadow-[0_0_8px_2px_rgba(34,197,94,0.55)]"
+            />
+          )}
         </div>
       </div>
 
@@ -188,6 +199,7 @@ export function ProfileHeader({
               )}
             </div>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
+            <PresenceText userId={user.id} lastSeenAt={lastSeenAt} className="mt-0.5 text-xs" />
           </div>
 
           {/* Buttons */}

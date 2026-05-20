@@ -162,7 +162,7 @@ export function CommentBubble({
     >
       {/* Avatar */}
       <Link href={`/profile/${comment.author.username}`} className="shrink-0 mt-0.5">
-        <UserAvatar user={comment.author} size={avatarSize} linkable={false} />
+        <UserAvatar user={comment.author} size={avatarSize} linkable={false} userId={comment.author_id} />
       </Link>
 
       <div className="min-w-0 flex-1">

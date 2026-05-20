@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { requireCommentPermission } from '@/lib/subscription/guard';
 import type { RecentComment } from '@/lib/validations/post';
 
 const contentSchema = z.string().min(1).max(500);
@@ -100,6 +101,10 @@ export async function addComment(
     if (!parent) throw new Error('التعليق الأصلي غير موجود');
     if (parent.parent_comment_id) throw new Error('لا يمكن الرد على رد');
   }
+
+  // Guard: unsubscribed artisans can only comment on artisan content.
+  // (Subscribed artisans and customers pass through freely.)
+  await requireCommentPermission(supabase, user.id, postId, parentCommentId ?? null);
 
   // Try with new columns first (post-migration 0017)
   const insertPayload = {
@@ -221,6 +226,8 @@ export async function toggleCommentLike(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
+
+  // No subscription guard: all logged-in users can like comments
 
   const { data: existing } = await supabase
     .from('comment_likes')

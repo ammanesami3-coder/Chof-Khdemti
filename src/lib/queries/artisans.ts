@@ -16,6 +16,8 @@ export type ArtisanListItem = {
   created_at: string;
   avatar_url: string | null;
   is_verified: boolean;
+  /** True when the artisan has an active trial or paid subscription */
+  is_subscribed?: boolean;
   craft_category: string | null;
   city: string | null;
   years_experience: number | null;
@@ -90,5 +92,29 @@ export async function searchArtisans(params: SearchParams): Promise<ArtisanListI
   const { data, error } = await query;
   if (error) throw error;
 
-  return (data as unknown as RawArtisan[]).map(mapArtisan);
+  const artisans = (data as unknown as RawArtisan[]).map(mapArtisan);
+
+  if (!artisans.length) return artisans;
+
+  // Fetch subscription status via security-definer RPC (bypasses RLS on subscriptions table)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: subscribedIds } = await (supabase as any).rpc('get_subscribed_user_ids', {
+    p_user_ids: artisans.map((a) => a.id),
+  }) as { data: string[] | null };
+
+  const subscribedSet = new Set<string>(subscribedIds ?? []);
+  for (const a of artisans) {
+    a.is_subscribed = subscribedSet.has(a.id);
+  }
+
+  // Subscribed artisans first, then by avgRating desc, then by totalRatingsCount desc
+  artisans.sort((a, b) => {
+    const subDiff = (b.is_subscribed ? 1 : 0) - (a.is_subscribed ? 1 : 0);
+    if (subDiff !== 0) return subDiff;
+    const ratingDiff = (b.avgRating ?? 0) - (a.avgRating ?? 0);
+    if (ratingDiff !== 0) return ratingDiff;
+    return b.totalRatingsCount - a.totalRatingsCount;
+  });
+
+  return artisans;
 }

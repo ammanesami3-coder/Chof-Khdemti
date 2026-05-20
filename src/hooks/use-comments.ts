@@ -14,6 +14,10 @@ import {
   toggleCommentLike,
   getComments,
 } from '@/lib/actions/comments';
+import {
+  isSubscriptionRequiredError,
+  showSubscriptionRequiredToast,
+} from '@/lib/subscription/show-subscription-toast';
 import type { CommentPage } from '@/lib/actions/comments';
 import type { RecentComment } from '@/lib/validations/post';
 import type { FeedPage } from '@/lib/queries/posts';
@@ -163,12 +167,19 @@ export function useAddComment(currentUser: {
       return { prevComments, prevFeed, optimistic };
     },
 
-    onError: (_err, { postId }, ctx) => {
+    onError: (err, { postId }, ctx) => {
+      // Roll back optimistic updates
       if (ctx?.prevComments)
         qc.setQueryData(commentQueryKey(postId), ctx.prevComments);
       if (ctx?.prevFeed)
         ctx.prevFeed.forEach(([key, data]) => qc.setQueryData(key, data));
-      toast.error('فشل إرسال التعليق، حاول مجدداً');
+
+      // Show appropriate message: subscription required vs generic failure
+      if (isSubscriptionRequiredError(err)) {
+        showSubscriptionRequiredToast();
+      } else {
+        toast.error('فشل إرسال التعليق، حاول مجدداً');
+      }
     },
 
     onSuccess: (real, { postId, tempId, parentCommentId }) => {

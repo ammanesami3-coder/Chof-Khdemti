@@ -845,3 +845,95 @@ if (!isConversationMuted(conversations, msg.conversation_id)) {
 ✓ npm run build → 0 errors, 0 warnings
 ✓ 26 صفحة تُولَّد بنجاح
 ```
+
+---
+
+## نظام الحضور (Presence) — إصلاح وإكمال شامل
+
+**الهدف:** رفع نظام «متصل الآن / آخر ظهور / يكتب الآن» إلى مستوى Messenger/WhatsApp:
+إصلاح المشاكل القائمة أولاً، ثم بناء نظام presence احترافي مع خصوصية فعلية.
+
+### الإصلاح #1 — الـ Avatar تحوّل إلى مربع ✅
+
+**السبب المؤكَّد (عبر `git diff`):** تعديل سابق جعل طبقة قصّ الصورة الداخلية
+`<span>` بـ `display:inline`. الـ `overflow-hidden` على عنصر inline **لا يقصّ**
+صورة `<Image fill>` (المطلقة الموضع `absolute`)، فظهرت الصورة مربعة بدل دائرية.
+
+**الحل:** في `user-avatar.tsx` صارت طبقة القصّ `absolute inset-0 overflow-hidden
+rounded-full` — صندوق موضَّع حقيقي يقصّ الصورة دائريًا بشكل مضمون.
+
+### الإصلاح #2 — النقطة الخضراء لا تظهر إلا في أماكن محدودة ✅
+
+- `UserAvatar` أصبح **المكوّن الموحّد** للـ presence: تمرير `userId` → تظهر النقطة
+  تلقائيًا عبر `useIsOnline` (لا تكرار كود، لا `<PresenceAvatar>` منفصل).
+- `StatusAwareAvatar` يعيد استخدام `UserAvatar` بدل تكرار كود الـ avatar (مصدر بق المربع).
+- النقطة أُضيفت في: الرسائل، قائمة المحادثات، التعليقات، الردود، البروفايل،
+  صفحة اكتشف، الاقتراحات (right-sidebar)، المنشورات، نتائج البحث.
+
+### الإصلاح #3 — إعدادات الحضور لا تعمل فعليًا ✅
+
+- migration `0039` يضيف عمودَي `online_hidden` و `typing_hidden` (مع `last_seen_hidden` من 0038).
+- صفحة `/settings/privacy` فيها قسم «الحضور والظهور» بثلاثة مفاتيح مربوطة فعليًا
+  بالـ DB، والتغيير يُطبَّق **فورًا** عبر `myPrivacyStore` دون إعادة تحميل.
+
+### البنية الجديدة (architecture)
+
+| الملف | الدور |
+|-------|-------|
+| `lib/presence/my-privacy-store.ts` | مخزن إعدادات خصوصية المستخدم الحالي (تفاعلي) |
+| `hooks/use-my-privacy.ts` | قراءة الإعدادات عبر `useSyncExternalStore` |
+| `lib/presence/presence-store.ts` | + دالة `isOnline(userId)` للبحث الفردي |
+| `hooks/use-presence-system.ts` | privacy-aware: `onlineHidden`→لا track، `lastSeenHidden`→لا كتابة |
+| `hooks/use-typing-indicator.ts` | أُعيدت كتابته بالكامل |
+| `hooks/use-is-online.ts` | `getSnapshot` لكل مستخدم على حدة |
+
+### نظام «يكتب الآن» — إعادة كتابة
+
+- **البق القديم:** كان `onTyping` ينشئ قناة Supabase جديدة كل ضغطة مفتاح → الإرسال يفشل صامتًا.
+- الآن: **قناة broadcast واحدة** مُعاد استخدامها للإرسال والاستقبال.
+- حدث `stopped` صريح → المؤشر يختفي فورًا (لا flicker).
+- throttle للإرسال (1.8ث) + debounce للإيقاف (3ث) → لا spam.
+- إيقاف عند: الإرسال، فقدان التركيز (`onBlur`)، إلغاء التحميل.
+
+### نموذج الخصوصية (مُطبَّق عند المصدر)
+
+- `online_hidden` → لا يُسجَّل في Realtime Presence إطلاقًا → لا أحد يراه متصلًا.
+- `last_seen_hidden` → لا يُكتب `last_seen_at` + يُصفَّر عند القراءة (server-side). **بالمثل:** من يُخفي آخر ظهوره لا يرى آخر ظهور الآخرين.
+- `typing_hidden` → لا يبثّ «يكتب». **بالمثل:** لا يستقبل مؤشرات الكتابة من الآخرين.
+
+### قراران تصميميان
+
+1. **لا `<PresenceAvatar>` منفصل** — `UserAvatar` هو المكوّن الموحّد (مستعمَل في ~30 ملفًا)؛
+   مكوّن ثانٍ = تكرار، وهو سبب بق المربع أصلًا.
+2. **الخصوصية مفاتيح on/off** وليست (الجميع/المتابعون/لا أحد) — لأن فلترة حالة «متصل
+   الآن» الحيّة لكل مُشاهد غير ممكنة مع Realtime Presence (يبثّ للجميع) دون إعادة هيكلة.
+
+### الملفات المعدَّلة
+
+- `user-avatar.tsx`, `status-aware-avatar.tsx`, `presence-text.tsx` — الـ avatar الموحّد + النقطة + النصوص.
+- `chat-window.tsx` — ربط presence + typing (`onTyping`/`stopTyping`).
+- `conversation-list-item.tsx`, `artisan-card.tsx`, `comment-bubble.tsx`, `comment-item.tsx`,
+  `profile-header.tsx`, `right-sidebar.tsx`, `global-search-bar.tsx` — تمرير `userId`.
+- `global-realtime-provider.tsx` — زرع `myPrivacyStore` قبل أي hook.
+- `(app)/layout.tsx`, `page.tsx` — جلب أعلام الخصوصية الثلاثة.
+- `settings/privacy/page.tsx` — قسم الحضور المربوط بالـ DB.
+- `translations.ts` — مفاتيح جديدة (ar/fr/en): `presenceSettingsSection`, `showOnlineLabel/Desc`,
+  `showTypingLabel/Desc`, `presenceReciprocityHint`.
+- `database.types.ts` — عمودا `online_hidden` / `typing_hidden`.
+
+### ملاحظات
+
+- **الإشعارات و RatingCard** بلا نقطة عمدًا: الإشعار فيه شارة نوع الإشعار في نفس
+  الزاوية (تجنّب الازدحام)؛ RatingCard يحتاج تعديل استعلام لإضافة `id` (تحسين مستقبلي).
+- **أداء:** `useIsOnline` يعيد render الـ avatar المعني فقط عند تغيّر حالة مستخدمه.
+
+### النتائج
+
+```
+✓ npx tsc --noEmit → 0 errors
+✓ npm run lint     → 0 warnings
+✓ npm run build    → نجح، 30 صفحة
+```
+
+> ⚠️ **مطلوب:** تطبيق migration `0039_presence_privacy_extended.sql` على قاعدة البيانات
+> قبل التشغيل (يضيف عمودَي `online_hidden` و `typing_hidden`).

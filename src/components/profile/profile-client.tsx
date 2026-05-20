@@ -31,6 +31,7 @@ type ProfileData = {
   city: string | null;
   years_experience: number | null;
   is_verified: boolean;
+  last_seen_at?: string | null;
 };
 
 type CurrentUser = {
@@ -49,6 +50,7 @@ type Props = {
   initialFollowersCount: number;
   followingCount: number;
   profileStatus: StatusWithUser | null;
+  lastSeenAt?: string | null;
 };
 
 export function ProfileClient({
@@ -62,6 +64,7 @@ export function ProfileClient({
   initialFollowersCount,
   followingCount,
   profileStatus,
+  lastSeenAt,
 }: Props) {
   const { t } = useLang();
   const followMap = useSyncExternalStore(followStore.subscribe, followStore.getSnapshot);
@@ -136,6 +139,7 @@ export function ProfileClient({
         onAvatarClick={profile.avatar_url ? () => setAvatarLightboxOpen(true) : undefined}
         onCoverClick={profile.cover_url ? () => setCoverLightboxOpen(true) : undefined}
         onRatingClick={totalRatingsCount > 0 ? handleRatingClick : undefined}
+        lastSeenAt={lastSeenAt}
       />
       <ProfileStats
         postsCount={postsCount}

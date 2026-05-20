@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export type NotificationItem = {
   id: string;
-  type: 'like' | 'comment' | 'comment_reply' | 'comment_like' | 'follow';
+  type: 'like' | 'comment' | 'comment_reply' | 'comment_like' | 'follow' | 'craft_mention';
   is_read: boolean;
   created_at: string;
   post_id: string | null;

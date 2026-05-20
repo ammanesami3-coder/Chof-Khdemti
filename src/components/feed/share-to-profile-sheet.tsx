@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SharedPostEmbed } from './shared-post-embed';
 import { sharePostToProfile } from '@/lib/actions/shares';
+import { showSubscriptionRequiredToast } from '@/lib/subscription/show-subscription-toast';
 import { useLang } from '@/lib/i18n/language-context';
 import type { PostWithAuthor } from '@/lib/validations/post';
 
@@ -40,7 +41,11 @@ export function ShareToProfileSheet({ post, onBack, onClose }: Props) {
     setLoading(false);
 
     if (result.error) {
-      toast.error(result.error);
+      if (result.error === 'subscription_required') {
+        showSubscriptionRequiredToast();
+      } else {
+        toast.error(result.error);
+      }
       return;
     }
 

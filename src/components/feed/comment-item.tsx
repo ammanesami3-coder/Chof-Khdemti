@@ -142,6 +142,7 @@ export function CommentItem({
       <UserAvatar
         user={comment.author}
         size={avatarSize}
+        userId={comment.author_id}
         className="mt-0.5 shrink-0"
       />
 

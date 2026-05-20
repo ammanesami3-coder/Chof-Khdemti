@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useNotificationSound } from '@/hooks/use-notification-sound';
+import { usePresenceSystem } from '@/hooks/use-presence-system';
+import { myPrivacyStore, type MyPrivacy } from '@/lib/presence/my-privacy-store';
 import type { ConversationRow } from '@/lib/queries/conversations';
 
-type Props = { currentUserId: string };
+type Props = { currentUserId: string; presencePrivacy: MyPrivacy };
 
 function isConversationMuted(conversations: ConversationRow[] | undefined, convId: string): boolean {
   const conv = conversations?.find((c) => c.id === convId);
@@ -17,7 +19,18 @@ function isConversationMuted(conversations: ConversationRow[] | undefined, convI
   return new Date(conv.muted_until) > new Date();
 }
 
-export function GlobalRealtimeProvider({ currentUserId }: Props) {
+export function GlobalRealtimeProvider({ currentUserId, presencePrivacy }: Props) {
+  // Seed the privacy store once, synchronously, BEFORE any presence hook reads
+  // it. A lazy useState initializer runs during the first render, ahead of all
+  // effects — so usePresenceSystem starts with the correct privacy values.
+  useState(() => {
+    myPrivacyStore.set(presencePrivacy);
+    return null;
+  });
+
+  // ── Presence system ──────────────────────────────────────────────────────
+  // Tracks the current user's online status and feeds presenceStore for all.
+  usePresenceSystem(currentUserId);
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { playMessage, playNotification } = useNotificationSound();

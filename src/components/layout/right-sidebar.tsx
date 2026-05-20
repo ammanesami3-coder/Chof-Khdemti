@@ -71,6 +71,7 @@ function ArtisanCard({ artisan }: { artisan: ArtisanRow }) {
           user={{ username: artisan.username, full_name: artisan.full_name, avatar_url: profile?.avatar_url }}
           size="sm"
           linkable={false}
+          userId={artisan.id}
         />
       </Link>
       <div className="min-w-0 flex-1">

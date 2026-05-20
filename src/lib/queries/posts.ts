@@ -80,6 +80,23 @@ async function fetchSharedPosts(
   return result;
 }
 
+// ── Discover-feed scoring ─────────────────────────────────────────────────────
+// Tune these constants to adjust ranking behaviour without touching logic.
+const RANK = {
+  subscribedBoost: 50,       // flat bonus for subscribed artisans (~6 extra "freshness" hours)
+  likeWeight: 2,             // score per like
+  commentWeight: 3,          // score per comment
+  recencyHalfLifeHours: 12,  // recency score halves every N hours
+} as const;
+
+function scoreDiscoverPost(post: PostWithAuthor): number {
+  const ageHours = (Date.now() - new Date(post.created_at).getTime()) / 3_600_000;
+  const recency = 100 * Math.exp(-Math.LN2 * ageHours / RANK.recencyHalfLifeHours);
+  const engagement = post.likes_count * RANK.likeWeight + post.comments_count * RANK.commentWeight;
+  const boost = (post.author.is_subscribed ?? false) ? RANK.subscribedBoost : 0;
+  return recency + engagement + boost;
+}
+
 async function enrichPosts(
   supabase: SupabaseClient,
   rawPosts: RawPost[],
@@ -104,7 +121,12 @@ async function enrichPosts(
     .map((r) => r.shared_post_id)
     .filter((id): id is string => !!id);
 
-  const [usersRes, profilesRes, likesRes, followsRes, savesRes, sharedMap] = await Promise.all([
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const subscribedRpc = (supabase as any).rpc('get_subscribed_user_ids', {
+    p_user_ids: authorIds,
+  }) as Promise<{ data: string[] | null }>;
+
+  const [usersRes, profilesRes, likesRes, followsRes, savesRes, sharedMap, subscribedRes] = await Promise.all([
     supabase.from('users').select('id, username, full_name').in('id', authorIds),
     supabase.from('profiles').select('user_id, avatar_url, is_verified').in('user_id', authorIds),
     currentUserId
@@ -130,14 +152,16 @@ async function enrichPosts(
           .in('post_id', postIds) as Promise<{ data: { post_id: string }[] | null }>
       : Promise.resolve({ data: [] as { post_id: string }[] }),
     fetchSharedPosts(supabase, sharedIds),
+    subscribedRpc,
   ]);
 
-  const userMap     = new Map((usersRes.data   ?? []).map((u) => [u.id,        u]));
-  const profileMap  = new Map((profilesRes.data ?? []).map((p) => [p.user_id,  p]));
-  const likedSet    = new Set((likesRes.data    ?? []).map((l) => l.post_id));
-  const followingSet = new Set((followsRes.data ?? []).map((f) => f.following_id));
-  const savesData = (savesRes as { data: { post_id: string }[] | null }).data;
-  const savedSet    = new Set((savesData   ?? []).map((s) => s.post_id));
+  const userMap      = new Map((usersRes.data   ?? []).map((u) => [u.id,        u]));
+  const profileMap   = new Map((profilesRes.data ?? []).map((p) => [p.user_id,  p]));
+  const likedSet     = new Set((likesRes.data    ?? []).map((l) => l.post_id));
+  const followingSet = new Set((followsRes.data  ?? []).map((f) => f.following_id));
+  const savesData    = (savesRes as { data: { post_id: string }[] | null }).data;
+  const savedSet     = new Set((savesData ?? []).map((s) => s.post_id));
+  const subscribedSet = new Set<string>(subscribedRes.data ?? []);
 
   return rawPosts.map((p) => {
     const extras = extrasMap.get(p.id);
@@ -162,6 +186,7 @@ async function enrichPosts(
         full_name: userMap.get(p.author_id)?.full_name ?? '',
         avatar_url: profileMap.get(p.author_id)?.avatar_url ?? null,
         is_verified: profileMap.get(p.author_id)?.is_verified ?? false,
+        is_subscribed: subscribedSet.has(p.author_id),
       },
     };
   });
@@ -232,8 +257,11 @@ export async function fetchDiscoverFeed(
   const page = hasMore ? posts.slice(0, PAGE_SIZE) : posts;
   const last = page[page.length - 1];
 
+  const enriched = await enrichPosts(supabase, page as RawPost[], currentUserId);
+  enriched.sort((a, b) => scoreDiscoverPost(b) - scoreDiscoverPost(a));
+
   return {
-    posts: await enrichPosts(supabase, page as RawPost[], currentUserId),
+    posts: enriched,
     nextCursor:
       hasMore && last
         ? { created_at: last.created_at as string, id: last.id as string }
@@ -316,8 +344,11 @@ export async function fetchSmartFeed(
     const page    = hasMore ? posts.slice(0, PAGE_SIZE) : posts;
     const last    = page[page.length - 1];
 
+    const enriched = await enrichPosts(supabase, page as RawPost[], currentUserId);
+    enriched.sort((a, b) => scoreDiscoverPost(b) - scoreDiscoverPost(a));
+
     return {
-      posts: await enrichPosts(supabase, page as RawPost[], currentUserId),
+      posts: enriched,
       nextCursor:
         hasMore && last
           ? { phase: 'discover', created_at: last.created_at as string, id: last.id as string }
@@ -385,6 +416,9 @@ export async function fetchSmartFeed(
       ? enrichPosts(supabase, dPage as RawPost[], currentUserId)
       : Promise.resolve([] as Awaited<ReturnType<typeof enrichPosts>>),
   ]);
+
+  // Re-sort only the discover fill portion (following posts stay chronological)
+  dEnriched.sort((a, b) => scoreDiscoverPost(b) - scoreDiscoverPost(a));
 
   return {
     posts: [...fEnriched, ...dEnriched],

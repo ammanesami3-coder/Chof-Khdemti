@@ -23,6 +23,8 @@ import { useSubscriptionStatus } from '@/hooks/use-subscription-status';
 import { useNotificationSound } from '@/hooks/use-notification-sound';
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import { PresenceText } from '@/components/shared/presence-text';
+import { useTypingIndicator } from '@/hooks/use-typing-indicator';
 import { VoiceRecorder } from '@/components/messages/voice-recorder';
 import { VoiceMessageBubble } from '@/components/messages/voice-message-bubble';
 import { MessageActionBar } from '@/components/messages/message-action-bar';
@@ -116,10 +118,11 @@ type ReplyTarget = {
 };
 
 type Partner = {
-  id:         string;
-  username:   string;
-  full_name:  string;
-  avatar_url: string | null;
+  id:            string;
+  username:      string;
+  full_name:     string;
+  avatar_url:    string | null;
+  last_seen_at?: string | null;
 };
 
 type Props = {
@@ -297,6 +300,7 @@ export function ChatWindow({
   const { data: subStatus } = useSubscriptionStatus();
   const { playMessage }     = useNotificationSound();
   const queryClient         = useQueryClient();
+  const { isPartnerTyping, onTyping, stopTyping } = useTypingIndicator(conversationId, currentUserId);
 
   const canReply = accountType !== 'artisan'
     ? true
@@ -819,6 +823,7 @@ export function ChatWindow({
     if (!trimmed || isSending) return;
 
     setContent('');
+    stopTyping();
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
     const tempId = `temp-${Date.now()}`;
@@ -911,10 +916,25 @@ export function ChatWindow({
         <Link href="/messages" className="shrink-0 rounded-full p-1.5 transition-colors hover:bg-accent" aria-label={t('backAriaLabel')}>
           <ArrowRight className="h-5 w-5" />
         </Link>
-        <UserAvatar user={partner} size="md" />
+        <UserAvatar user={partner} size="md" userId={partner.id} />
         <Link href={`/profile/${partner.username}`} className="min-w-0 flex-1 rounded-md px-1 transition-colors hover:bg-accent/50">
           <p className="truncate font-semibold leading-tight">{partner.full_name}</p>
-          <p className="truncate text-xs text-muted-foreground">@{partner.username}</p>
+          {isPartnerTyping ? (
+            <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+              <span className="inline-flex gap-0.5">
+                <span className="size-1 animate-bounce rounded-full bg-current [animation-delay:0ms]" />
+                <span className="size-1 animate-bounce rounded-full bg-current [animation-delay:150ms]" />
+                <span className="size-1 animate-bounce rounded-full bg-current [animation-delay:300ms]" />
+              </span>
+              {t('partnerTyping')}
+            </span>
+          ) : (
+            <PresenceText
+              userId={partner.id}
+              lastSeenAt={partner.last_seen_at}
+              className="block truncate text-xs text-muted-foreground"
+            />
+          )}
         </Link>
       </div>
 
@@ -971,7 +991,9 @@ export function ChatWindow({
                 {/* Partner avatar (received) */}
                 {!isSent && (
                   <div className="w-7 shrink-0 self-end">
-                    {msg.isLastInGroup && <UserAvatar user={partner} size="xs" linkable={false} />}
+                    {msg.isLastInGroup && (
+                      <UserAvatar user={partner} size="xs" linkable={false} userId={partner.id} />
+                    )}
                   </div>
                 )}
 
@@ -1390,9 +1412,10 @@ export function ChatWindow({
               <textarea
                 ref={textareaRef}
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={(e) => { setContent(e.target.value); onTyping(e.target.value); }}
                 onInput={handleTextareaInput}
                 onKeyDown={handleKeyDown}
+                onBlur={stopTyping}
                 placeholder={t('writeMessagePlaceholder')}
                 rows={1}
                 disabled={isSending}

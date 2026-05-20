@@ -42,7 +42,7 @@ export default async function ProfilePage({ params }: Props) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('bio, avatar_url, cover_url, craft_category, city, years_experience, is_verified')
+    .select('bio, avatar_url, cover_url, craft_category, city, years_experience, is_verified, last_seen_at, last_seen_hidden')
     .eq('user_id', profileUser.id)
     .single();
 
@@ -265,6 +265,7 @@ export default async function ProfilePage({ params }: Props) {
         initialFollowersCount={followersRes.count ?? 0}
         followingCount={followingRes.count ?? 0}
         profileStatus={profileStatus}
+        lastSeenAt={profile.last_seen_hidden ? null : (profile.last_seen_at ?? null)}
       />
 
       {/* ── Tabs ─────────────────────────────────────────────────────────── */}

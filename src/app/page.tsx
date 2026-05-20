@@ -33,11 +33,26 @@ export default async function HomePage({ searchParams }: Props) {
     avatar_url: string | null;
   } | null = null;
 
+  let presencePrivacy = {
+    lastSeenHidden: false,
+    onlineHidden: false,
+    typingHidden: false,
+  };
+
   if (user) {
     const [userRes, profileRes] = await Promise.all([
       supabase.from('users').select('id, username, full_name').eq('id', user.id).single(),
-      supabase.from('profiles').select('avatar_url').eq('user_id', user.id).single(),
+      supabase
+        .from('profiles')
+        .select('avatar_url, last_seen_hidden, online_hidden, typing_hidden')
+        .eq('user_id', user.id)
+        .single(),
     ]);
+    presencePrivacy = {
+      lastSeenHidden: profileRes.data?.last_seen_hidden ?? false,
+      onlineHidden: profileRes.data?.online_hidden ?? false,
+      typingHidden: profileRes.data?.typing_hidden ?? false,
+    };
     if (userRes.data) {
       currentUser = {
         id: user.id,
@@ -88,7 +103,7 @@ export default async function HomePage({ searchParams }: Props) {
 
         {currentUser && (
           <>
-            <GlobalRealtimeProvider currentUserId={currentUser.id} />
+            <GlobalRealtimeProvider currentUserId={currentUser.id} presencePrivacy={presencePrivacy} />
             <MobileBottomNav username={currentUser.username} />
           </>
         )}

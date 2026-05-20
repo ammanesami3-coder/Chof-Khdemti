@@ -29,7 +29,17 @@ export async function updateSession(request: NextRequest) {
   // تحديث الـ session — لا تحذف هذا السطر
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
 
-  return { supabaseResponse, user, supabase };
+  // If the refresh token is invalid, clear all Supabase auth cookies so the browser stops retrying
+  if (error) {
+    for (const cookie of request.cookies.getAll()) {
+      if (cookie.name.startsWith('sb-')) {
+        supabaseResponse.cookies.set(cookie.name, '', { maxAge: 0, path: '/' });
+      }
+    }
+  }
+
+  return { supabaseResponse, user: error ? null : user, supabase };
 }

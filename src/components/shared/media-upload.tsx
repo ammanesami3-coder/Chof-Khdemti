@@ -19,8 +19,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
-import { AlertCircle, GripVertical, Loader2, Play, Upload, X } from "lucide-react";
+import { AlertCircle, GripVertical, Loader2, Play, Plus, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { uploadToCloudinary, type MediaItem } from "@/lib/cloudinary-upload";
 import { useLang } from "@/lib/i18n/language-context";
 
@@ -48,9 +49,11 @@ type UploadState = {
 function SortableItem({
   item,
   onRemove,
+  aspectClass = "aspect-square",
 }: {
   item: MediaItem;
   onRemove: () => void;
+  aspectClass?: string;
 }) {
   const { t } = useLang();
   const {
@@ -70,20 +73,20 @@ function SortableItem({
         transition,
         opacity: isDragging ? 0.4 : 1,
       }}
-      className="group relative aspect-square overflow-hidden rounded-xl bg-muted"
+      className={cn("group relative overflow-hidden rounded-xl bg-muted", aspectClass)}
     >
       <Image
         src={item.thumbnail}
         alt=""
         fill
-        className="object-cover"
-        sizes="140px"
+        className="object-cover transition-transform duration-300 group-hover:scale-105"
+        sizes="(max-width: 640px) 50vw, 320px"
       />
 
       {item.type === "video" && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="rounded-full bg-black/60 p-2.5">
-            <Play className="size-4 fill-white text-white" />
+          <div className="rounded-full bg-black/60 p-2.5 shadow-md">
+            <Play className="size-5 fill-white text-white" />
           </div>
         </div>
       )}
@@ -93,7 +96,7 @@ function SortableItem({
         type="button"
         onClick={onRemove}
         aria-label={t('deleteAriaLabel')}
-        className="absolute end-1.5 top-1.5 rounded-full bg-black/70 p-1 opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+        className="absolute end-1.5 top-1.5 rounded-full bg-black/70 p-1.5 opacity-0 shadow-md transition-all duration-200 hover:bg-red-600 group-hover:opacity-100"
       >
         <X className="size-3 text-white" />
       </button>
@@ -103,7 +106,7 @@ function SortableItem({
         {...attributes}
         {...listeners}
         aria-label={t('dragToReorderAriaLabel')}
-        className="absolute bottom-1.5 start-1.5 cursor-grab rounded p-1 opacity-0 transition-opacity active:cursor-grabbing group-hover:opacity-100 bg-black/70"
+        className="absolute bottom-1.5 start-1.5 cursor-grab rounded-lg bg-black/70 p-1.5 opacity-0 shadow-md transition-all duration-200 active:cursor-grabbing group-hover:opacity-100"
       >
         <GripVertical className="size-3 text-white" />
       </div>
@@ -113,12 +116,12 @@ function SortableItem({
 
 // ── UploadingItem ─────────────────────────────────────────────────────────────
 
-function UploadingItem({ state }: { state: UploadState }) {
+function UploadingItem({ state, aspectClass = "aspect-square" }: { state: UploadState; aspectClass?: string }) {
   const { t } = useLang();
   const isImage = IMAGE_TYPES.includes(state.file.type);
 
   return (
-    <div className="relative aspect-square overflow-hidden rounded-xl bg-muted">
+    <div className={cn("relative overflow-hidden rounded-xl bg-muted", aspectClass)}>
       {isImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -334,13 +337,18 @@ export function MediaUpload({
   const totalCount = completedItems.length + activeUploadCount;
   const hasItems = completedItems.length > 0 || uploadStates.length > 0;
   const sortedIds = completedItems.map((i) => i.publicId ?? i.url);
+  // Layout helpers
+  const contentCount = completedItems.length + uploadStates.length;
+  const isSingleItem = contentCount === 1;
+  const canAddMore = totalCount < maxFiles;
+  const gridColsClass = contentCount <= 4 ? "grid-cols-2" : "grid-cols-3";
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Drop zone — hidden once maxFiles reached */}
-      {totalCount < maxFiles && (
+    <div className="space-y-1.5">
+      {!hasItems ? (
+        /* ── Empty state: drop zone ── */
         <div
           role="button"
           tabIndex={0}
@@ -352,66 +360,119 @@ export function MediaUpload({
             setIsDragOver(false);
             handleFiles(Array.from(e.dataTransfer.files));
           }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragOver(true);
-          }}
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
           onDragEnter={() => setIsDragOver(true)}
           onDragLeave={() => setIsDragOver(false)}
-          className={[
-            "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-6 text-center transition-colors select-none",
+          className={cn(
+            "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-all duration-200 select-none",
             isDragOver
               ? "border-primary bg-primary/5"
-              : "border-border hover:border-primary/40 hover:bg-muted/40",
-          ].join(" ")}
+              : "border-border hover:border-primary/50 hover:bg-muted/40",
+          )}
         >
-          <div
-            className={`rounded-full p-3 ${isDragOver ? "bg-primary/10" : "bg-muted"}`}
-          >
-            <Upload
-              className={`size-6 ${isDragOver ? "text-primary" : "text-muted-foreground"}`}
-            />
+          <div className={cn(
+            "rounded-full p-4 transition-colors duration-200",
+            isDragOver ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+          )}>
+            <Upload className="size-7" />
           </div>
-
           <div className="space-y-1">
-            <p className="text-sm font-medium">
+            <p className="text-sm font-semibold text-foreground">
               {isDragOver ? t('dropFilesHint') : t('dragFilesHint')}
             </p>
+            <p className="text-xs text-muted-foreground">{t('fileTypesHint')}</p>
             <p className="text-xs text-muted-foreground">
-              {t('fileTypesHint')}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {totalCount > 0
-                ? `${totalCount} / ${maxFiles} ${t('filesLabel')}`
-                : `${t('upToLabel')} ${maxFiles} ${t('filesLabel')}`}
+              {t('upToLabel')} {maxFiles} {t('filesLabel')}
             </p>
           </div>
         </div>
+      ) : (
+        /* ── Has items: smart gallery ── */
+        <div
+          className={cn(
+            "overflow-hidden rounded-xl border-2 transition-all duration-200",
+            isDragOver ? "border-primary bg-primary/5" : "border-border dark:border-muted",
+          )}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragOver(false);
+            handleFiles(Array.from(e.dataTransfer.files));
+          }}
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+          onDragEnter={() => setIsDragOver(true)}
+          onDragLeave={() => setIsDragOver(false)}
+        >
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            {isSingleItem ? (
+              /* Single item: full-width display */
+              <>
+                <SortableContext items={sortedIds} strategy={rectSortingStrategy}>
+                  {completedItems.map((item) => (
+                    <SortableItem
+                      key={item.publicId ?? item.url}
+                      item={item}
+                      aspectClass="aspect-[4/3]"
+                      onRemove={() => handleRemove(item.publicId ?? item.url)}
+                    />
+                  ))}
+                </SortableContext>
+                {uploadStates.map((state) => (
+                  <UploadingItem key={state.id} state={state} aspectClass="aspect-[4/3]" />
+                ))}
+                {canAddMore && (
+                  <button
+                    type="button"
+                    onClick={() => inputRef.current?.click()}
+                    className="flex w-full items-center justify-center gap-2 border-t border-border/60 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                  >
+                    <Plus className="size-4" />
+                    {t('addMoreLabel')}
+                    <span className="text-xs opacity-60">({contentCount}/{maxFiles})</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              /* Multiple items: smart grid */
+              <div className={cn("grid gap-0.5 p-0.5", gridColsClass)}>
+                <SortableContext items={sortedIds} strategy={rectSortingStrategy}>
+                  {completedItems.map((item) => (
+                    <SortableItem
+                      key={item.publicId ?? item.url}
+                      item={item}
+                      aspectClass="aspect-square"
+                      onRemove={() => handleRemove(item.publicId ?? item.url)}
+                    />
+                  ))}
+                </SortableContext>
+                {uploadStates.map((state) => (
+                  <UploadingItem key={state.id} state={state} aspectClass="aspect-square" />
+                ))}
+                {/* + Add more cell */}
+                {canAddMore && (
+                  <button
+                    type="button"
+                    onClick={() => inputRef.current?.click()}
+                    aria-label={t('addMoreLabel')}
+                    className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-muted-foreground/25 text-muted-foreground transition-all duration-200 hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
+                  >
+                    <Plus className="size-6" />
+                  </button>
+                )}
+              </div>
+            )}
+          </DndContext>
+        </div>
       )}
 
-      {/* Preview grid */}
+      {/* Item count */}
       {hasItems && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-            <SortableContext items={sortedIds} strategy={rectSortingStrategy}>
-              {completedItems.map((item) => (
-                <SortableItem
-                  key={item.publicId ?? item.url}
-                  item={item}
-                  onRemove={() => handleRemove(item.publicId ?? item.url)}
-                />
-              ))}
-            </SortableContext>
-
-            {uploadStates.map((state) => (
-              <UploadingItem key={state.id} state={state} />
-            ))}
-          </div>
-        </DndContext>
+        <p className="text-end text-xs text-muted-foreground">
+          {contentCount} / {maxFiles} {t('filesLabel')}
+        </p>
       )}
 
       <input

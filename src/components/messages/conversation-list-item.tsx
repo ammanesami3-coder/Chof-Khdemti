@@ -133,6 +133,7 @@ export function ConversationListItem({ conv, currentUserId, onOptimisticUpdate }
           user={{ username: partner_username, full_name: partner_full_name, avatar_url: partner_avatar_url }}
           size="lg"
           linkable={false}
+          userId={conv.partner_id}
         />
 
         {/* Main content */}

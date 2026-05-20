@@ -341,6 +341,10 @@ export type Database = {
           craft_category: string | null
           created_at: string
           is_verified: boolean
+          last_seen_at: string | null
+          last_seen_hidden: boolean
+          online_hidden: boolean
+          typing_hidden: boolean
           onboarding_complete: boolean
           updated_at: string
           user_id: string
@@ -354,6 +358,10 @@ export type Database = {
           craft_category?: string | null
           created_at?: string
           is_verified?: boolean
+          last_seen_at?: string | null
+          last_seen_hidden?: boolean
+          online_hidden?: boolean
+          typing_hidden?: boolean
           onboarding_complete?: boolean
           updated_at?: string
           user_id: string
@@ -367,6 +375,10 @@ export type Database = {
           craft_category?: string | null
           created_at?: string
           is_verified?: boolean
+          last_seen_at?: string | null
+          last_seen_hidden?: boolean
+          online_hidden?: boolean
+          typing_hidden?: boolean
           onboarding_complete?: boolean
           updated_at?: string
           user_id?: string

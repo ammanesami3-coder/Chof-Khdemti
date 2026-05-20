@@ -87,6 +87,8 @@ export type PostWithAuthor = {
     avatar_url: string | null;
     /** From profiles.is_verified */
     is_verified?: boolean;
+    /** True when the author has an active trial or paid subscription */
+    is_subscribed?: boolean;
   };
   /** Last 2 comments, populated by the feed query */
   recent_comments?: RecentComment[];

@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { ar, fr, enUS } from 'date-fns/locale';
-import { Heart, MessageCircle, Reply, UserPlus, ThumbsUp } from 'lucide-react';
+import { Heart, MessageCircle, Reply, UserPlus, ThumbsUp, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLang } from '@/lib/i18n/language-context';
 import type { NotificationItem } from '@/hooks/use-notifications';
@@ -21,10 +21,12 @@ const TYPE_ICON_CLASS = {
   comment_reply: { icon: Reply, iconClass: 'bg-purple-100 text-purple-500 dark:bg-purple-900/40 dark:text-purple-400' },
   comment_like: { icon: ThumbsUp, iconClass: 'bg-[#FF9F43]/15 text-[#FF9F43] dark:bg-[#FF9F43]/20 dark:text-[#FFBA69]' },
   follow: { icon: UserPlus, iconClass: 'bg-green-100 text-green-500 dark:bg-green-900/40 dark:text-green-400' },
+  craft_mention: { icon: Sparkles, iconClass: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' },
 } as const;
 
 function getDestination(n: NotificationItem): string {
   if (n.type === 'follow') return `/profile/${n.actor.username}`;
+  if (n.type === 'craft_mention' && n.post_id) return `/post/${n.post_id}`;
   if (n.post_id) {
     const commentTypes = new Set(['comment', 'comment_reply', 'comment_like']);
     if (commentTypes.has(n.type) && n.comment_id) {
@@ -50,6 +52,7 @@ export function NotificationItemCard({ notification: n, onRead, onClose }: Props
     comment_reply: t('repliedToComment'),
     comment_like: t('likedYourComment'),
     follow: t('startedFollowing'),
+    craft_mention: t('craftMentionNotif'),
   } as const;
 
   const dateLocale = lang === 'ar' ? ar : lang === 'fr' ? fr : enUS;

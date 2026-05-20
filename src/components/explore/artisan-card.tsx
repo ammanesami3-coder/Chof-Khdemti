@@ -7,6 +7,7 @@ import { RatingDisplay } from '@/components/rating/rating-display';
 import { useFollow } from '@/hooks/use-follow';
 import { AuthGate } from '@/components/shared/auth-gate';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import { SubscribedBadge } from '@/components/shared/subscribed-badge';
 import { getCraftById } from '@/lib/constants/crafts';
 import { CITIES } from '@/lib/constants/cities';
 import { useLang } from '@/lib/i18n/language-context';
@@ -35,15 +36,16 @@ export function ArtisanCard({ artisan, currentUserId }: Props) {
       {/* ── Header row ──────────────────────────────────────────────────── */}
       <div className="flex items-start gap-3">
         {/* Avatar — linkable=false: البطاقة كلها Link للملف الشخصي */}
-        <UserAvatar user={artisan} size="lg" linkable={false} />
+        <UserAvatar user={artisan} size="lg" linkable={false} userId={artisan.id} />
 
         {/* Name + username */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <span className="truncate font-semibold leading-tight">{artisan.full_name}</span>
             {artisan.is_verified && (
               <BadgeCheck className="size-4 shrink-0 text-blue-500" aria-label={t('verifiedBadgeAriaLabel')} />
             )}
+            {artisan.is_subscribed && <SubscribedBadge size="xs" />}
           </div>
           <p className="truncate text-sm text-muted-foreground">@{artisan.username}</p>
         </div>

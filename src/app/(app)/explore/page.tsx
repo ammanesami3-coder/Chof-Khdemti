@@ -48,7 +48,7 @@ async function fetchArtisansServer(params: SearchParams): Promise<ArtisanListIte
   const { data } = await query;
   const rows = (data ?? []) as unknown as RawArtisan[];
 
-  return rows.map((raw) => {
+  const artisans: ArtisanListItem[] = rows.map((raw) => {
     const p = raw.profiles;
     const stars = raw.ratings ?? [];
     const avgRating =
@@ -72,6 +72,30 @@ async function fetchArtisansServer(params: SearchParams): Promise<ArtisanListIte
       totalRatingsCount: stars.length,
     };
   });
+
+  if (!artisans.length) return artisans;
+
+  // Fetch subscription status via security-definer RPC
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: subscribedIds } = await (supabase as any).rpc('get_subscribed_user_ids', {
+    p_user_ids: artisans.map((a) => a.id),
+  }) as { data: string[] | null };
+
+  const subscribedSet = new Set<string>(subscribedIds ?? []);
+  for (const a of artisans) {
+    a.is_subscribed = subscribedSet.has(a.id);
+  }
+
+  // Subscribed artisans first, then by avgRating desc, then by totalRatingsCount desc
+  artisans.sort((a, b) => {
+    const subDiff = (b.is_subscribed ? 1 : 0) - (a.is_subscribed ? 1 : 0);
+    if (subDiff !== 0) return subDiff;
+    const ratingDiff = (b.avgRating ?? 0) - (a.avgRating ?? 0);
+    if (ratingDiff !== 0) return ratingDiff;
+    return b.totalRatingsCount - a.totalRatingsCount;
+  });
+
+  return artisans;
 }
 
 type Props = {

@@ -34,7 +34,7 @@ export default async function ConversationPage({ params }: Props) {
       supabase.from('users').select('account_type').eq('id', user.id).single(),
       supabase.from('profiles').select('avatar_url').eq('user_id', user.id).maybeSingle(),
       supabase.from('users').select('id, username, full_name').eq('id', partnerId).single(),
-      supabase.from('profiles').select('avatar_url').eq('user_id', partnerId).maybeSingle(),
+      supabase.from('profiles').select('avatar_url, last_seen_at, last_seen_hidden').eq('user_id', partnerId).maybeSingle(),
       // Fetch the LATEST 50 messages (desc) then reverse for chronological display.
       // Ascending + limit(50) would return the oldest 50, causing new messages to
       // vanish after refresh in conversations with more than 50 messages.
@@ -192,10 +192,13 @@ export default async function ConversationPage({ params }: Props) {
   }));
 
   const partner = {
-    id:         partnerUserResult.data.id,
-    username:   partnerUserResult.data.username,
-    full_name:  partnerUserResult.data.full_name,
-    avatar_url: partnerProfileResult.data?.avatar_url ?? null,
+    id:           partnerUserResult.data.id,
+    username:     partnerUserResult.data.username,
+    full_name:    partnerUserResult.data.full_name,
+    avatar_url:   partnerProfileResult.data?.avatar_url ?? null,
+    last_seen_at: partnerProfileResult.data?.last_seen_hidden
+      ? null
+      : (partnerProfileResult.data?.last_seen_at ?? null),
   };
 
   let initialCanReply = true;

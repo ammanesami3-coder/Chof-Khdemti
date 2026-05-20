@@ -73,6 +73,7 @@ import { Label } from "@/components/ui/label";
 import { AuthGate } from "@/components/shared/auth-gate";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { StatusAwareAvatar } from "@/components/shared/status-aware-avatar";
+import { SubscribedBadge } from "@/components/shared/subscribed-badge";
 import { useLang } from "@/lib/i18n/language-context";
 import type { PostMedia, PostWithAuthor } from "@/lib/validations/post";
 
@@ -197,6 +198,7 @@ function MediaCarousel({
                     alt=""
                     fill
                     priority={priority && i === 0}
+                    loading="eager"
                     className="object-cover"
                     sizes="(max-width: 672px) calc(100vw - 32px), 640px"
                   />
@@ -471,7 +473,7 @@ export function PostCard({
         <StatusAwareAvatar user={post.author} size="md" currentUserId={currentUserId} />
 
         <div className="min-w-0 flex-1 pt-0.5">
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <Link
               href={`/profile/${post.author.username}`}
               className="truncate text-sm font-semibold leading-tight hover:underline"
@@ -484,6 +486,7 @@ export function PostCard({
                 aria-label={t('verifiedBadgeAriaLabel')}
               />
             )}
+            {post.author.is_subscribed && <SubscribedBadge size="xs" />}
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
             <Link
@@ -523,6 +526,7 @@ export function PostCard({
         {/* ••• dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger
+            id={`post-menu-${post.id}`}
             aria-label={t('postOptions')}
             className="mt-0.5 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >

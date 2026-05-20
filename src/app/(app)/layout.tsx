@@ -11,11 +11,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: { user } } = await supabase.auth.getUser();
 
   let sidebarUser: SidebarUser | null = null;
+  let presencePrivacy = {
+    lastSeenHidden: false,
+    onlineHidden: false,
+    typingHidden: false,
+  };
   if (user) {
     const [userRes, profileRes] = await Promise.all([
       supabase.from('users').select('username, full_name').eq('id', user.id).single(),
-      supabase.from('profiles').select('avatar_url').eq('user_id', user.id).single(),
+      supabase
+        .from('profiles')
+        .select('avatar_url, last_seen_hidden, online_hidden, typing_hidden')
+        .eq('user_id', user.id)
+        .single(),
     ]);
+    presencePrivacy = {
+      lastSeenHidden: profileRes.data?.last_seen_hidden ?? false,
+      onlineHidden: profileRes.data?.online_hidden ?? false,
+      typingHidden: profileRes.data?.typing_hidden ?? false,
+    };
     if (userRes.data) {
       sidebarUser = {
         username: userRes.data.username as string,
@@ -39,7 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         {user && username && (
           <>
-            <GlobalRealtimeProvider currentUserId={user.id} />
+            <GlobalRealtimeProvider currentUserId={user.id} presencePrivacy={presencePrivacy} />
             <MobileBottomNav username={username} />
           </>
         )}

@@ -25,6 +25,8 @@ export async function sharePostToStory(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'يجب تسجيل الدخول أولاً' };
 
+  // No subscription guard: all logged-in users can share to story
+
   const { data: post } = await supabase
     .from('posts')
     .select('id, content, media')
@@ -124,6 +126,8 @@ export async function sharePostToProfile(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'يجب تسجيل الدخول أولاً' };
+
+  // No subscription guard: all logged-in users can repost
 
   // Use security-definer RPC to bypass artisan-only INSERT RLS policy.
   // The function handles root-post resolution and duplicate checking internally.

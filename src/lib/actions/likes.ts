@@ -12,6 +12,8 @@ export async function toggleLike(postId: string): Promise<ToggleLikeResult> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
 
+  // No subscription guard: all logged-in users can like posts
+
   // Check current state
   const { data: existing } = await supabase
     .from('likes')
