@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { canStartConversation } from '@/lib/privacy/visibility';
 import type { StatusContentType, StatusWithUser, StatusGroup } from '@/lib/types/status.types';
 
 type CreateStatusInput = {
@@ -349,6 +350,10 @@ export async function replyToStatus(
   if (existing) {
     conversationId = existing.id;
   } else {
+    // Honor the recipient's "who can message me" setting for new threads.
+    if (!(await canStartConversation(supabase, user.id, statusOwner.id))) {
+      return { error: 'لا يمكنك مراسلة هذا المستخدم — المراسلة متاحة لمتابعيه فقط' };
+    }
     const { data: newConv, error: convErr } = await supabase
       .from('conversations')
       .insert({ artisan_id: artisanId, customer_id: customerId })

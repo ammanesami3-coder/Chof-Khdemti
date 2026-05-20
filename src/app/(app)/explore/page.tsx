@@ -48,7 +48,7 @@ async function fetchArtisansServer(params: SearchParams): Promise<ArtisanListIte
   const { data } = await query;
   const rows = (data ?? []) as unknown as RawArtisan[];
 
-  const artisans: ArtisanListItem[] = rows.map((raw) => {
+  let artisans: ArtisanListItem[] = rows.map((raw) => {
     const p = raw.profiles;
     const stars = raw.ratings ?? [];
     const avgRating =
@@ -74,6 +74,25 @@ async function fetchArtisansServer(params: SearchParams): Promise<ArtisanListIte
   });
 
   if (!artisans.length) return artisans;
+
+  // Exclude artisans whose profile_visibility isn't 'everyone' — they opted out
+  // of discovery. Isolated query: a missing column (migration 0040 not applied)
+  // degrades to showing all.
+  {
+    const { data: visRows } = await supabase
+      .from('profiles')
+      .select('user_id, profile_visibility')
+      .in('user_id', artisans.map((a) => a.id));
+    if (visRows) {
+      const hidden = new Set(
+        visRows
+          .filter((r) => ((r.profile_visibility as string | null) ?? 'everyone') !== 'everyone')
+          .map((r) => r.user_id),
+      );
+      artisans = artisans.filter((a) => !hidden.has(a.id));
+    }
+    if (!artisans.length) return artisans;
+  }
 
   // Fetch subscription status via security-definer RPC
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

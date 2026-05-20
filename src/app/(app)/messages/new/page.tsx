@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/supabase/require-user';
+import { canStartConversation } from '@/lib/privacy/visibility';
 
 type Props = {
   searchParams: Promise<{ to?: string }>;
@@ -9,11 +10,7 @@ export default async function NewConversationPage({ searchParams }: Props) {
   const { to } = await searchParams;
   if (!to) redirect('/messages');
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const { supabase, user } = await requireUser();
 
   const [targetRes, currentUserRes] = await Promise.all([
     supabase.from('users').select('id, account_type').eq('username', to).single(),
@@ -41,6 +38,11 @@ export default async function NewConversationPage({ searchParams }: Props) {
       .maybeSingle();
 
     if (existing) redirect(`/messages/${existing.id}`);
+
+    // Honor the artisan's "who can message me" setting before opening a new thread.
+    if (!(await canStartConversation(supabase, customerId, artisanId))) {
+      redirect(`/profile/${to}`);
+    }
 
     const { data: created, error } = await supabase
       .from('conversations')

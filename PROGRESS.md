@@ -937,3 +937,66 @@ rounded-full` — صندوق موضَّع حقيقي يقصّ الصورة دا�
 
 > ⚠️ **مطلوب:** تطبيق migration `0039_presence_privacy_extended.sql` على قاعدة البيانات
 > قبل التشغيل (يضيف عمودَي `online_hidden` و `typing_hidden`).
+
+---
+
+## جلسة مايو 2026 — كاروسيل RTL، إعادة التوجيه، إعدادات الخصوصية، تفاعلات الرسائل
+
+### الإصلاح #1 — الكاروسيل يعرض الصورة الأولى فقط ✅
+
+**السبب:** التطبيق RTL، فشريط شرائح Embla (flex) يُرتَّب يميناً-يساراً، بينما
+Embla يحسب التمرير افتراضياً بوضع `ltr` → عند التنقّل تصل الشرائح إلى مساحة فارغة
+بدل الصور، فلا تظهر إلا الأولى.
+
+**الحل** في `src/components/feed/post-card.tsx`: أُضيف `dir="ltr"` على حاوية عرض
+Embla (`emblaRef`) ليتطابق تدفّق الـ flex مع حسابات Embla.
+
+### الإصلاح #2 — إعادة توجيه غير مبرَّرة إلى /login ✅
+
+**السبب:** صفحات السيرفر المحمية تستدعي `getUser()` ثم `redirect('/login')` فوراً
+عند أي `null`. لكن `getUser()` قد يُرجع `null` **مؤقتاً** (طلبات سيرفر متزامنة
+تتسابق على تدوير refresh token، أو انقطاع شبكة لحظي).
+
+**الحل:**
+- `src/lib/supabase/require-user.ts` (جديد): يعيد التوجيه فقط عند انعدام الجلسة
+  فعلياً — `getUser()` **و** `getSession()` كلاهما فارغ.
+- حُوِّلت 10 صفحات محمية إليه: notifications، settings (+account/subscription)،
+  saved، messages (+[id]/new)، onboarding، profile/edit.
+
+### الميزة #3 — تفعيل إعدادات الخصوصية الثلاث ✅
+
+كانت `رؤية الملف` / `من يمكنه مراسلتي` / `من يمكنه التعليق` تُحفَظ في
+`localStorage` فقط بلا أي أثر فعلي.
+
+**migration `0040_visibility_settings.sql`** (جديد): أعمدة `profile_visibility`،
+`who_can_message`، `who_can_comment` على `profiles`.
+
+**التطبيق:**
+- `/settings/privacy` تحفظ/تقرأ من قاعدة البيانات بدل localStorage (مع تراجع عند الفشل).
+- `who_can_comment` — مُطبَّق في `addComment`: `none` يغلق التعليقات، `followers`
+  يتطلّب متابعة صاحب المنشور.
+- `who_can_message` — helper `canStartConversation` في `src/lib/privacy/visibility.ts`،
+  مُطبَّق عند إنشاء أي محادثة (`messages/new`، `messages`، `status.ts`)، وزر «رسالة»
+  يختفي تلقائياً لغير المتابِعين.
+- `profile_visibility` — ملف `followers`/`none` يعرض شاشة «حساب خاص» بدل المنشورات،
+  ويُستبعد من الاكتشاف (`explore`) والبحث، مع `robots: noindex`.
+
+### الإصلاح #4 — شريط إيموجي التفاعل يُقتطع عند الحافة ✅
+
+**السبب:** منتقي الإيموجي (`message-action-bar.tsx`) كان يُموضَع `fixed` دون أي
+clamping للـ viewport؛ فعند اقتراب الزر من حافة الشاشة يخرج الشريط — وفي RTL
+يُقتطع أول إيموجي (القلب).
+
+**الحل:**
+- `message-action-bar.tsx`: يُحسب `left` ويُقيَّد ضمن `[GAP, viewW - PICKER_WIDTH - GAP]`.
+- `message-action-sheet.tsx`: شريط التفاعلات (~278px) كان يُحاذى بعرض القائمة (260px)
+  — أُضيف ثابت `REACTIONS_W` و clamp أفقي مستقل له.
+
+### النتائج
+
+```
+✓ npx tsc --noEmit → 0 errors
+✓ npx eslint (الملفات المعدَّلة) → 0 warnings
+```
+
+> ⚠️ **مطلوب:** تطبيق migration `0040_visibility_settings.sql` على قاعدة البيانات.

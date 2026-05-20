@@ -102,6 +102,38 @@ export async function addComment(
     if (parent.parent_comment_id) throw new Error('لا يمكن الرد على رد');
   }
 
+  // Guard: respect the post author's "who can comment" privacy setting.
+  // A missing column (migration 0040 not applied) degrades to 'everyone'.
+  {
+    const { data: post } = await supabase
+      .from('posts')
+      .select('author_id')
+      .eq('id', postId)
+      .single();
+    if (!post) throw new Error('المنشور غير موجود');
+
+    if (post.author_id !== user.id) {
+      const { data: authorProfile } = await supabase
+        .from('profiles')
+        .select('who_can_comment')
+        .eq('user_id', post.author_id)
+        .single();
+      const policy = (authorProfile?.who_can_comment as string | undefined) ?? 'everyone';
+
+      if (policy === 'none') {
+        throw new Error('صاحب المنشور أغلق التعليقات');
+      }
+      if (policy === 'followers') {
+        const { count } = await supabase
+          .from('follows')
+          .select('*', { count: 'exact', head: true })
+          .eq('follower_id', user.id)
+          .eq('following_id', post.author_id);
+        if (!count) throw new Error('التعليق متاح لمتابعي صاحب المنشور فقط');
+      }
+    }
+  }
+
   // Guard: unsubscribed artisans can only comment on artisan content.
   // (Subscribed artisans and customers pass through freely.)
   await requireCommentPermission(supabase, user.id, postId, parentCommentId ?? null);

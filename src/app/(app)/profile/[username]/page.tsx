@@ -6,6 +6,7 @@ import { ProfileClient } from '@/components/profile/profile-client';
 import { FeedList } from '@/components/feed/feed-list';
 import { RatingCard } from '@/components/rating/rating-card';
 import { AddEditRating } from '@/components/rating/add-edit-rating';
+import { Lock } from 'lucide-react';
 import { GuestBanner } from '@/components/shared/guest-banner';
 import { createClient } from '@/lib/supabase/server';
 import { fetchUserPosts } from '@/lib/queries/posts';
@@ -19,7 +20,28 @@ type Props = {
 
 export async function generateMetadata({ params }: Props) {
   const { username } = await params;
-  return { title: `@${username} — Chof Khdemti` };
+  const supabase = await createClient();
+
+  // A non-public profile (followers/none) should not be indexed by search engines.
+  let isPrivate = false;
+  const { data: pUser } = await supabase
+    .from('users')
+    .select('id')
+    .eq('username', username)
+    .single();
+  if (pUser) {
+    const { data: vis } = await supabase
+      .from('profiles')
+      .select('profile_visibility')
+      .eq('user_id', pUser.id)
+      .single();
+    isPrivate = !!vis && (vis.profile_visibility as string) !== 'everyone';
+  }
+
+  return {
+    title: `@${username} — Chof Khdemti`,
+    ...(isPrivate ? { robots: { index: false, follow: false } } : {}),
+  };
 }
 
 export default async function ProfilePage({ params }: Props) {
@@ -206,6 +228,28 @@ export default async function ProfilePage({ params }: Props) {
     });
 
   const initialIsFollowing = (isFollowingRes.count ?? 0) > 0;
+
+  // ── Visibility settings — isolated query so a missing column (migration
+  //    0040 not yet applied) cannot break this public page ──────────────────
+  let whoCanMessage = 'everyone';
+  let profileVisibility = 'everyone';
+  {
+    const { data: vis } = await supabase
+      .from('profiles')
+      .select('profile_visibility, who_can_message')
+      .eq('user_id', profileUser.id)
+      .single();
+    if (vis) {
+      profileVisibility = (vis.profile_visibility as string) ?? 'everyone';
+      whoCanMessage = (vis.who_can_message as string) ?? 'everyone';
+    }
+  }
+  // 'followers' → only followers (and the owner) see the posts; 'none' → owner only.
+  const canViewProfile =
+    isOwnProfile ||
+    profileVisibility === 'everyone' ||
+    (profileVisibility === 'followers' && initialIsFollowing);
+
   const joinedAt = format(new Date(profileUser.created_at), 'MMMM yyyy', { locale: ar });
 
   // ── حالة البروفايل ─────────────────────────────────────────────────────
@@ -266,9 +310,11 @@ export default async function ProfilePage({ params }: Props) {
         followingCount={followingRes.count ?? 0}
         profileStatus={profileStatus}
         lastSeenAt={profile.last_seen_hidden ? null : (profile.last_seen_at ?? null)}
+        whoCanMessage={whoCanMessage}
       />
 
-      {/* ── Tabs ─────────────────────────────────────────────────────────── */}
+      {canViewProfile ? (
+      /* ── Tabs ─────────────────────────────────────────────────────────── */
       <Tabs defaultValue="posts" className="mt-2" id="profile-tabs">
         <TabsList className="w-full rounded-none border-b bg-transparent p-0">
           <TabsTrigger
@@ -357,6 +403,17 @@ export default async function ProfilePage({ params }: Props) {
           </TabsContent>
         )}
       </Tabs>
+      ) : (
+        <div className="mx-4 mt-6 rounded-2xl border border-border/60 bg-card p-10 text-center">
+          <Lock className="mx-auto mb-3 size-10 text-muted-foreground/50" />
+          <p className="text-base font-semibold">هذا الحساب خاص</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            {profileVisibility === 'followers'
+              ? 'تابِع هذا الحساب لرؤية منشوراته'
+              : 'صاحب هذا الحساب جعل ملفه خاصاً'}
+          </p>
+        </div>
+      )}
     </main>
     </>
   );

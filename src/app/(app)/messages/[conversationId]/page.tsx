@@ -1,5 +1,5 @@
-import { notFound, redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { notFound } from 'next/navigation';
+import { requireUser } from '@/lib/supabase/require-user';
 import { ChatWindow } from '@/components/messages/chat-window';
 import type { RepliedStatus, MessageReaction, RepliedMessage } from '@/components/messages/chat-window';
 import type { AttachmentMetadata } from '@/lib/actions/messages';
@@ -13,9 +13,7 @@ type Props = {
 export default async function ConversationPage({ params }: Props) {
   const { conversationId } = await params;
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const { supabase, user } = await requireUser();
 
   const { data: conv } = await supabase
     .from('conversations')

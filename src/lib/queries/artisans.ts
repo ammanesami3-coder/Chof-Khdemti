@@ -92,9 +92,27 @@ export async function searchArtisans(params: SearchParams): Promise<ArtisanListI
   const { data, error } = await query;
   if (error) throw error;
 
-  const artisans = (data as unknown as RawArtisan[]).map(mapArtisan);
+  let artisans = (data as unknown as RawArtisan[]).map(mapArtisan);
 
   if (!artisans.length) return artisans;
+
+  // Exclude artisans who opted out of public discovery. Isolated query —
+  // a missing column (migration 0040 not applied) degrades to showing all.
+  {
+    const { data: visRows } = await supabase
+      .from('profiles')
+      .select('user_id, profile_visibility')
+      .in('user_id', artisans.map((a) => a.id));
+    if (visRows) {
+      const hidden = new Set(
+        visRows
+          .filter((r) => ((r.profile_visibility as string | null) ?? 'everyone') !== 'everyone')
+          .map((r) => r.user_id),
+      );
+      artisans = artisans.filter((a) => !hidden.has(a.id));
+    }
+    if (!artisans.length) return artisans;
+  }
 
   // Fetch subscription status via security-definer RPC (bypasses RLS on subscriptions table)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

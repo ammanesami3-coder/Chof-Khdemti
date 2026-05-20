@@ -1,16 +1,11 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { getNotifications } from '@/lib/actions/notifications';
+import { requireUser } from '@/lib/supabase/require-user';
 import { NotificationsPageClient } from '@/components/notifications/notifications-page-client';
 
 export const metadata = { title: 'الإشعارات — Chof Khdemti' };
 
 export default async function NotificationsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  await requireUser();
 
   const initial = await getNotifications(20, 0);
 

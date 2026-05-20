@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
 import { Bookmark } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/supabase/require-user';
 import { fetchSavedPosts } from '@/lib/queries/posts';
 import { BackButton } from '@/components/shared/back-button';
 import { SavedFeed } from '@/components/saved/saved-feed';
@@ -10,9 +9,7 @@ import { PageTitle } from '@/components/shared/page-title';
 export const metadata = { title: 'المحفوظات — Chof Khdemti' };
 
 export default async function SavedPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const { supabase, user } = await requireUser();
 
   const [userRes, initialData] = await Promise.all([
     supabase.from('users').select('id, username, full_name, avatar_url:profiles(avatar_url)').eq('id', user.id).single(),

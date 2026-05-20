@@ -27,6 +27,7 @@ type RawArtisan = {
 };
 type RawPost = {
   id: string;
+  author_id: string;
   content: string | null;
   created_at: string;
   users: {
@@ -56,7 +57,7 @@ export default async function SearchPage({ searchParams }: Props) {
       supabase
         .from('posts')
         .select(
-          'id, content, created_at, users!posts_author_id_fkey(username, full_name, profiles(avatar_url))',
+          'id, author_id, content, created_at, users!posts_author_id_fkey(username, full_name, profiles(avatar_url))',
         )
         .ilike('content', `%${term}%`)
         .not('content', 'is', null)
@@ -66,6 +67,25 @@ export default async function SearchPage({ searchParams }: Props) {
 
     artisans = (artisanRes.data ?? []) as unknown as RawArtisan[];
     posts = (postRes.data ?? []) as unknown as RawPost[];
+
+    // Drop results whose owner opted out of public visibility. Isolated query —
+    // a missing column (migration 0040 not applied) degrades to showing all.
+    const ids = [...artisans.map((a) => a.id), ...posts.map((p) => p.author_id)];
+    if (ids.length) {
+      const { data: visRows } = await supabase
+        .from('profiles')
+        .select('user_id, profile_visibility')
+        .in('user_id', ids);
+      if (visRows) {
+        const hidden = new Set(
+          visRows
+            .filter((r) => ((r.profile_visibility as string | null) ?? 'everyone') !== 'everyone')
+            .map((r) => r.user_id),
+        );
+        artisans = artisans.filter((a) => !hidden.has(a.id));
+        posts = posts.filter((p) => !hidden.has(p.author_id));
+      }
+    }
   }
 
   const totalResults = artisans.length + posts.length;

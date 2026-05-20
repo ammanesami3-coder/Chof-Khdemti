@@ -35,8 +35,6 @@ type PresenceSettings = {
   showTyping: boolean;
 };
 
-const STORAGE_KEY = 'chof_privacy_settings';
-
 const VISIBILITY_DEFAULTS: VisibilitySettings = {
   profileVisibility: 'everyone',
   whoCanMessage: 'everyone',
@@ -200,18 +198,14 @@ export default function PrivacyPage() {
   useEffect(() => {
     const supabase = createClient();
     async function init() {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) setVisibility({ ...VISIBILITY_DEFAULTS, ...JSON.parse(stored) });
-      } catch {
-        /* ignore parse errors */
-      }
-      // Presence settings are the source of truth in the DB.
+      // The DB is the source of truth for both presence and visibility.
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data } = await supabase
           .from('profiles')
-          .select('last_seen_hidden, online_hidden, typing_hidden')
+          .select(
+            'last_seen_hidden, online_hidden, typing_hidden, profile_visibility, who_can_message, who_can_comment',
+          )
           .eq('user_id', user.id)
           .single();
         if (data) {
@@ -220,6 +214,11 @@ export default function PrivacyPage() {
             showLastSeen: !data.last_seen_hidden,
             showTyping: !data.typing_hidden,
           });
+          setVisibility({
+            profileVisibility: (data.profile_visibility as VisibilityOption) ?? 'everyone',
+            whoCanMessage: (data.who_can_message as VisibilityOption) ?? 'everyone',
+            whoCanComment: (data.who_can_comment as VisibilityOption) ?? 'everyone',
+          });
         }
       }
       setMounted(true);
@@ -227,20 +226,42 @@ export default function PrivacyPage() {
     void init();
   }, []);
 
+  /**
+   * Update a visibility setting: optimistic local update, persist to the
+   * `profiles` row, roll back on failure. These settings are enforced
+   * server-side (profile page, comment action, conversation creation).
+   */
   const updateVisibility = useCallback(
-    <K extends keyof VisibilitySettings>(key: K, value: VisibilitySettings[K]) => {
-      setVisibility((prev) => {
-        const updated = { ...prev, [key]: value };
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        } catch {
-          /* ignore storage errors */
-        }
-        return updated;
-      });
+    async <K extends keyof VisibilitySettings>(key: K, value: VisibilitySettings[K]) => {
+      const prevValue = visibility[key];
+      if (prevValue === value) return;
+      setVisibility((prev) => ({ ...prev, [key]: value }));
+
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      let saveFailed = !user;
+      if (user) {
+        const patch =
+          key === 'profileVisibility'
+            ? { profile_visibility: value }
+            : key === 'whoCanMessage'
+              ? { who_can_message: value }
+              : { who_can_comment: value };
+        const { error } = await supabase
+          .from('profiles')
+          .update(patch)
+          .eq('user_id', user.id);
+        saveFailed = !!error;
+      }
+
+      if (saveFailed) {
+        setVisibility((prev) => ({ ...prev, [key]: prevValue }));
+        toast.error(t('operationFailed'));
+        return;
+      }
       toast.success(t('privacySavedToast'));
     },
-    [t],
+    [t, visibility],
   );
 
   /**
@@ -381,7 +402,8 @@ export default function PrivacyPage() {
         </div>
 
         <p className="mt-2.5 px-1 text-[11px] leading-relaxed text-muted-foreground/60">
-          * يتم حفظ هذه الإعدادات على هذا الجهاز فقط في الوقت الحالي.
+          * «المتابعون» يعني الأشخاص الذين يتابعونك. تُطبَّق هذه الإعدادات مباشرةً على
+          ملفك ومنشوراتك ومحادثاتك.
         </p>
       </section>
 

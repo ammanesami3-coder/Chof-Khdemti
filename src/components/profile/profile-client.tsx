@@ -51,6 +51,8 @@ type Props = {
   followingCount: number;
   profileStatus: StatusWithUser | null;
   lastSeenAt?: string | null;
+  /** The owner's who_can_message policy: 'everyone' | 'followers'. */
+  whoCanMessage?: string;
 };
 
 export function ProfileClient({
@@ -65,6 +67,7 @@ export function ProfileClient({
   followingCount,
   profileStatus,
   lastSeenAt,
+  whoCanMessage,
 }: Props) {
   const { t } = useLang();
   const followMap = useSyncExternalStore(followStore.subscribe, followStore.getSnapshot);
@@ -140,6 +143,7 @@ export function ProfileClient({
         onCoverClick={profile.cover_url ? () => setCoverLightboxOpen(true) : undefined}
         onRatingClick={totalRatingsCount > 0 ? handleRatingClick : undefined}
         lastSeenAt={lastSeenAt}
+        whoCanMessage={whoCanMessage}
       />
       <ProfileStats
         postsCount={postsCount}

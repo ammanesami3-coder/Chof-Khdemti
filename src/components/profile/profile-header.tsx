@@ -50,6 +50,8 @@ type Props = {
   onCoverClick?: () => void;
   onRatingClick?: () => void;
   lastSeenAt?: string | null;
+  /** The owner's who_can_message policy: 'everyone' | 'followers'. */
+  whoCanMessage?: string;
 };
 
 export function ProfileHeader({
@@ -68,6 +70,7 @@ export function ProfileHeader({
   onCoverClick,
   onRatingClick,
   lastSeenAt,
+  whoCanMessage = 'everyone',
 }: Props) {
   const { t } = useLang();
   const isOwnProfile = currentUser?.id === user.id;
@@ -80,7 +83,10 @@ export function ProfileHeader({
 
   // نُظهر الأزرار للزوار أيضاً — AuthGate يعترض النقر ويوجّه لتسجيل الدخول
   const showFollowBtn = !isOwnProfile;
-  const showMessageBtn = !isOwnProfile && user.account_type === 'artisan';
+  // "followers"-only messaging hides the button until the viewer follows the artisan.
+  const canMessage = whoCanMessage !== 'followers' || isFollowing;
+  const showMessageBtn =
+    !isOwnProfile && user.account_type === 'artisan' && canMessage;
 
   const initials = user.full_name
     .split(' ')

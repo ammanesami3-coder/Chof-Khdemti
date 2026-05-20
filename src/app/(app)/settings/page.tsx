@@ -1,13 +1,10 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/supabase/require-user';
 import { SettingsClient } from './settings-client';
 
 export const metadata = { title: 'الإعدادات — Chof Khdemti' };
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const { supabase, user } = await requireUser();
 
   const [userRes, profileRes] = await Promise.all([
     supabase.from('users').select('username, full_name, account_type').eq('id', user.id).single(),

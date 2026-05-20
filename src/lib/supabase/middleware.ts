@@ -32,14 +32,9 @@ export async function updateSession(request: NextRequest) {
     error,
   } = await supabase.auth.getUser();
 
-  // If the refresh token is invalid, clear all Supabase auth cookies so the browser stops retrying
-  if (error) {
-    for (const cookie of request.cookies.getAll()) {
-      if (cookie.name.startsWith('sb-')) {
-        supabaseResponse.cookies.set(cookie.name, '', { maxAge: 0, path: '/' });
-      }
-    }
-  }
-
+  // NOTE: we intentionally do NOT clear sb-* cookies on error here.
+  // getUser() can fail transiently (network blip, mid-refresh race); nuking
+  // the cookies turns a recoverable hiccup into a forced re-login. Supabase
+  // manages its own cookie lifecycle — let it.
   return { supabaseResponse, user: error ? null : user, supabase };
 }

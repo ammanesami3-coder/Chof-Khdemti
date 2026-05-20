@@ -28,11 +28,20 @@ export async function middleware(request: NextRequest) {
   const isOnboarding = pathname === "/onboarding" || pathname.startsWith("/onboarding/");
   const isLogout = pathname.startsWith("/logout");
 
-  // المستخدم غير مسجّل → /login
+  // مستخدم غير مسجّل على مسار محمي → /login
+  // لكن: إذا كان getUser() فشل لحظياً (user=null) مع وجود كوكيز جلسة، لا نطرده —
+  // نمرّر الطلب وتتكفّل صفحة السيرفر/RLS بالتحقق الحقيقي. هذا يمنع التوجيه
+  // الخاطئ إلى /login عند أخطاء التحديث اللحظية.
   if (isProtected && !user) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
+    const hasAuthCookie = request.cookies
+      .getAll()
+      .some((c) => c.name.startsWith("sb-"));
+    if (!hasAuthCookie) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    return supabaseResponse;
   }
 
   if (user) {
@@ -42,11 +51,21 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL(done ? "/" : "/onboarding", request.url));
     }
 
-    // مسجّل وعلى مسار محمي (وليس /onboarding نفسه ولا /logout) → تحقق من onboarding
+    // مسجّل وعلى مسار محمي → تحقق من onboarding
+    // تحسين الأداء: نتيجة "أكمل التسجيل" تُخزَّن في كوكي مرتبط بالـ user.id،
+    // فلا نستعلم قاعدة البيانات في كل تنقّل — فقط أول مرة لكل مستخدم.
     if (isProtected && !isOnboarding && !isLogout) {
-      const done = await getOnboardingComplete(supabase, user.id);
-      if (!done) {
-        return NextResponse.redirect(new URL("/onboarding", request.url));
+      const obCookie = request.cookies.get("ob_done")?.value;
+      if (obCookie !== user.id) {
+        const done = await getOnboardingComplete(supabase, user.id);
+        if (!done) {
+          return NextResponse.redirect(new URL("/onboarding", request.url));
+        }
+        supabaseResponse.cookies.set("ob_done", user.id, {
+          maxAge: 60 * 60 * 24 * 30,
+          path: "/",
+          sameSite: "lax",
+        });
       }
     }
   }

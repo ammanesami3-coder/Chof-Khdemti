@@ -345,6 +345,9 @@ export type Database = {
           last_seen_hidden: boolean
           online_hidden: boolean
           typing_hidden: boolean
+          profile_visibility: string
+          who_can_message: string
+          who_can_comment: string
           onboarding_complete: boolean
           updated_at: string
           user_id: string
@@ -362,6 +365,9 @@ export type Database = {
           last_seen_hidden?: boolean
           online_hidden?: boolean
           typing_hidden?: boolean
+          profile_visibility?: string
+          who_can_message?: string
+          who_can_comment?: string
           onboarding_complete?: boolean
           updated_at?: string
           user_id: string
@@ -379,6 +385,9 @@ export type Database = {
           last_seen_hidden?: boolean
           online_hidden?: boolean
           typing_hidden?: boolean
+          profile_visibility?: string
+          who_can_message?: string
+          who_can_comment?: string
           onboarding_complete?: boolean
           updated_at?: string
           user_id?: string

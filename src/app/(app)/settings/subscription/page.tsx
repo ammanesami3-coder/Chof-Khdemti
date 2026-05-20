@@ -1,10 +1,9 @@
 import { Suspense } from 'react';
-import { redirect } from 'next/navigation';
 import { format } from 'date-fns';
 import { BackButton } from '@/components/shared/back-button';
 import { ar } from 'date-fns/locale';
 import { Gift, CheckCircle, AlertTriangle, XCircle, Lock } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/supabase/require-user';
 import { SubscriptionActions } from '@/components/subscription/subscription-actions';
 import { SuccessToast } from '@/components/subscription/success-toast';
 import { SUBSCRIPTION_PRICE_DISPLAY, TRIAL_DURATION_DAYS } from '@/lib/constants/subscription';
@@ -92,11 +91,7 @@ const FAQ = [
 
 // ── Page ───────────────────────────────────────────────────────────────────
 export default async function SubscriptionPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const { supabase, user } = await requireUser();
 
   const [userRes, subRes] = await Promise.all([
     supabase.from('users').select('account_type').eq('id', user.id).single(),

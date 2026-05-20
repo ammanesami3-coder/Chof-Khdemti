@@ -2,17 +2,12 @@ import { redirect } from 'next/navigation';
 import { EditProfileForm } from './edit-profile-form';
 import { BackButton } from '@/components/shared/back-button';
 import { PageTitle } from '@/components/shared/page-title';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/supabase/require-user';
 
 export const metadata = { title: 'تعديل الملف الشخصي — Chof Khdemti' };
 
 export default async function EditProfilePage() {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
-  if (!authUser) redirect('/login');
+  const { supabase, user: authUser } = await requireUser();
 
   const [userRes, profileRes] = await Promise.all([
     supabase
