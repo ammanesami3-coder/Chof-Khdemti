@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect, useTransition } from "react";
 import { Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useScrollDirection } from "@/hooks/use-scroll-direction";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -48,25 +49,16 @@ export function PostComposer({
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [fabVisible, setFabVisible] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Hide the FAB on scroll-down, show on scroll-up. Tracks the real scroll
+  // container (the home feed scrolls an inner <main>, not the window).
+  const scrolledDown = useScrollDirection(80);
 
   // Open when triggered externally (e.g. BottomNav + button).
   useEffect(() => {
     if (openTrigger) handleOpen();
   }, [openTrigger]);
-
-  // Hide FAB on scroll-down, show on scroll-up
-  useEffect(() => {
-    let lastY = window.scrollY;
-    function onScroll() {
-      const y = window.scrollY;
-      setFabVisible(y < lastY || y < 80);
-      lastY = y;
-    }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
 
   const isDirty = content.trim() !== "" || media.length > 0;
   const canPublish = isDirty && !isUploading && !isPending;
@@ -171,7 +163,9 @@ export function PostComposer({
           "bottom-[4.5rem] start-6 sm:bottom-6",
           "transition-all duration-300 hover:opacity-90 active:scale-95",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          fabVisible ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none",
+          scrolledDown
+            ? "translate-y-24 opacity-0 pointer-events-none"
+            : "translate-y-0 opacity-100",
         )}
       >
         <Plus className="size-6" aria-hidden="true" />

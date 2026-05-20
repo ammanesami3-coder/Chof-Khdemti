@@ -190,6 +190,14 @@ export function MediaUpload({
     onUploadRef.current = onUpload;
   });
 
+  // Sync completed media up to the parent — in an effect (runs post-commit),
+  // NEVER inside a setState updater. Calling the parent's setter from within a
+  // state-updater function updates the parent mid-render → React's
+  // "Cannot update a component while rendering a different component" error.
+  useEffect(() => {
+    onUploadRef.current(completedItems);
+  }, [completedItems]);
+
   // Revoke all blob URLs on unmount
   useEffect(() => {
     const urls = blobUrlsRef.current;
@@ -225,18 +233,12 @@ export function MediaUpload({
       const overId = String(over.id);
       const oldIdx = prev.findIndex((i) => (i.publicId ?? i.url) === activeId);
       const newIdx = prev.findIndex((i) => (i.publicId ?? i.url) === overId);
-      const next = arrayMove(prev, oldIdx, newIdx);
-      onUploadRef.current(next);
-      return next;
+      return arrayMove(prev, oldIdx, newIdx);
     });
   }
 
   function handleRemove(id: string) {
-    setCompletedItems((prev) => {
-      const next = prev.filter((i) => (i.publicId ?? i.url) !== id);
-      onUploadRef.current(next);
-      return next;
-    });
+    setCompletedItems((prev) => prev.filter((i) => (i.publicId ?? i.url) !== id));
   }
 
   async function uploadFile(
@@ -252,11 +254,7 @@ export function MediaUpload({
       });
 
       setUploadStates((prev) => prev.filter((s) => s.id !== stateId));
-      setCompletedItems((prev) => {
-        const next = [...prev, result];
-        onUploadRef.current(next);
-        return next;
-      });
+      setCompletedItems((prev) => [...prev, result]);
     } catch {
       setUploadStates((prev) =>
         prev.map((s) => (s.id === stateId ? { ...s, status: "error" } : s))
