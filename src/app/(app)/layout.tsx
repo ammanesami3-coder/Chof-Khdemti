@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Navbar } from '@/components/layout/navbar';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { GlobalRealtimeProvider } from '@/components/providers/global-realtime-provider';
+import { GlobalPostComposer } from '@/components/layout/global-post-composer';
 import { SidebarProvider } from '@/components/layout/sidebar-context';
 import { MobileSidebar } from '@/components/layout/mobile-sidebar';
 import type { SidebarUser } from '@/components/layout/left-sidebar';
@@ -11,6 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: { user } } = await supabase.auth.getUser();
 
   let sidebarUser: SidebarUser | null = null;
+  let currentUser: { id: string; username: string; full_name: string; avatar_url: string | null } | null = null;
   let presencePrivacy = {
     lastSeenHidden: false,
     onlineHidden: false,
@@ -36,6 +38,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         full_name: userRes.data.full_name as string,
         avatar_url: profileRes.data?.avatar_url ?? null,
       };
+      currentUser = {
+        id: user.id,
+        username: userRes.data.username as string,
+        full_name: userRes.data.full_name as string,
+        avatar_url: profileRes.data?.avatar_url ?? null,
+      };
     }
   }
 
@@ -43,7 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen pb-16 md:pb-0">
+      <div className="min-h-screen pt-14 pb-16 md:pb-0">
         <Navbar />
         <MobileSidebar user={sidebarUser} />
 
@@ -55,6 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <>
             <GlobalRealtimeProvider currentUserId={user.id} presencePrivacy={presencePrivacy} />
             <MobileBottomNav username={username} />
+            {currentUser && <GlobalPostComposer currentUser={currentUser} />}
           </>
         )}
       </div>

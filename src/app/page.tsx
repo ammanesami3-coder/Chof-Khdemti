@@ -17,10 +17,7 @@ export const metadata = {
     'اكتشف أفضل الحرفيين في مدينتك، وشارك أعمالك مع آلاف الزبائن. منصة اجتماعية متخصصة للحرفيين في المغرب.',
 };
 
-type Props = { searchParams: Promise<{ compose?: string }> };
-
-export default async function HomePage({ searchParams }: Props) {
-  const { compose } = await searchParams;
+export default async function HomePage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -75,7 +72,7 @@ export default async function HomePage({ searchParams }: Props) {
   return (
     <SidebarProvider>
       {/* Viewport layout: navbar fixed at top, two sidebars stay put, only the center column scrolls */}
-      <div className="flex h-screen flex-col overflow-hidden">
+      <div className="flex h-screen flex-col overflow-hidden pt-14">
         <Navbar />
         <MobileSidebar user={sidebarUser} />
 
@@ -93,7 +90,6 @@ export default async function HomePage({ searchParams }: Props) {
               <HomeFeed
                 currentUser={currentUser}
                 initialFeed={initialFeed}
-                composeOnMount={compose === '1'}
               />
             </div>
           </main>

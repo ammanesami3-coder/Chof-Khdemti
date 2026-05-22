@@ -1000,3 +1000,36 @@ clamping للـ viewport؛ فعند اقتراب الزر من حافة الشا
 ```
 
 > ⚠️ **مطلوب:** تطبيق migration `0040_visibility_settings.sql` على قاعدة البيانات.
+
+---
+
+## إصلاح الرعشة عند الـ Scroll — مايو 2026
+
+### المشكلة
+
+عند التمرير في المنصة تظهر رعشة/اهتزاز مستمر للمحتوى.
+
+**السبب الجذري:** `NavbarWrapper` كان يستعمل `position: sticky` مع `margin-bottom: -3.5rem` عند الإخفاء. هذا الـ negative margin يُسبّب **layout shift** — المحتوى يتحرك 56px للأعلى مما يُغيّر قيمة `scrollTop`، وهذا يُشغّل scroll events جديدة، مما يُعيد حساب اتجاه الـ scroll → toggle سريع = رعشة مستمرة.
+
+كان هناك أيضاً bug ثانوي في `useScrollDirection`: `lastY` المشترك بين جميع scroll containers (window + inner divs) يُربك حساب الـ delta عند تداخل الـ scroll events.
+
+### الإصلاحات
+
+**1. `src/components/layout/navbar-wrapper.tsx`**
+- `sticky top-0` + `mb-[-3.5rem]` → `fixed top-0 inset-x-0`
+- بما أن `fixed` يُخرج العنصر من document flow، الإخفاء عبر `translate-y(-100%)` لا يُسبّب أي layout shift
+
+**2. `src/app/(app)/layout.tsx`** + **`src/app/page.tsx`**
+- إضافة `pt-14` للـ wrapper الخارجي لتعويض الـ navbar الـ fixed (56px = h-14)
+
+**3. `src/hooks/use-scroll-direction.ts`**
+- استبدال `let lastY = 0` المشترك بـ `WeakMap<EventTarget, number>` لتتبع كل scroll container بشكل مستقل
+- إصلاح bug: `lastY.set(target, y)` أُخرج خارج شرط `Math.abs(delta) > 6` + بدء من `?? 0` (بدل `?? y` الذي كان يجعل delta دائماً صفراً)
+
+### النتائج
+
+```
+✓ الرعشة اختفت تماماً
+✓ الـ navbar والـ FAB يختفيان عند الـ scroll لأسفل ويعودان عند الأعلى (كما كان)
+✓ لا layout shift عند تبديل حالة الـ navbar
+```
