@@ -115,7 +115,7 @@ export function StatusAwareAvatar({
       >
         <span
           className={cn(
-            'block rounded-full border-background bg-background',
+            'inline-flex rounded-full border-background bg-background',
             RING_BORDER[size],
           )}
         >

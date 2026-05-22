@@ -55,10 +55,20 @@ export function PostComposer({
   // container (the home feed scrolls an inner <main>, not the window).
   const scrolledDown = useScrollDirection(80);
 
-  // Open when triggered externally (e.g. BottomNav + button).
+  // Open when triggered externally via openTrigger prop.
   useEffect(() => {
     if (openTrigger) handleOpen();
   }, [openTrigger]);
+
+  // Open from anywhere via the global 'compose:open' event (fired by FAB, etc.)
+  useEffect(() => {
+    const handler = () => {
+      setOpen(true);
+      setTimeout(() => textareaRef.current?.focus(), 150);
+    };
+    window.addEventListener('compose:open', handler);
+    return () => window.removeEventListener('compose:open', handler);
+  }, []);
 
   const isDirty = content.trim() !== "" || media.length > 0;
   const canPublish = isDirty && !isUploading && !isPending;

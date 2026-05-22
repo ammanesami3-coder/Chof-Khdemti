@@ -256,10 +256,10 @@ function StoryCard({
       {/* ── Avatar with ring at top-start ─── */}
       <div className="absolute top-2.5 start-2.5 z-10">
         <div
-          className="rounded-full p-[2.5px] shadow-md"
+          className="inline-flex rounded-full p-[2.5px] shadow-md"
           style={hasRing ? { background: 'var(--brand-gradient)' } : { background: 'rgba(255,255,255,0.4)' }}
         >
-          <div className="rounded-full overflow-hidden ring-[2px] ring-card">
+          <div className="inline-flex rounded-full overflow-hidden ring-[2px] ring-card">
             <UserAvatar user={user} size="sm" linkable={false} />
           </div>
         </div>

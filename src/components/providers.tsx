@@ -3,13 +3,16 @@
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { LanguageProvider } from '@/lib/i18n/language-context';
 
 // Clears the entire query cache whenever the logged-in user changes.
-// Without this, switching accounts would show stale data until staleTime expires.
+// Also handles forced sign-outs (e.g. invalid/expired refresh token) by
+// triggering a server-side re-render so that requireUser() can redirect to /login.
 function AuthWatcher() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
@@ -23,19 +26,27 @@ function AuthWatcher() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       const id = session?.user?.id ?? null;
 
       // Only act once prevId is known and the user actually changed
       if (prevId !== undefined && id !== prevId) {
         queryClient.clear();
+
+        // If the user just got signed out (forced or explicit) while they were
+        // previously authenticated, refresh the server state. This causes Next.js
+        // to re-run server components with the cleared cookies; protected pages
+        // (requireUser) will redirect to /login, public pages render as guest.
+        if (prevId !== null && id === null) {
+          router.refresh();
+        }
       }
 
       prevId = id;
     });
 
     return () => subscription.unsubscribe();
-  }, [queryClient]);
+  }, [queryClient, router]);
 
   return null;
 }

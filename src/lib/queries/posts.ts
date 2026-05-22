@@ -269,6 +269,47 @@ export async function fetchDiscoverFeed(
   };
 }
 
+/**
+ * Video-only feed: posts that contain at least one video in their media array.
+ * Sorted by engagement score (same algorithm as discover feed).
+ * Filters via the `has_video` stored generated column (migration 0041) — a
+ * simple boolean equality that avoids JSONB @> containment via PostgREST.
+ */
+export async function fetchVideoFeed(
+  currentUserId?: string,
+  cursor?: FeedCursor
+): Promise<FeedPage> {
+  const supabase = await createClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase as any)
+    .from('posts')
+    .select(POST_SELECT)
+    .eq('has_video', true)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(PAGE_SIZE + 1);
+
+  if (cursor) query = query.or(cursorFilter(cursor));
+
+  const { data: raw } = await query;
+  const posts = raw ?? [];
+  const hasMore = posts.length > PAGE_SIZE;
+  const page = hasMore ? posts.slice(0, PAGE_SIZE) : posts;
+  const last = page[page.length - 1];
+
+  const enriched = await enrichPosts(supabase, page as RawPost[], currentUserId);
+  enriched.sort((a, b) => scoreDiscoverPost(b) - scoreDiscoverPost(a));
+
+  return {
+    posts: enriched,
+    nextCursor:
+      hasMore && last
+        ? { created_at: last.created_at as string, id: last.id as string }
+        : null,
+  };
+}
+
 export async function fetchUserPosts(
   profileUserId: string,
   currentUserId?: string,

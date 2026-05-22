@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { ArrowUp, Compass, Image, Loader2, RefreshCw } from "lucide-react";
+import { ArrowUp, Compass, Image, Loader2, RefreshCw, VideoOff } from "lucide-react";
 import { PostCard } from "@/components/feed/post-card";
 import { PostCardSkeletonList } from "@/components/feed/post-card-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -11,12 +11,13 @@ import {
   fetchDiscoverFeed,
   fetchUserPosts,
   fetchSmartFeed,
+  fetchVideoFeed,
 } from "@/lib/queries/posts";
 import { useLang } from "@/lib/i18n/language-context";
 import type { FeedCursor, FeedPage } from "@/lib/queries/posts";
 import type { PostWithAuthor } from "@/lib/validations/post";
 
-export type FeedType = "following" | "discover" | "user" | "smart";
+export type FeedType = "following" | "discover" | "user" | "smart" | "videos";
 
 type CurrentUser = {
   id: string;
@@ -90,6 +91,8 @@ export function FeedList({
         return fetchDiscoverFeed(currentUserId, pageParam);
       if (feedType === "user" && profileUserId)
         return fetchUserPosts(profileUserId, currentUserId, pageParam);
+      if (feedType === "videos")
+        return fetchVideoFeed(currentUserId, pageParam);
       return { posts: [], nextCursor: null };
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
@@ -231,6 +234,15 @@ export function FeedList({
           title={label}
           description={isOwnProfile ? t('shareFirstWork') : undefined}
           action={isOwnProfile ? { label: t('createFirstPost'), href: "/" } : undefined}
+        />
+      );
+    }
+    if (feedType === "videos") {
+      return (
+        <EmptyState
+          icon={VideoOff}
+          title="لا توجد فيديوهات بعد"
+          description="لم يشارك الحرفيون أي فيديوهات حتى الآن"
         />
       );
     }

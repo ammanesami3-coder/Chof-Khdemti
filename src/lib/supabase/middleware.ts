@@ -32,9 +32,22 @@ export async function updateSession(request: NextRequest) {
     error,
   } = await supabase.auth.getUser();
 
-  // NOTE: we intentionally do NOT clear sb-* cookies on error here.
-  // getUser() can fail transiently (network blip, mid-refresh race); nuking
-  // the cookies turns a recoverable hiccup into a forced re-login. Supabase
-  // manages its own cookie lifecycle — let it.
-  return { supabaseResponse, user: error ? null : user, supabase };
+  if (error) {
+    // When getUser() fails (e.g. invalid/expired refresh token), Supabase SSR
+    // calls setAll() with cookie-clearing values, which would be stored in
+    // supabaseResponse. Returning that response clears the browser's auth cookies,
+    // turning ANY auth hiccup into a forced re-login on the very next request.
+    //
+    // Instead, return a neutral response that leaves existing browser cookies
+    // untouched. The user's session persists until they explicitly sign out or
+    // the cookie's own maxAge expires. Protected pages fall back to getSession()
+    // in requireUser(), which is lenient for transient failures.
+    //
+    // Exception: if the browser has NO auth cookies at all, the neutral response
+    // is returned anyway — the middleware will redirect to /login on the next
+    // protected-path request because hasAuthCookie will be false.
+    return { supabaseResponse: NextResponse.next({ request }), user: null, supabase };
+  }
+
+  return { supabaseResponse, user, supabase };
 }

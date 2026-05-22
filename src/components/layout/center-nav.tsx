@@ -90,6 +90,7 @@ export function CenterNav() {
     return pathname === href || pathname.startsWith(href + '/');
   }
 
+
   return (
     <div className="flex items-stretch h-full">
       <NavItem href="/" icon={Home} label="الرئيسية" active={isActive('/')} />
@@ -108,7 +109,7 @@ export function CenterNav() {
         badge={unreadNotifications}
         active={isActive('/notifications')}
       />
-      <NavItem icon={Video} label="الفيديوهات" disabled />
+      <NavItem href="/videos" icon={Video} label="الفيديوهات" active={isActive('/videos')} />
     </div>
   );
 }

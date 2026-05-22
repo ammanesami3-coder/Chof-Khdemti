@@ -114,9 +114,10 @@ export function MobileBottomNav({ username }: Props) {
 
         {/* FAB — زر النشر المركزي */}
         <div className="flex flex-1 items-center justify-center">
-          <Link
-            href="/?compose=1"
+          <button
+            type="button"
             aria-label={t('post')}
+            onClick={() => window.dispatchEvent(new CustomEvent('compose:open'))}
             className="flex h-12 w-12 -translate-y-3.5 items-center justify-center rounded-full text-white transition-transform duration-200 active:scale-90"
             style={{
               background: 'var(--brand-gradient)',
@@ -125,7 +126,7 @@ export function MobileBottomNav({ username }: Props) {
             }}
           >
             <Plus className="h-6 w-6" strokeWidth={2.5} />
-          </Link>
+          </button>
         </div>
 
         <TabItemWithBadge

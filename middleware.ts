@@ -17,6 +17,21 @@ async function getOnboardingComplete(
   return data?.onboarding_complete ?? false;
 }
 
+/**
+ * Creates a redirect that carries any auth cookies set by Supabase SSR.
+ * Without this, a token rotation that happens during updateSession() is lost
+ * when we return a NextResponse.redirect() instead of supabaseResponse —
+ * the browser keeps the old (now-invalidated) refresh token, causing
+ * "Invalid Refresh Token: Already Used" errors on the next request.
+ */
+function redirectWithAuth(url: URL, supabaseResponse: NextResponse): NextResponse {
+  const redirect = NextResponse.redirect(url);
+  supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) => {
+    redirect.cookies.set(name, value, rest as Parameters<typeof redirect.cookies.set>[2]);
+  });
+  return redirect;
+}
+
 export async function middleware(request: NextRequest) {
   const { supabaseResponse, user, supabase } = await updateSession(request);
   const pathname = request.nextUrl.pathname;
@@ -35,11 +50,11 @@ export async function middleware(request: NextRequest) {
   if (isProtected && !user) {
     const hasAuthCookie = request.cookies
       .getAll()
-      .some((c) => c.name.startsWith("sb-"));
+      .some((c) => c.name.startsWith("sb-") && c.value.length > 0);
     if (!hasAuthCookie) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
+      return redirectWithAuth(loginUrl, supabaseResponse);
     }
     return supabaseResponse;
   }
@@ -48,7 +63,7 @@ export async function middleware(request: NextRequest) {
     // مسجّل ويحاول فتح صفحة auth → تحقق من onboarding
     if (isAuthPage) {
       const done = await getOnboardingComplete(supabase, user.id);
-      return NextResponse.redirect(new URL(done ? "/" : "/onboarding", request.url));
+      return redirectWithAuth(new URL(done ? "/" : "/onboarding", request.url), supabaseResponse);
     }
 
     // مسجّل وعلى مسار محمي → تحقق من onboarding
@@ -59,7 +74,7 @@ export async function middleware(request: NextRequest) {
       if (obCookie !== user.id) {
         const done = await getOnboardingComplete(supabase, user.id);
         if (!done) {
-          return NextResponse.redirect(new URL("/onboarding", request.url));
+          return redirectWithAuth(new URL("/onboarding", request.url), supabaseResponse);
         }
         supabaseResponse.cookies.set("ob_done", user.id, {
           maxAge: 60 * 60 * 24 * 30,
