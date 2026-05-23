@@ -112,22 +112,24 @@ export function MobileBottomNav({ username }: Props) {
 
         <TabItem href="/explore" active={isActive('/explore')} label={t('explore')} icon={Users} />
 
-        {/* FAB — زر النشر المركزي */}
-        <div className="flex flex-1 items-center justify-center">
-          <button
-            type="button"
-            aria-label={t('post')}
-            onClick={() => window.dispatchEvent(new CustomEvent('compose:open'))}
-            className="flex h-12 w-12 -translate-y-3.5 items-center justify-center rounded-full text-white transition-transform duration-200 active:scale-90"
-            style={{
-              background: 'var(--brand-gradient)',
-              boxShadow: '0 4px 20px rgba(255, 159, 67, 0.50)',
-              border: '3px solid var(--background)',
-            }}
-          >
-            <Plus className="h-6 w-6" strokeWidth={2.5} />
-          </button>
-        </div>
+        {/* FAB — زر النشر المركزي (مخفي داخل صفحات الرسائل) */}
+        {!pathname.startsWith('/messages') && (
+          <div className="flex flex-1 items-center justify-center">
+            <button
+              type="button"
+              aria-label={t('post')}
+              onClick={() => window.dispatchEvent(new CustomEvent('compose:open'))}
+              className="flex h-12 w-12 -translate-y-3.5 items-center justify-center rounded-full text-white transition-transform duration-200 active:scale-90"
+              style={{
+                background: 'var(--brand-gradient)',
+                boxShadow: '0 4px 20px rgba(255, 159, 67, 0.50)',
+                border: '3px solid var(--background)',
+              }}
+            >
+              <Plus className="h-6 w-6" strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
 
         <TabItemWithBadge
           href="/messages"

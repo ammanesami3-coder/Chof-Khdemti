@@ -1003,6 +1003,83 @@ clamping للـ viewport؛ فعند اقتراب الزر من حافة الشا
 
 ---
 
+## تحديثات مايو 2026 — i18n، FAB، ومراسلة الزبائن
+
+### إصلاح #1 — ردود فعل الإيموجي في عارض القصص تخرج عن الإطار ✅
+
+**المشكلة:** عند تغيير لغة المنصة من AR إلى FR/EN، يُغيَّر `html dir` من `rtl` إلى `ltr`، لكن شريط الإيموجي في `status-viewer.tsx` كان يستعمل خاصية منطقية `start-0` (التي تعني `left` في LTR)، مما يُخرج الشريط عن حدود المكوّن عند الحافة.
+
+**الإصلاح** في `src/components/status/status-viewer.tsx`:
+- `start-0` → `right-0` (خاصية فيزيائية ثابتة بغض النظر عن اتجاه الصفحة)
+- إضافة `whitespace-nowrap` لمنع التفاف الإيموجي
+
+---
+
+### إصلاح #2 — ترجمة صفحة الاشتراك (i18n كامل) ✅
+
+**المشكلة:** صفحة `/settings/subscription` كانت بنصوص عربية مُشفَّرة بالكامل — لا دعم لـ FR/EN.
+
+**الحل:**
+
+**`src/lib/i18n/translations.ts`** — إضافة 31 مفتاح ترجمة × 3 لغات (ar/fr/en):
+- نصوص الـ hero card: `trialHeroTitle`, `trialHeroSubtitle`, `trialEndedHeroTitle`, `activeSubscription`, `pastDueTitle`, `cancelledHeroTitle`، وغيرها
+- شريط التقدم: `trialDay1Label`, `trialDayNLabel`, `trialDaysUsedLabel`
+- ميزات الخطة: `planFeatureUnlimitedChats`, `planFeatureInstantReply`, إلخ
+- 5 أسئلة FAQ مترجمة
+
+**نمط Server/Client split:**
+- `src/app/(app)/settings/subscription/page.tsx` — Server Component: يجلب البيانات فقط ويمرّرها كـ props
+- `src/app/(app)/settings/subscription/subscription-page-client.tsx` — Client Component (جديد): يستعمل `useLang()` لكل النصوص + تنسيق التاريخ حسب `lang`
+
+---
+
+### إصلاح #3 — زر + (FAB) يظهر داخل صفحات الرسائل ✅
+
+**المشكلة:** زر إنشاء المنشور (FAB) الـ `fixed` ظهر فوق واجهة المحادثة.
+
+**الجذر:** الـ FAB الفعلي موجود في `post-composer.tsx` (مُركَّب عالمياً في layout)، وليس في `mobile-bottom-nav.tsx` فقط.
+
+**الإصلاح** في `src/components/feed/post-composer.tsx`:
+- إضافة `usePathname()` من `next/navigation`
+- `const inMessages = pathname.startsWith('/messages')`
+- تغليف الـ FAB button بـ `{!inMessages && (...)}` — يختفي على `/messages` وكل sub-routes
+
+إضافةً إلى ذلك، نفس الإصلاح طُبّق على زر الـ FAB في `mobile-bottom-nav.tsx` للاتساق.
+
+---
+
+### إصلاح #4 — زر "رسالة" في البروفايل لا يفتح المحادثة ✅
+
+**المشكلتان:**
+1. زر "رسالة" لا يظهر على بروفايلات الزبائن — كان مشروطاً بـ `user.account_type === 'artisan'` فقط
+2. عند الضغط: يُوجَّه إلى `/messages/new?to=username` والمعالج الحقيقي هو `messages/new/page.tsx` — كان يدعم `customer → artisan` فقط، ويُعيد التوجيه إلى `/messages` لأي مجموعة أخرى
+
+**الإصلاحات:**
+
+**`src/components/profile/profile-header.tsx`:**
+```tsx
+// قبل: artisan فقط
+const showMessageBtn = !isOwnProfile && user.account_type === 'artisan' && canMessage;
+
+// بعد: artisan للجميع + customer profile إذا الزائر زبون
+const showMessageBtn =
+  !isOwnProfile &&
+  (user.account_type === 'artisan' ||
+    (user.account_type === 'customer' && currentUser?.account_type === 'customer')) &&
+  canMessage;
+```
+
+**`src/app/(app)/messages/new/page.tsx`:**
+- استبدال الشرط الصارم `target.account_type === 'artisan'` بـ `isValidPair` (customer → artisan أو customer → customer)
+- للمحادثات customer→customer: يُوضع المستقبِل في `artisan_id` والمبادِر في `customer_id` (سياسات RLS تعمل على كلا العمودين)
+- نفس المنطق: البحث عن محادثة موجودة أولاً، فحص `who_can_message`، ثم الإنشاء مع race-condition guard
+
+**`src/lib/actions/status.ts` — `replyToStatus`:**
+- إضافة حالة `customer → customer` لردود القصص: المستقبِل في `artisan_id` slot
+- رسالة الخطأ حُدِّثت: `'لا يمكن التواصل بين حرفيين'` (بدل الرسالة المضللة القديمة)
+
+---
+
 ## إصلاح الرعشة عند الـ Scroll — مايو 2026
 
 ### المشكلة

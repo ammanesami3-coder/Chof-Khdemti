@@ -83,10 +83,14 @@ export function ProfileHeader({
 
   // نُظهر الأزرار للزوار أيضاً — AuthGate يعترض النقر ويوجّه لتسجيل الدخول
   const showFollowBtn = !isOwnProfile;
-  // "followers"-only messaging hides the button until the viewer follows the artisan.
+  // "followers"-only messaging hides the button until the viewer follows the profile owner.
   const canMessage = whoCanMessage !== 'followers' || isFollowing;
+  // Show message button for: (1) artisan profiles for anyone, (2) customer profiles only when visitor is also a customer
   const showMessageBtn =
-    !isOwnProfile && user.account_type === 'artisan' && canMessage;
+    !isOwnProfile &&
+    (user.account_type === 'artisan' ||
+      (user.account_type === 'customer' && currentUser?.account_type === 'customer')) &&
+    canMessage;
 
   const initials = user.full_name
     .split(' ')

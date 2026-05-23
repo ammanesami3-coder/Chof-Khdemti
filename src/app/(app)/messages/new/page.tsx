@@ -25,8 +25,13 @@ export default async function NewConversationPage({ searchParams }: Props) {
   // Cannot message yourself
   if (target.id === user.id) redirect('/messages');
 
-  // Determine artisan_id / customer_id based on roles
-  if (currentUser?.account_type === 'customer' && target.account_type === 'artisan') {
+  const isCustomerSender = currentUser?.account_type === 'customer';
+  const isValidPair =
+    isCustomerSender &&
+    (target.account_type === 'artisan' || target.account_type === 'customer');
+
+  if (isValidPair) {
+    // recipient always goes in artisan_id slot; sender in customer_id slot
     const artisanId = target.id;
     const customerId = user.id;
 
@@ -39,7 +44,7 @@ export default async function NewConversationPage({ searchParams }: Props) {
 
     if (existing) redirect(`/messages/${existing.id}`);
 
-    // Honor the artisan's "who can message me" setting before opening a new thread.
+    // Honor the recipient's "who can message me" setting before opening a new thread.
     if (!(await canStartConversation(supabase, customerId, artisanId))) {
       redirect(`/profile/${to}`);
     }
@@ -66,6 +71,6 @@ export default async function NewConversationPage({ searchParams }: Props) {
     redirect(`/messages/${created!.id}`);
   }
 
-  // Artisan trying to message artisan, or other invalid combinations
+  // Artisan-to-artisan or other invalid combinations
   redirect('/messages');
 }

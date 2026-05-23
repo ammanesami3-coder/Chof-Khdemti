@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollDirection } from "@/hooks/use-scroll-direction";
@@ -54,6 +55,8 @@ export function PostComposer({
   // Hide the FAB on scroll-down, show on scroll-up. Tracks the real scroll
   // container (the home feed scrolls an inner <main>, not the window).
   const scrolledDown = useScrollDirection(80);
+  const pathname = usePathname();
+  const inMessages = pathname.startsWith('/messages');
 
   // Open when triggered externally via openTrigger prop.
   useEffect(() => {
@@ -162,24 +165,26 @@ export function PostComposer({
 
   return (
     <>
-      {/* Floating action button */}
-      <button
-        type="button"
-        onClick={handleOpen}
-        aria-label={t('createPostAriaLabel')}
-        style={{ background: 'var(--brand-gradient)', boxShadow: '0 4px 20px rgba(255,159,67,0.45)' }}
-        className={cn(
-          "fixed z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg",
-          "bottom-[4.5rem] start-6 sm:bottom-6",
-          "transition-all duration-300 hover:opacity-90 active:scale-95",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          scrolledDown
-            ? "translate-y-24 opacity-0 pointer-events-none"
-            : "translate-y-0 opacity-100",
-        )}
-      >
-        <Plus className="size-6" aria-hidden="true" />
-      </button>
+      {/* Floating action button — hidden on messages pages */}
+      {!inMessages && (
+        <button
+          type="button"
+          onClick={handleOpen}
+          aria-label={t('createPostAriaLabel')}
+          style={{ background: 'var(--brand-gradient)', boxShadow: '0 4px 20px rgba(255,159,67,0.45)' }}
+          className={cn(
+            "fixed z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg",
+            "bottom-[4.5rem] start-6 sm:bottom-6",
+            "transition-all duration-300 hover:opacity-90 active:scale-95",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            scrolledDown
+              ? "translate-y-24 opacity-0 pointer-events-none"
+              : "translate-y-0 opacity-100",
+          )}
+        >
+          <Plus className="size-6" aria-hidden="true" />
+        </button>
+      )}
 
       {/* Composer dialog */}
       <Dialog open={open} onOpenChange={handleOpenChange}>

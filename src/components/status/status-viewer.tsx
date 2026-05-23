@@ -648,7 +648,7 @@ export function StatusViewer({
 
               {showReactions && (
                 <div
-                  className="absolute bottom-full start-0 mb-2 flex gap-1.5 rounded-2xl bg-zinc-900/90 px-3 py-2.5 shadow-2xl backdrop-blur-md"
+                  className="absolute bottom-full right-0 mb-2 flex gap-1.5 rounded-2xl bg-zinc-900/90 px-3 py-2.5 shadow-2xl backdrop-blur-md whitespace-nowrap"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {REACTIONS.map((r) => (

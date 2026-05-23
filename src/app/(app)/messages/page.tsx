@@ -25,20 +25,28 @@ export default async function MessagesPage({ searchParams }: Props) {
       supabase.from('users').select('account_type').eq('id', user.id).single(),
     ]);
 
-    const artisan = artisanRes.data;
+    const recipient = artisanRes.data;
     const currentUser = currentUserRes.data;
 
-    // Only customers can initiate conversations with artisans
-    if (
-      artisan?.account_type === 'artisan' &&
-      artisan.id !== user.id &&
-      currentUser?.account_type === 'customer'
-    ) {
+    const isCustomerToArtisan =
+      recipient?.account_type === 'artisan' &&
+      recipient.id !== user.id &&
+      currentUser?.account_type === 'customer';
+
+    const isCustomerToCustomer =
+      recipient?.account_type === 'customer' &&
+      recipient.id !== user.id &&
+      currentUser?.account_type === 'customer';
+
+    if (isCustomerToArtisan || isCustomerToCustomer) {
+      // recipient's id always goes in artisan_id — RLS policies work on either column.
+      const artisanSlot = recipient!.id;
+
       // Try to find an existing conversation first
       const { data: existing } = await supabase
         .from('conversations')
         .select('id')
-        .eq('artisan_id', artisan.id)
+        .eq('artisan_id', artisanSlot)
         .eq('customer_id', user.id)
         .maybeSingle();
 
@@ -46,15 +54,15 @@ export default async function MessagesPage({ searchParams }: Props) {
         redirect(`/messages/${existing.id}`);
       }
 
-      // Honor the artisan's "who can message me" setting before opening a new thread.
-      if (!(await canStartConversation(supabase, user.id, artisan.id))) {
+      // Honor the recipient's "who can message me" setting before opening a new thread.
+      if (!(await canStartConversation(supabase, user.id, recipient!.id))) {
         redirect(`/profile/${to}`);
       }
 
       // Create new conversation
       const { data: created } = await supabase
         .from('conversations')
-        .insert({ artisan_id: artisan.id, customer_id: user.id })
+        .insert({ artisan_id: artisanSlot, customer_id: user.id })
         .select('id')
         .single();
 

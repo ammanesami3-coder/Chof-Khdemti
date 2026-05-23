@@ -333,8 +333,15 @@ export async function replyToStatus(
   ) {
     artisanId = statusOwner.id;
     customerId = currentUserData.id;
+  } else if (
+    currentUserData.account_type === 'customer' &&
+    statusOwner.account_type === 'customer'
+  ) {
+    // customer → customer: status owner in artisan_id slot, sender in customer_id slot
+    artisanId = statusOwner.id;
+    customerId = currentUserData.id;
   } else {
-    return { error: 'يمكن التواصل بين الحرفي والزبون فقط' };
+    return { error: 'لا يمكن التواصل بين حرفيين' };
   }
 
   // Find or create conversation
