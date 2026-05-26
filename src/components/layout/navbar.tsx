@@ -9,6 +9,7 @@ import { GuestNavButtons } from './guest-nav-buttons';
 import { MobileMenuButton } from './mobile-menu-button';
 import { MobileSearchButton } from './mobile-search-button';
 import { MobileNotifButton } from './mobile-notif-button';
+import { MobileVideosButton } from './mobile-videos-button';
 import { CenterNav, GuestCenterNav } from './center-nav';
 
 async function getNavUser() {
@@ -119,6 +120,7 @@ export async function Navbar() {
         <MobileSearchButton />
         <div className="flex-1" />
         <TrialIndicator />
+        <MobileVideosButton />
         <MobileNotifButton />
         <ThemeToggle />
         <UserMenu user={navUser} />

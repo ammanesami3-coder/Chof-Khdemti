@@ -11,6 +11,8 @@ const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "";
 interface OptimizedVideoProps {
   item: PostMedia;
   className?: string;
+  /** When true, detects video orientation and applies smart aspect ratio + sizing */
+  autoAspect?: boolean;
 }
 
 function buildHlsUrl(publicId: string) {
@@ -24,16 +26,17 @@ function buildFallbackUrl(publicId: string) {
 // Custom event name for singleton video coordination
 const VIDEO_PLAYING_EVENT = "video:singleton-play";
 
-export function OptimizedVideo({ item, className = "" }: OptimizedVideoProps) {
+export function OptimizedVideo({ item, className = "", autoAspect = false }: OptimizedVideoProps) {
   const { t } = useLang();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const wasPlayingRef = useRef(false);
-  // Stable ID to identify this instance among all mounted videos
   const instanceId = useRef(`v-${Math.random().toString(36).slice(2)}`);
   const [inView, setInView] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Detected dimensions — null until metadata available
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
 
   // ── Singleton: broadcast when this video starts playing ───────────────────
   useEffect(() => {
@@ -128,7 +131,6 @@ export function OptimizedVideo({ item, className = "" }: OptimizedVideoProps) {
           lowLatencyMode: false,
           maxBufferLength: 30,
           maxMaxBufferLength: 60,
-          // Start with lowest quality then adapt up
           startLevel: -1,
         });
         hlsRef.current = hls;
@@ -136,7 +138,15 @@ export function OptimizedVideo({ item, className = "" }: OptimizedVideoProps) {
         hls.loadSource(hlsUrl);
         hls.attachMedia(video);
 
-        hls.on(Hls.Events.MANIFEST_PARSED, () => setLoading(false));
+        hls.on(Hls.Events.MANIFEST_PARSED, (_evt, data) => {
+          setLoading(false);
+          if (autoAspect) {
+            const level = data.levels[data.firstLevel ?? 0];
+            if (level?.width && level?.height) {
+              setDims({ w: level.width, h: level.height });
+            }
+          }
+        });
 
         hls.on(Hls.Events.ERROR, (_evt, data) => {
           if (data.fatal) {
@@ -173,6 +183,62 @@ export function OptimizedVideo({ item, className = "" }: OptimizedVideoProps) {
     };
   }, [inView, item.publicId, item.url]);
 
+  // Fallback: detect from video element metadata (MP4 / no-HLS paths)
+  useEffect(() => {
+    if (!autoAspect || !inView || !videoRef.current) return;
+    const video = videoRef.current;
+    function handleMeta() {
+      const { videoWidth: w, videoHeight: h } = video;
+      if (w && h) setDims((prev) => prev ?? { w, h });
+    }
+    video.addEventListener("loadedmetadata", handleMeta);
+    return () => video.removeEventListener("loadedmetadata", handleMeta);
+  }, [autoAspect, inView]);
+
+  // ── autoAspect mode: single stable DOM structure, only styles change ────────
+  // We MUST keep the same element tree across orientation changes so React never
+  // unmounts the <video> — if it gets remounted, HLS loses its media attachment.
+  if (autoAspect) {
+    const ratio = dims ? dims.w / dims.h : null;
+    const isPortrait = ratio !== null && ratio < 0.8;
+
+    // Portrait: fill card width on mobile (no black bars on sides), constrain
+    // to a centred column on desktop so it doesn't dominate the layout.
+    // Landscape/unknown: full width, aspect ratio from detected dims or 16:9.
+    const innerClass = isPortrait
+      ? "relative w-full sm:w-auto sm:mx-auto sm:max-h-[560px]"
+      : "relative w-full";
+
+    const innerStyle: React.CSSProperties = {
+      aspectRatio: dims ? `${dims.w}/${dims.h}` : "16/9",
+    };
+
+    return (
+      <div
+        ref={containerRef}
+        className="overflow-hidden rounded-xl bg-black flex justify-center"
+      >
+        <div className={innerClass} style={innerStyle}>
+          <video
+            ref={videoRef}
+            poster={item.thumbnail}
+            controls
+            playsInline
+            preload="none"
+            className="h-full w-full object-contain"
+            aria-label={t("videoAriaLabel")}
+          />
+          {loading && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <Loader2 className="size-8 animate-spin text-white/80" />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Standard mode: parent controls the container class (carousel, etc.) ───
   return (
     <div ref={containerRef} className={`relative bg-black ${className}`}>
       <video
@@ -182,7 +248,7 @@ export function OptimizedVideo({ item, className = "" }: OptimizedVideoProps) {
         playsInline
         preload="none"
         className="h-full w-full object-contain"
-        aria-label={t('videoAriaLabel')}
+        aria-label={t("videoAriaLabel")}
       />
       {loading && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
