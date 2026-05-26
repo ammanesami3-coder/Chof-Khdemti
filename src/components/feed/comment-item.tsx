@@ -1,19 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { formatDistanceToNow } from "date-fns";
 import { ar, fr, enUS } from "date-fns/locale";
 import { Send } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { AuthGate } from "@/components/shared/auth-gate";
+import { CommentReactionButton } from "@/components/feed/comment-reaction-button";
 import {
   useDeleteComment,
-  useToggleCommentLike,
   useEditComment,
   useAddComment,
 } from "@/hooks/use-comments";
+import { getReaction, getTopReactions, type Reaction } from "@/lib/constants/reactions";
 import { useLang } from "@/lib/i18n/language-context";
 import type { RecentComment } from "@/lib/validations/post";
+
+const ReactionsModalLazy = dynamic(
+  () => import("@/components/feed/reactions-modal").then((m) => m.ReactionsModal),
+  { ssr: false }
+);
 
 type CurrentUser = {
   id: string;
@@ -46,11 +53,21 @@ export function CommentItem({
   const [editText, setEditText] = useState(comment.content);
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
-  const [localIsLiked, setLocalIsLiked] = useState(comment.is_liked ?? false);
-  const [localLikesCount, setLocalLikesCount] = useState(comment.likes_count ?? 0);
+  const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
+
+  // Derive reaction state from TQ-managed comment prop (no local useState — avoids stale sync bug)
+  const isLiked = comment.is_liked ?? false;
+  const likesCount = comment.likes_count ?? 0;
+  const userReaction = comment.user_reaction ?? null;
+
+  // Top reactions with fallback to user's own reaction to prevent badge flicker during refetch
+  let topReactions: Reaction[] = getTopReactions(comment.reactions_summary, 2);
+  if (topReactions.length === 0 && likesCount > 0) {
+    const fallback = userReaction ? getReaction(userReaction) : null;
+    if (fallback) topReactions = [fallback];
+  }
 
   const deleteMutation = useDeleteComment();
-  const toggleLikeMutation = useToggleCommentLike();
   const editMutation = useEditComment();
   const addReplyMutation = useAddComment(
     currentUser ?? { id: "", username: "", full_name: "", avatar_url: null },
@@ -74,26 +91,6 @@ export function CommentItem({
         addSuffix: true,
         locale: dateLocale,
       });
-
-  function handleLike() {
-    if (!currentUser) return;
-    const newLiked = !localIsLiked;
-    setLocalIsLiked(newLiked);
-    setLocalLikesCount((prev) => (newLiked ? prev + 1 : Math.max(0, prev - 1)));
-    toggleLikeMutation.mutate(
-      {
-        commentId: comment.id,
-        postId,
-        parentCommentId: comment.parent_comment_id,
-      },
-      {
-        onError: () => {
-          setLocalIsLiked(!newLiked);
-          setLocalLikesCount(comment.likes_count ?? 0);
-        },
-      },
-    );
-  }
 
   function handleDelete() {
     deleteMutation.mutate({
@@ -149,7 +146,7 @@ export function CommentItem({
       <div className="min-w-0 flex-1">
         {/* ── Bubble ─────────────────────────────────────────────────── */}
         <div
-          className={`relative inline-block max-w-full ${localLikesCount > 0 ? "mb-3" : "mb-0.5"}`}
+          className={`relative inline-block max-w-full ${likesCount > 0 ? "mb-3" : "mb-0.5"}`}
         >
           <div className="rounded-2xl bg-muted px-3 py-2 text-sm leading-relaxed">
             <p className="font-semibold leading-tight text-foreground">
@@ -189,30 +186,40 @@ export function CommentItem({
             )}
           </div>
 
-          {/* Likes badge — positioned at bubble's bottom-end corner */}
-          {localLikesCount > 0 && (
-            <div className="absolute -bottom-2.5 end-2 flex items-center gap-0.5 rounded-full border bg-background px-1.5 py-0.5 text-xs shadow-sm">
-              <span>❤️</span>
-              <span className="font-medium text-foreground">{localLikesCount}</span>
-            </div>
+          {/* Reaction badge — top 2 emojis + count, clickable to open who-reacted modal */}
+          {likesCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setReactionsModalOpen(true)}
+              aria-label={t('viewReactionsAriaLabel')}
+              className="absolute -bottom-2.5 end-2 flex items-center gap-0.5 rounded-full border border-border/60 bg-background px-1.5 py-0.5 text-xs shadow-sm transition-all hover:scale-105 hover:bg-muted"
+            >
+              {topReactions.length > 0 ? (
+                topReactions.map((r, i) => (
+                  <span key={r.type} className={i > 0 ? '-ms-0.5' : ''}>{r.emoji}</span>
+                ))
+              ) : (
+                <span>👍</span>
+              )}
+              {likesCount > 1 && (
+                <span className="font-medium text-muted-foreground">{likesCount}</span>
+              )}
+            </button>
           )}
         </div>
 
         {/* ── Action bar ─────────────────────────────────────────────── */}
         <div className="flex items-center gap-3 px-2 text-xs font-semibold text-muted-foreground">
-          <AuthGate isAuthenticated={isAuthenticated} action="like">
-            <button
-              onClick={handleLike}
-              disabled={isPending || toggleLikeMutation.isPending}
-              className={
-                localIsLiked
-                  ? "text-blue-600 hover:text-blue-700"
-                  : "hover:text-foreground"
-              }
-            >
-              {localIsLiked ? t('commentLiked') : t('commentLike')}
-            </button>
-          </AuthGate>
+          {/* Like — with hover/long-press reaction picker */}
+          <CommentReactionButton
+            commentId={comment.id}
+            postId={postId}
+            parentCommentId={comment.parent_comment_id}
+            userReaction={userReaction}
+            isLiked={isLiked}
+            isAuthenticated={isAuthenticated}
+            isPending={isPending}
+          />
 
           {/* Reply button — top-level comments only */}
           {depth === 0 && (
@@ -302,6 +309,16 @@ export function CommentItem({
           </div>
         )}
       </div>
+
+      {/* Reactions modal */}
+      {reactionsModalOpen && (
+        <ReactionsModalLazy
+          open={reactionsModalOpen}
+          onClose={() => setReactionsModalOpen(false)}
+          type="comment"
+          entityId={comment.id}
+        />
+      )}
     </div>
   );
 }

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import Image from "next/image";
 import cloudinaryLoader from "@/lib/cloudinary-loader";
 import useEmblaCarousel from "embla-carousel-react";
 import { formatDistanceToNow } from "date-fns";
@@ -29,6 +28,10 @@ const SharedPostEmbedLazy = dynamic(
   () => import("@/components/feed/shared-post-embed").then((m) => m.SharedPostEmbed),
   { ssr: false, loading: () => <div className="mx-4 mt-3 h-20 animate-pulse rounded-xl bg-muted" /> }
 );
+const ReactionsModalLazy = dynamic(
+  () => import("@/components/feed/reactions-modal").then((m) => m.ReactionsModal),
+  { ssr: false }
+);
 import {
   BadgeCheck,
   Bookmark,
@@ -36,7 +39,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Flag,
-  Heart,
   MessageCircle,
   MoreHorizontal,
   Repeat2,
@@ -53,7 +55,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useLikePost } from "@/hooks/use-like-post";
+import { PostReactionButton } from "@/components/feed/post-reaction-button";
+import { ReactionsSummary } from "@/components/feed/reactions-summary";
 import { followUser, unfollowUser } from "@/lib/actions/follow";
 import { followStore } from "@/lib/stores/follow-store";
 import { toggleSavePost } from "@/lib/actions/save-post";
@@ -97,28 +100,29 @@ function SingleMedia({
   onImageClick?: () => void;
 }) {
   const { t } = useLang();
+
   if (item.type === "video") {
-    return (
-      <div className="overflow-hidden rounded-xl">
-        <OptimizedVideoLazy item={item} className="aspect-video" />
-      </div>
-    );
+    // OptimizedVideo handles its own rounded corners + smart aspect ratio
+    return <OptimizedVideoLazy item={item} autoAspect />;
   }
+
+  // Image: render at natural proportions, center-crop portrait images at max-height.
+  // Using flex+items-center on the wrapper so the crop is symmetric (center of image visible).
   return (
     <button
       type="button"
       onClick={onImageClick}
-      className="relative block w-full cursor-zoom-in overflow-hidden rounded-xl bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="block w-full cursor-zoom-in overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={t('viewFullImageAriaLabel')}
     >
-      <div className="aspect-[4/3]">
-        <Image
-          src={item.url}
+      <div className="flex max-h-[600px] items-center overflow-hidden bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={cloudinaryLoader({ src: item.url, width: 1280 })}
           alt=""
-          fill
-          priority={priority}
-          className="object-cover"
-          sizes="(max-width: 672px) calc(100vw - 32px), 640px"
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          className="block h-auto w-full"
         />
       </div>
     </button>
@@ -179,12 +183,14 @@ function MediaCarousel({
               aria-label={`${i + 1} ${t('slideNofMPrefix')} ${media.length}`}
             >
               {item.type === "video" ? (
-                <OptimizedVideoLazy item={item} className="aspect-square" />
+                // Carousel videos: use a taller-than-square container with object-contain
+                <div className="aspect-[4/5] bg-black">
+                  <OptimizedVideoLazy item={item} className="h-full w-full" />
+                </div>
               ) : (
                 <button
                   type="button"
                   onClick={() => {
-                    // Find this image's index among images-only
                     let imgIdx = 0;
                     for (let j = 0; j < i; j++) {
                       if (media[j]?.type === "image") imgIdx++;
@@ -194,10 +200,9 @@ function MediaCarousel({
                   className="block w-full cursor-zoom-in overflow-hidden bg-muted focus-visible:outline-none"
                   aria-label={t('viewFullImageAriaLabel')}
                 >
-                  <div className="aspect-square">
-                    {/* Plain <img>: next/image's fill + lazy machinery left
-                        off-screen embla slides blank. A direct, Cloudinary-
-                        optimized URL renders reliably on every slide. */}
+                  {/* aspect-[4/5]: taller than square, crops less of portrait images
+                      while still keeping landscape images looking great. */}
+                  <div className="aspect-[4/5]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={cloudinaryLoader({ src: item.url, width: 1280 })}
@@ -334,12 +339,12 @@ export function PostCard({
   initialCommentHighlight,
 }: PostCardProps) {
   const { t, lang } = useLang();
-  const [bouncing, setBouncing] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(!!initialCommentHighlight);
   const [sheetAutoFocus, setSheetAutoFocus] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
+  const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
   const [isFollowPending, setIsFollowPending] = useState(false);
   // Save state
   const [isSaved, setIsSaved] = useState(post.is_saved ?? false);
@@ -361,14 +366,10 @@ export function PostCard({
   const isFollowing = followMap.has(post.author_id)
     ? (followMap.get(post.author_id) as boolean)
     : (post.is_following ?? false);
-  const likeMutation = useLikePost();
-
   const lightboxImages = post.media
     .filter((m) => m.type === "image")
     .map((m) => ({ src: m.url }));
 
-  const liked = post.is_liked ?? false;
-  const likesCount = post.likes_count;
   const isOwner = Boolean(currentUserId && currentUserId === post.author_id);
   const isPending = post.is_pending ?? false;
 
@@ -377,12 +378,6 @@ export function PostCard({
     addSuffix: true,
     locale: dateLocale,
   });
-
-  function handleLike() {
-    setBouncing(true);
-    setTimeout(() => setBouncing(false), 350);
-    likeMutation.mutate(post.id);
-  }
 
   function handleShare() {
     setShareOpen(true);
@@ -605,34 +600,15 @@ export function PostCard({
       )}
 
       {/* ── Actions bar ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 px-3 py-2">
-        {/* Like */}
+      {/* Layout: [Like 5] [💬 3] [↗ 2] ............ [😂❤️] (counter on opposite side) */}
+      <div className="flex items-center gap-0.5 px-3 py-2">
+        {/* Like / Reactions */}
         <AuthGate isAuthenticated={!!currentUserId} action="like">
-          <button
-            type="button"
-            onClick={handleLike}
-            disabled={isPending}
-            aria-label={liked ? t('unlikeAriaLabel') : t('likeAriaLabel')}
-            aria-pressed={liked}
-            className="flex items-center gap-1.5 rounded-full px-2 py-1.5 transition-colors hover:bg-red-50 disabled:pointer-events-none dark:hover:bg-red-950"
-          >
-            <Heart
-              className={[
-                "size-5 transition-colors duration-150",
-                liked ? "fill-red-600 text-red-600" : "text-muted-foreground",
-                bouncing ? "animate-[like-bounce_350ms_ease-out]" : "",
-              ].join(" ")}
-            />
-            {likesCount > 0 && (
-              <span
-                className={`text-xs font-medium ${
-                  liked ? "text-red-600" : "text-muted-foreground"
-                }`}
-              >
-                {likesCount}
-              </span>
-            )}
-          </button>
+          <PostReactionButton
+            postId={post.id}
+            likesCount={post.likes_count}
+            userReaction={post.user_reaction}
+          />
         </AuthGate>
 
         {/* Comment */}
@@ -645,27 +621,38 @@ export function PostCard({
             }}
             disabled={isPending}
             aria-label={t('commentAriaLabel')}
-            className="flex items-center gap-1.5 rounded-full px-2 py-1.5 transition-colors disabled:pointer-events-none text-muted-foreground hover:bg-primary/10 hover:text-primary"
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none"
           >
-            <MessageCircle className="size-5" />
+            <MessageCircle className="size-5" strokeWidth={1.75} />
             {post.comments_count > 0 && (
-              <span className="text-xs font-medium">{post.comments_count}</span>
+              <span className="tabular-nums">{post.comments_count}</span>
             )}
           </button>
         </AuthGate>
 
-        {/* Share — pushed to the far end */}
+        {/* Share */}
         <button
           type="button"
           onClick={handleShare}
           aria-label={t('sharePostAriaLabel')}
-          className="ms-auto flex items-center gap-1.5 rounded-full px-2 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <Share2 className="size-4" />
+          <Share2 className="size-5" strokeWidth={1.75} />
           {(post.shares_count ?? 0) > 0 && (
-            <span className="text-xs font-medium">{post.shares_count}</span>
+            <span className="tabular-nums">{post.shares_count}</span>
           )}
         </button>
+
+        {/* Aggregated reactions counter — opposite side (left in RTL, right in LTR) */}
+        {post.likes_count > 0 && (
+          <ReactionsSummary
+            summary={post.reactions_summary}
+            totalCount={post.likes_count}
+            fallbackReaction={post.user_reaction}
+            onClick={() => setReactionsModalOpen(true)}
+            className="ms-auto"
+          />
+        )}
       </div>
 
       {/* ── Comments preview ────────────────────────────────────────── */}
@@ -743,6 +730,16 @@ export function PostCard({
         onClose={() => setShareOpen(false)}
         isAuthenticated={!!currentUserId}
       />
+
+      {/* ── Reactions modal ───────────────────────────────────────── */}
+      {reactionsModalOpen && (
+        <ReactionsModalLazy
+          open={reactionsModalOpen}
+          onClose={() => setReactionsModalOpen(false)}
+          type="post"
+          entityId={post.id}
+        />
+      )}
 
       {/* ── Delete confirmation ───────────────────────────────────── */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

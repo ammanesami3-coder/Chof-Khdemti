@@ -35,6 +35,10 @@ export type RecentComment = {
   author_id: string;
   likes_count?: number;
   is_liked?: boolean;
+  /** The current user's reaction type, e.g. 'like' | 'love' | null */
+  user_reaction?: string | null;
+  /** Per-reaction counts for the comment badge, e.g. { like: 3, love: 1 } */
+  reactions_summary?: Record<string, number> | null;
   parent_comment_id?: string | null;
   author: {
     username: string;
@@ -68,8 +72,12 @@ export type PostWithAuthor = {
   shares_count: number;
   created_at: string;
   author_id: string;
-  /** Whether the currently-authenticated user has liked this post */
+  /** Whether the currently-authenticated user has reacted to this post */
   is_liked?: boolean;
+  /** The current user's reaction type, e.g. 'like' | 'love' | null */
+  user_reaction?: string | null;
+  /** Per-reaction counts, e.g. { like: 5, love: 12 } — from posts.reactions_summary */
+  reactions_summary?: Record<string, number>;
   /** Whether the currently-authenticated user follows this post's author */
   is_following?: boolean;
   /** Whether the currently-authenticated user has saved/bookmarked this post */

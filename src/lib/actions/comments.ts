@@ -250,33 +250,45 @@ export async function deleteComment(commentId: string): Promise<void> {
 
 // ── toggleCommentLike ─────────────────────────────────────────────────────────
 
+export type ToggleCommentReactionResult = {
+  reacted: boolean;
+  reaction: string | null;
+  newCount: number;
+  newSummary: Record<string, number>;
+};
+
 export async function toggleCommentLike(
   commentId: string,
-): Promise<{ liked: boolean }> {
+  reaction = 'like',
+): Promise<ToggleCommentReactionResult> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
 
-  // No subscription guard: all logged-in users can like comments
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc('toggle_comment_reaction', {
+    p_comment_id: commentId,
+    p_reaction:   reaction,
+  }) as {
+    data: {
+      reacted: boolean;
+      reaction: string | null;
+      new_count: number;
+      new_summary?: Record<string, number>;
+    } | null;
+    error: unknown;
+  };
 
-  const { data: existing } = await supabase
-    .from('comment_likes')
-    .select('id')
-    .eq('comment_id', commentId)
-    .eq('user_id', user.id)
-    .maybeSingle();
+  if (error) throw new Error(String(error));
 
-  if (existing) {
-    await supabase.from('comment_likes').delete().eq('id', existing.id);
-    return { liked: false };
-  }
-
-  await supabase
-    .from('comment_likes')
-    .insert({ comment_id: commentId, user_id: user.id });
-  return { liked: true };
+  return {
+    reacted:    data?.reacted    ?? false,
+    reaction:   data?.reaction   ?? null,
+    newCount:   data?.new_count  ?? 0,
+    newSummary: data?.new_summary ?? {},
+  };
 }
 
 // ── getComments ───────────────────────────────────────────────────────────────
@@ -290,10 +302,12 @@ export async function getComments(
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 1. Fetch top-level comments only (migration 0017 adds parent_comment_id + likes_count)
-  let query = supabase
+  // 1. Fetch top-level comments only (migration 0017 adds parent_comment_id + likes_count;
+  //    migration 0045 adds reactions_summary)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase as any)
     .from('comments')
-    .select('id, content, created_at, author_id, likes_count, parent_comment_id')
+    .select('id, content, created_at, author_id, likes_count, parent_comment_id, reactions_summary')
     .eq('post_id', postId)
     .is('parent_comment_id', null)
     .order('created_at', { ascending: false })
@@ -317,46 +331,54 @@ export async function getComments(
 
   if (!page.length) return { comments: [], nextCursor: null };
 
-  const topLevelIds = page.map((c) => c.id);
+  const topLevelIds = page.map((c: { id: string }) => c.id);
 
-  // 2. Fetch replies for these top-level comments
-  const { data: replyRows } = await supabase
+  // 2. Fetch replies for these top-level comments (with reactions_summary)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: replyRows } = await (supabase as any)
     .from('comments')
-    .select('id, content, created_at, author_id, likes_count, parent_comment_id')
+    .select('id, content, created_at, author_id, likes_count, parent_comment_id, reactions_summary')
     .in('parent_comment_id', topLevelIds)
     .order('created_at', { ascending: true });
 
-  const allRows = [...page, ...(replyRows ?? [])];
-  const allIds = allRows.map((c) => c.id);
-  const authorIds = [...new Set(allRows.map((c) => c.author_id))];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allRows: any[] = [...page, ...(replyRows ?? [])];
+  const allIds = allRows.map((c: { id: string }) => c.id);
+  const authorIds = [...new Set(allRows.map((c: { author_id: string }) => c.author_id))];
 
-  // 3. Fetch author data + current user's likes in parallel
+  // 3. Fetch author data + current user's reactions in parallel
   const [usersRes, profilesRes, likesRes] = await Promise.all([
     supabase.from('users').select('id, username, full_name').in('id', authorIds),
     supabase.from('profiles').select('user_id, avatar_url').in('user_id', authorIds),
     user
-      ? supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (supabase as any)
           .from('comment_likes')
-          .select('comment_id')
+          .select('comment_id, reaction_type')
           .eq('user_id', user.id)
-          .in('comment_id', allIds)
-      : Promise.resolve({ data: [] as { comment_id: string }[] }),
+          .in('comment_id', allIds) as Promise<{ data: { comment_id: string; reaction_type: string }[] | null }>
+      : Promise.resolve({ data: [] as { comment_id: string; reaction_type: string }[] }),
   ]);
 
   const userMap = new Map((usersRes.data ?? []).map((u) => [u.id, u]));
   const profileMap = new Map((profilesRes.data ?? []).map((p) => [p.user_id, p]));
-  const likedIds = new Set((likesRes.data ?? []).map((l) => l.comment_id));
+  // Map from commentId → reaction_type (e.g. 'like' | 'love' | ...)
+  const reactionMap = new Map(
+    (likesRes.data ?? []).map((l) => [l.comment_id, l.reaction_type ?? 'like']),
+  );
 
-  type RawRow = (typeof allRows)[0];
-
-  function mapRow(c: RawRow): RecentComment {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function mapRow(c: any): RecentComment {
+    const userReaction = reactionMap.get(c.id) ?? null;
     return {
       id: c.id,
       content: c.content,
       created_at: c.created_at,
       author_id: c.author_id,
       likes_count: c.likes_count,
-      is_liked: likedIds.has(c.id),
+      is_liked: userReaction !== null,
+      user_reaction: userReaction,
+      reactions_summary: (c.reactions_summary as Record<string, number> | null) ?? null,
       parent_comment_id: c.parent_comment_id ?? null,
       author: {
         username: userMap.get(c.author_id)?.username ?? '',
@@ -374,7 +396,8 @@ export async function getComments(
     repliesByParent.get(parentId)!.push(mapRow(reply));
   }
 
-  const comments = page.map((c) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const comments = page.map((c: any) => ({
     ...mapRow(c),
     replies: repliesByParent.get(c.id) ?? [],
   }));

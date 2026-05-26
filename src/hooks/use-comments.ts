@@ -212,7 +212,10 @@ export function useAddComment(currentUser: {
     },
 
     onSettled: (_d, _e, { postId }) => {
-      void qc.invalidateQueries({ queryKey: ['feed'] });
+      // Only invalidate the comments list (so the real saved comment replaces
+      // the optimistic placeholder). Don't invalidate the feed — the optimistic
+      // comments_count increment is already correct, and a feed refetch would
+      // cause the post card to flicker.
       void qc.invalidateQueries({ queryKey: commentQueryKey(postId) });
     },
   });
@@ -293,7 +296,8 @@ export function useDeleteComment() {
     },
 
     onSettled: (_d, _e, { postId }) => {
-      void qc.invalidateQueries({ queryKey: ['feed'] });
+      // Only invalidate the comments list. Optimistic comments_count decrement
+      // on the post is already correct; refetching the feed would flicker.
       void qc.invalidateQueries({ queryKey: commentQueryKey(postId) });
     },
   });
@@ -305,15 +309,17 @@ type ToggleLikeVars = {
   commentId: string;
   postId: string;
   parentCommentId?: string | null;
+  reaction?: string;
 };
 
 export function useToggleCommentLike() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ commentId }: ToggleLikeVars) => toggleCommentLike(commentId),
+    mutationFn: ({ commentId, reaction = 'like' }: ToggleLikeVars) =>
+      toggleCommentLike(commentId, reaction),
 
-    onMutate: async ({ commentId, postId, parentCommentId }: ToggleLikeVars) => {
+    onMutate: async ({ commentId, postId, parentCommentId, reaction = 'like' }: ToggleLikeVars) => {
       await qc.cancelQueries({ queryKey: commentQueryKey(postId) });
 
       const prevComments = qc.getQueryData<InfiniteData<CommentPage>>(
@@ -324,13 +330,34 @@ export function useToggleCommentLike() {
         commentQueryKey(postId),
         (old) => {
           if (!old) return old;
-          return updateCommentInPages(old, commentId, parentCommentId, (c) => ({
-            ...c,
-            is_liked: !c.is_liked,
-            likes_count: c.is_liked
-              ? Math.max(0, (c.likes_count ?? 0) - 1)
-              : (c.likes_count ?? 0) + 1,
-          }));
+          return updateCommentInPages(old, commentId, parentCommentId, (c) => {
+            const prevReaction = c.user_reaction ?? null;
+            // Same reaction → toggle off; different → switch; none → add
+            const nextReaction = prevReaction === reaction ? null : reaction;
+
+            // Patch reactions_summary optimistically
+            const summary: Record<string, number> = { ...(c.reactions_summary ?? {}) };
+            if (prevReaction) {
+              summary[prevReaction] = Math.max(0, (summary[prevReaction] ?? 1) - 1);
+              if (summary[prevReaction] === 0) delete summary[prevReaction];
+            }
+            if (nextReaction) {
+              summary[nextReaction] = (summary[nextReaction] ?? 0) + 1;
+            }
+
+            return {
+              ...c,
+              is_liked: nextReaction !== null,
+              user_reaction: nextReaction,
+              reactions_summary: summary,
+              likes_count:
+                prevReaction === null
+                  ? (c.likes_count ?? 0) + 1
+                  : nextReaction === null
+                    ? Math.max(0, (c.likes_count ?? 0) - 1)
+                    : c.likes_count ?? 0,
+            };
+          });
         },
       );
 
@@ -343,9 +370,26 @@ export function useToggleCommentLike() {
       toast.error('فشل تعديل الإعجاب');
     },
 
-    onSettled: (_d, _e, { postId }) => {
-      void qc.invalidateQueries({ queryKey: commentQueryKey(postId) });
+    onSuccess: (result, { commentId, postId, parentCommentId }) => {
+      // Apply server-authoritative state (count, reaction, summary) — prevents
+      // the badge from flickering between optimistic and refetched data.
+      qc.setQueryData<InfiniteData<CommentPage>>(
+        commentQueryKey(postId),
+        (old) => {
+          if (!old) return old;
+          return updateCommentInPages(old, commentId, parentCommentId, (c) => ({
+            ...c,
+            is_liked: result.reacted,
+            user_reaction: result.reaction,
+            likes_count: result.newCount,
+            reactions_summary: result.newSummary,
+          }));
+        },
+      );
     },
+
+    // NOTE: no onSettled invalidate. Server returns authoritative state in
+    // onSuccess; refetching would cause the badge to flicker.
   });
 }
 

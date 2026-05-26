@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { ar, fr, enUS } from "date-fns/locale";
 import { Send, Pencil, Trash2, MoreHorizontal, ChevronDown, ChevronUp } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { AuthGate } from "@/components/shared/auth-gate";
+import { CommentReactionButton } from "@/components/feed/comment-reaction-button";
 import { cn } from "@/lib/utils";
+import { getReaction, getTopReactions, type Reaction } from "@/lib/constants/reactions";
 import {
   useDeleteComment,
-  useToggleCommentLike,
   useEditComment,
   useAddComment,
 } from "@/hooks/use-comments";
@@ -22,6 +24,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLang } from "@/lib/i18n/language-context";
 import type { RecentComment } from "@/lib/validations/post";
+
+const ReactionsModalLazy = dynamic(
+  () => import("@/components/feed/reactions-modal").then((m) => m.ReactionsModal),
+  { ssr: false }
+);
 
 type CurrentUser = {
   id: string;
@@ -55,12 +62,24 @@ export function CommentBubble({
   const elId = `comment-${comment.id}`;
   const isHighlighted = highlightId === comment.id;
 
-  const [isLiked, setIsLiked] = useState(comment.is_liked ?? false);
-  const [likesCount, setLikesCount] = useState(comment.likes_count ?? 0);
+  // Derive reaction state from TQ-managed comment prop (no local useState — avoids stale sync bug)
+  const isLiked = comment.is_liked ?? false;
+  const likesCount = comment.likes_count ?? 0;
+  const userReaction = comment.user_reaction ?? null;
+
+  // Top reactions for the badge — fall back to user's own reaction when summary is empty
+  // so the badge doesn't flicker between user's reaction and 👍 default during refetch.
+  let topReactions: Reaction[] = getTopReactions(comment.reactions_summary, 2);
+  if (topReactions.length === 0 && likesCount > 0) {
+    const fallback = userReaction ? getReaction(userReaction) : null;
+    if (fallback) topReactions = [fallback];
+  }
+
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(comment.content);
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
   // Auto-open replies when this comment is highlighted OR when a reply within it is the highlight target
   const repliesContainHighlight = (comment.replies ?? []).some((r) => r.id === highlightId);
   const [repliesOpen, setRepliesOpen] = useState(isHighlighted || repliesContainHighlight);
@@ -71,7 +90,6 @@ export function CommentBubble({
   }, [repliesContainHighlight]);
 
   const deleteMutation = useDeleteComment();
-  const toggleLikeMutation = useToggleCommentLike();
   const editMutation = useEditComment();
   const addReplyMutation = useAddComment(
     currentUser ?? { id: "", username: "", full_name: "", avatar_url: null },
@@ -98,22 +116,6 @@ export function CommentBubble({
 
   const replies = comment.replies ?? [];
   const replyCount = replies.length;
-
-  function handleLike() {
-    if (!currentUser) return;
-    const next = !isLiked;
-    setIsLiked(next);
-    setLikesCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
-    toggleLikeMutation.mutate(
-      { commentId: comment.id, postId, parentCommentId: comment.parent_comment_id },
-      {
-        onError: () => {
-          setIsLiked(!next);
-          setLikesCount(comment.likes_count ?? 0);
-        },
-      },
-    );
-  }
 
   function handleDelete() {
     deleteMutation.mutate({
@@ -213,34 +215,44 @@ export function CommentBubble({
             )}
           </div>
 
-          {/* Like badge */}
+          {/* Reaction badge — top 2 emojis + count, clickable to open who-reacted modal */}
           {likesCount > 0 && (
-            <div className="absolute -bottom-2.5 end-1.5 flex items-center gap-0.5 rounded-full border bg-background px-1.5 py-0.5 shadow-sm">
-              <span className="text-[10px] leading-none">❤️</span>
-              {likesCount > 1 && (
-                <span className="text-[10px] font-semibold leading-none">{likesCount}</span>
+            <button
+              type="button"
+              onClick={() => setReactionsModalOpen(true)}
+              aria-label={t('viewReactionsAriaLabel')}
+              className="absolute -bottom-2.5 end-1.5 flex items-center gap-0.5 rounded-full border border-border/60 bg-background px-1.5 py-0.5 shadow-sm transition-all hover:scale-105 hover:bg-muted"
+            >
+              {topReactions.length > 0 ? (
+                topReactions.map((r, i) => (
+                  <span key={r.type} className={cn("text-[11px] leading-none", i > 0 && "-ms-0.5")}>
+                    {r.emoji}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[11px] leading-none">👍</span>
               )}
-            </div>
+              {likesCount > 1 && (
+                <span className="text-[11px] font-semibold leading-none text-muted-foreground">
+                  {likesCount}
+                </span>
+              )}
+            </button>
           )}
         </div>
 
         {/* ── Actions ────────────────────────────────────────────────────── */}
         <div className="mt-0.5 flex items-center gap-3 px-1">
-          {/* Like */}
-          <AuthGate isAuthenticated={isAuthenticated} action="like">
-            <button
-              onClick={handleLike}
-              disabled={isPending || toggleLikeMutation.isPending}
-              className={cn(
-                "text-[12px] font-semibold transition-colors",
-                isLiked
-                  ? "text-blue-600 dark:text-blue-400"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {isLiked ? t('commentLiked') : t('commentLike')}
-            </button>
-          </AuthGate>
+          {/* Like — with hover/long-press reaction picker */}
+          <CommentReactionButton
+            commentId={comment.id}
+            postId={postId}
+            parentCommentId={comment.parent_comment_id}
+            userReaction={userReaction}
+            isLiked={isLiked}
+            isAuthenticated={isAuthenticated}
+            isPending={isPending}
+          />
 
           {/* Reply — all depths */}
           <AuthGate isAuthenticated={isAuthenticated} action="comment">
@@ -354,6 +366,16 @@ export function CommentBubble({
           </div>
         )}
       </div>
+
+      {/* Reactions modal */}
+      {reactionsModalOpen && (
+        <ReactionsModalLazy
+          open={reactionsModalOpen}
+          onClose={() => setReactionsModalOpen(false)}
+          type="comment"
+          entityId={comment.id}
+        />
+      )}
     </div>
   );
 }

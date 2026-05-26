@@ -107,13 +107,13 @@ async function enrichPosts(
   const authorIds = [...new Set(rawPosts.map((p) => p.author_id))];
   const postIds = rawPosts.map((p) => p.id);
 
-  // Fetch shares_count + shared_post_id via any-cast (new columns not in generated types yet)
+  // Fetch shares_count + shared_post_id + reactions_summary via any-cast (new columns not in generated types yet)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: extrasRows } = await (supabase as any)
     .from('posts')
-    .select('id, shares_count, shared_post_id')
+    .select('id, shares_count, shared_post_id, reactions_summary')
     .in('id', postIds) as {
-      data: { id: string; shares_count: number; shared_post_id: string | null }[] | null;
+      data: { id: string; shares_count: number; shared_post_id: string | null; reactions_summary: Record<string, number> | null }[] | null;
     };
   const extrasMap = new Map((extrasRows ?? []).map((r) => [r.id, r]));
 
@@ -130,12 +130,13 @@ async function enrichPosts(
     supabase.from('users').select('id, username, full_name').in('id', authorIds),
     supabase.from('profiles').select('user_id, avatar_url, is_verified').in('user_id', authorIds),
     currentUserId
-      ? supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (supabase as any)
           .from('likes')
-          .select('post_id')
+          .select('post_id, reaction_type')
           .eq('user_id', currentUserId)
-          .in('post_id', postIds)
-      : Promise.resolve({ data: [] as { post_id: string }[] }),
+          .in('post_id', postIds) as Promise<{ data: { post_id: string; reaction_type: string }[] | null }>
+      : Promise.resolve({ data: [] as { post_id: string; reaction_type: string }[] }),
     currentUserId
       ? supabase
           .from('follows')
@@ -157,7 +158,8 @@ async function enrichPosts(
 
   const userMap      = new Map((usersRes.data   ?? []).map((u) => [u.id,        u]));
   const profileMap   = new Map((profilesRes.data ?? []).map((p) => [p.user_id,  p]));
-  const likedSet     = new Set((likesRes.data    ?? []).map((l) => l.post_id));
+  // Map from postId → reaction_type (e.g. 'like' | 'love' | ...)
+  const reactionMap  = new Map((likesRes.data    ?? []).map((l) => [l.post_id, l.reaction_type ?? 'like']));
   const followingSet = new Set((followsRes.data  ?? []).map((f) => f.following_id));
   const savesData    = (savesRes as { data: { post_id: string }[] | null }).data;
   const savedSet     = new Set((savesData ?? []).map((s) => s.post_id));
@@ -166,6 +168,7 @@ async function enrichPosts(
   return rawPosts.map((p) => {
     const extras = extrasMap.get(p.id);
     const sharedPostId = extras?.shared_post_id ?? null;
+    const userReaction = reactionMap.get(p.id) ?? null;
     return {
       id: p.id,
       content: p.content,
@@ -175,7 +178,9 @@ async function enrichPosts(
       shares_count: extras?.shares_count ?? 0,
       created_at: p.created_at,
       author_id: p.author_id,
-      is_liked: likedSet.has(p.id),
+      is_liked: userReaction !== null,
+      user_reaction: userReaction,
+      reactions_summary: extras?.reactions_summary ?? {},
       is_following: currentUserId ? followingSet.has(p.author_id) : undefined,
       is_saved: currentUserId ? savedSet.has(p.id) : undefined,
       shared_post_id: sharedPostId,
