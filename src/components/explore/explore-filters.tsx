@@ -2,13 +2,34 @@
 
 import { useRef, useCallback, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, X } from 'lucide-react';
+import { Search, X, SlidersHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { SelectNative } from '@/components/ui/select-native';
-import { CRAFTS } from '@/lib/constants/crafts';
-import { CITIES } from '@/lib/constants/cities';
+import { CRAFTS, getCraftById } from '@/lib/constants/crafts';
+import { CITIES, getCityById } from '@/lib/constants/cities';
 import { useLang } from '@/lib/i18n/language-context';
+import { cn } from '@/lib/utils';
+
+// ── Active filter chip ────────────────────────────────────────────────────────
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-[#FF9F43]/40 bg-[#FF9F43]/10 py-0.5 ps-2.5 pe-1.5 text-xs font-medium text-[#E88A38] dark:text-[#FFBA69]">
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="flex size-4 items-center justify-center rounded-full hover:bg-[#FF9F43]/20 transition-colors"
+        aria-label="إزالة الفلتر"
+      >
+        <X className="size-3" />
+      </button>
+    </span>
+  );
+}
+
+// ── ExploreFilters ────────────────────────────────────────────────────────────
 
 export function ExploreFilters() {
   const { t } = useLang();
@@ -17,8 +38,10 @@ export function ExploreFilters() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const craft = searchParams.get('craft') ?? '';
-  const city = searchParams.get('city') ?? '';
-  const q = searchParams.get('q') ?? '';
+  const city  = searchParams.get('city')  ?? '';
+  const q     = searchParams.get('q')     ?? '';
+  const sort  = searchParams.get('sort')  ?? '';
+
   const hasFilters = !!craft || !!city || !!q;
 
   // Controlled local state for the search input (debounces URL updates)
@@ -39,7 +62,7 @@ export function ExploreFilters() {
       }
       router.push(`?${params.toString()}`, { scroll: false });
     },
-    [router, searchParams]
+    [router, searchParams],
   );
 
   const handleSearch = useCallback(
@@ -48,61 +71,112 @@ export function ExploreFilters() {
       clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => updateParam('q', value), 300);
     },
-    [updateParam]
+    [updateParam],
   );
 
   function clearFilters() {
-    router.push('?', { scroll: false });
+    // Keep sort param when clearing filters
+    const params = new URLSearchParams();
+    if (sort) params.set('sort', sort);
+    const qs = params.toString();
+    router.push(qs ? `?${qs}` : '?', { scroll: false });
   }
 
+  // Human-readable labels for chips
+  const craftLabel = craft ? (getCraftById(craft)?.name_ar ?? craft) : null;
+  const cityLabel  = city  ? (getCityById(city)?.name_ar  ?? city)  : null;
+
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-      {/* Search */}
-      <div className="relative flex-1">
-        <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder={t('searchByArtisanPlaceholder')}
-          value={searchValue}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="ps-9"
-        />
+    <div className="space-y-3">
+      {/* ── Filter controls ── */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Input
+            type="search"
+            placeholder={t('searchByArtisanPlaceholder')}
+            value={searchValue}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="ps-9"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          {/* Craft filter */}
+          <SelectNative
+            value={craft}
+            onChange={(e) => updateParam('craft', e.target.value)}
+            className={cn('flex-1 sm:flex-none sm:w-40', craft && 'border-[#FF9F43]/60 text-[#E88A38]')}
+          >
+            <option value="">{t('allCrafts')}</option>
+            {CRAFTS.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name_ar}
+              </option>
+            ))}
+          </SelectNative>
+
+          {/* City filter */}
+          <SelectNative
+            value={city}
+            onChange={(e) => updateParam('city', e.target.value)}
+            className={cn('flex-1 sm:flex-none sm:w-36', city && 'border-[#FF9F43]/60 text-[#E88A38]')}
+          >
+            <option value="">{t('allCities')}</option>
+            {CITIES.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name_ar}
+              </option>
+            ))}
+          </SelectNative>
+
+          {/* Sort */}
+          <SelectNative
+            value={sort}
+            onChange={(e) => updateParam('sort', e.target.value)}
+            className="flex-1 sm:flex-none sm:w-40"
+            aria-label={t('sortLabel')}
+          >
+            <option value="">{t('sortDefault')}</option>
+            <option value="rating">{t('sortRating')}</option>
+            <option value="newest">{t('sortNewest')}</option>
+            <option value="experience">{t('sortExperience')}</option>
+          </SelectNative>
+        </div>
       </div>
 
-      {/* Craft filter */}
-      <SelectNative
-        value={craft}
-        onChange={(e) => updateParam('craft', e.target.value)}
-        className="sm:w-44"
-      >
-        <option value="">{t('allCrafts')}</option>
-        {CRAFTS.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name_ar}
-          </option>
-        ))}
-      </SelectNative>
-
-      {/* City filter */}
-      <SelectNative
-        value={city}
-        onChange={(e) => updateParam('city', e.target.value)}
-        className="sm:w-40"
-      >
-        <option value="">{t('allCities')}</option>
-        {CITIES.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name_ar}
-          </option>
-        ))}
-      </SelectNative>
-
-      {/* Clear */}
+      {/* ── Active filter chips ── */}
       {hasFilters && (
-        <Button variant="ghost" size="sm" onClick={clearFilters} className="shrink-0 gap-1.5">
-          <X className="size-4" />
-          {t('clearFiltersLabel')}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <SlidersHorizontal className="size-3.5 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground">{t('activeFiltersLabel')}:</span>
+
+          {craftLabel && (
+            <FilterChip label={craftLabel} onRemove={() => updateParam('craft', '')} />
+          )}
+          {cityLabel && (
+            <FilterChip label={cityLabel} onRemove={() => updateParam('city', '')} />
+          )}
+          {q && (
+            <FilterChip
+              label={`"${q}"`}
+              onRemove={() => {
+                updateParam('q', '');
+                setSearchValue('');
+              }}
+            />
+          )}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="h-6 rounded-full px-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            {t('clearFiltersLabel')}
+          </Button>
+        </div>
       )}
     </div>
   );

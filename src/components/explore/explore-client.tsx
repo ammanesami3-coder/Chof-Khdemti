@@ -14,6 +14,7 @@ type Props = {
   initialCraft: string;
   initialCity: string;
   initialQ: string;
+  initialSort: string;
   currentUserId: string | null;
 };
 
@@ -22,25 +23,32 @@ export function ExploreClient({
   initialCraft,
   initialCity,
   initialQ,
+  initialSort,
   currentUserId,
 }: Props) {
   const router = useRouter();
   const { t } = useLang();
   const searchParams = useSearchParams();
+
   const craft = searchParams.get('craft') ?? '';
-  const city = searchParams.get('city') ?? '';
-  const q = searchParams.get('q') ?? '';
+  const city  = searchParams.get('city')  ?? '';
+  const q     = searchParams.get('q')     ?? '';
+  const sort  = searchParams.get('sort')  ?? '';
+
   const hasActiveFilters = !!(craft || city || q);
 
-  // Use server-fetched data only when URL params match what the server used
+  // Reuse server-rendered data when URL params match what the server used
   const matchesInitial =
-    craft === initialCraft && city === initialCity && q === initialQ;
+    craft === initialCraft &&
+    city  === initialCity  &&
+    q     === initialQ     &&
+    sort  === initialSort;
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useInfiniteQuery({
-      queryKey: ['artisans', craft, city, q],
+      queryKey: ['artisans', craft, city, q, sort],
       queryFn: ({ pageParam }) =>
-        searchArtisans({ craft, city, q, page: pageParam as number }),
+        searchArtisans({ craft, city, q, sort: sort || 'default', page: pageParam as number }),
       initialPageParam: 0,
       getNextPageParam: (lastPage, allPages) =>
         lastPage.length === PAGE_SIZE ? allPages.length : undefined,
@@ -54,7 +62,7 @@ export function ExploreClient({
   const showSkeleton = isLoading && !matchesInitial;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ExploreFilters />
 
       {showSkeleton ? (

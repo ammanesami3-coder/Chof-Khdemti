@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { TrendingUp, Star, Users } from 'lucide-react';
+import { Star, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import { TrendingWidget, type TrendingEntry } from './trending-widget';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -11,16 +12,6 @@ type ArtisanRow = {
   full_name: string;
   profiles: { avatar_url: string | null; craft_category: string | null; city: string | null } | null;
 };
-
-// ── Static data ────────────────────────────────────────────────────────────────
-
-const TRENDING = [
-  { emoji: '🪵', label: 'نجارة',        count: 124 },
-  { emoji: '⚡', label: 'كهرباء',       count:  98 },
-  { emoji: '🎨', label: 'صباغة',        count:  87 },
-  { emoji: '🔧', label: 'سباكة',        count:  72 },
-  { emoji: '🚗', label: 'ميكانيك',      count:  65 },
-];
 
 const TIPS = [
   'أضف صور أعمالك لزيادة طلبات الخدمة',
@@ -60,6 +51,14 @@ async function getTopArtisans(currentUserId?: string): Promise<ArtisanRow[]> {
   }));
 }
 
+async function getTrendingData(): Promise<TrendingEntry[]> {
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc('get_trending_professions', { p_limit: 8 });
+  if (error || !data) return [];
+  return data as unknown as TrendingEntry[];
+}
+
 // ── ArtisanCard ────────────────────────────────────────────────────────────────
 
 function ArtisanCard({ artisan }: { artisan: ArtisanRow }) {
@@ -84,7 +83,6 @@ function ArtisanCard({ artisan }: { artisan: ArtisanRow }) {
           )}
         </Link>
       </div>
-      {/* CSS-only gradient hover — works in Server Component */}
       <Link href={`/profile/${artisan.username}`} className="btn-follow">
         متابعة
       </Link>
@@ -97,7 +95,12 @@ function ArtisanCard({ artisan }: { artisan: ArtisanRow }) {
 type Props = { currentUserId?: string };
 
 export async function RightSidebar({ currentUserId }: Props) {
-  const artisans = await getTopArtisans(currentUserId);
+  // الجلب المتوازي: حرفيون مقترحون + بيانات الترند الحقيقية
+  const [artisans, trendingData] = await Promise.all([
+    getTopArtisans(currentUserId),
+    getTrendingData(),
+  ]);
+
   const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
 
   return (
@@ -132,30 +135,8 @@ export async function RightSidebar({ currentUserId }: Props) {
 
         <div className="h-px bg-border" />
 
-        {/* ── Trending categories ── */}
-        <div>
-          <div className="mb-3 flex items-center gap-2 px-2">
-            <TrendingUp className="h-4 w-4 text-[#FF9F43]" />
-            <h3 className="text-sm font-semibold">الأكثر طلبًا</h3>
-          </div>
-          <div className="space-y-0.5">
-            {TRENDING.map(({ emoji, label, count }) => (
-              <Link
-                key={label}
-                href={`/explore?craft=${encodeURIComponent(label)}`}
-                className="flex items-center gap-3 rounded-xl p-2 transition-all duration-200 hover:bg-accent group"
-              >
-                <span className="text-xl leading-none">{emoji}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium group-hover:text-primary transition-colors">
-                    {label}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{count} حرفي</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+        {/* ── Trending categories (ديناميكي + auto-refresh) ── */}
+        <TrendingWidget initialData={trendingData} />
 
         <div className="h-px bg-border" />
 
