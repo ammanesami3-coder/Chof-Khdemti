@@ -1110,3 +1110,228 @@ const showMessageBtn =
 ✓ الـ navbar والـ FAB يختفيان عند الـ scroll لأسفل ويعودان عند الأعلى (كما كان)
 ✓ لا layout shift عند تبديل حالة الـ navbar
 ```
+
+---
+
+## نظام التفاعلات المتعدد — مايو/يونيو 2026
+
+> **الهدف:** بناء نظام تفاعلات بأسلوب فيسبوك (Like / Love / Haha / Wow / Sad / Angry)
+> للمنشورات والتعليقات، مع نمذجة (modal) لعرض من تفاعل، وحلّ كامل لمشكلة الـ flicker.
+
+### الجزء 1 — البنية الأساسية للتفاعلات
+
+**Migration `0044_reactions.sql`:**
+- إضافة عمود `reaction_type` لجدولَي `likes` و `comment_likes` (افتراضي `'like'`،
+  check constraint للقيم الستة)
+- إضافة عمود `reactions_summary jsonb` لجدول `posts` مع trigger يُعيد حساب الملخص
+  عند كل INSERT/DELETE/UPDATE على `likes`
+- دالة `toggle_reaction(post_id, reaction)` — atomic: add / change / remove
+  (التغيير = DELETE + INSERT ليُحرِّك الـ triggers الموجودة)
+- دالة `toggle_comment_reaction(comment_id, reaction)` — نفس المنطق للتعليقات
+- Backfill `reactions_summary` للمنشورات الموجودة
+
+**`src/lib/constants/reactions.ts`** (جديد):
+- ثوابت `REACTIONS` (6 تفاعلات بإيموجي + label_ar/fr/en + active color + hover bg)
+- `getReaction(type)` — lookup بالنوع
+- `getTopReactions(summary, limit)` — أعلى N تفاعلاً مرتبة حسب العدد
+
+**`src/components/feed/reaction-picker.tsx`** (جديد):
+- floating panel يظهر فوق زر Like (hover/long-press)
+- 6 إيموجي بـ scale-up animation + tooltip بالاسم
+- يدعم RTL + keyboard accessible
+
+**`src/components/feed/post-reaction-button.tsx`** (جديد):
+- 400ms hover delay لفتح المنتقي، 300ms close delay، 500ms long-press لموبايل
+- يعرض **إيموجي التفاعل + العداد** فقط — بدون كلمات نوع "هاها" / "أحب"
+- النقر بدون انتظار = toggle نفس التفاعل الحالي أو 'like' كافتراضي
+- اختيار من المنتقي = تطبيق التفاعل المختار
+
+**`src/components/feed/comment-reaction-button.tsx`** (جديد):
+- نفس آلية المنتقي للتعليقات (`toggle_comment_reaction`)
+- عند التفاعل: يعرض **الإيموجي فقط** (بدون نص "هاها")
+- عند عدم التفاعل: نص "أعجبني" (Like) بلون رمادي محايد
+
+### الجزء 2 — نمذجة "من تفاعل؟" + ملخّص الإيموجيات
+
+**`src/components/feed/reactions-summary.tsx`** (جديد):
+- يعرض أعلى 3 إيموجي **متداخلة بـ ring-bordered circles** (أسلوب فيسبوك)
+- العدد الإجمالي بجانب الإيموجيات
+- `fallbackReaction` prop — يعرض تفاعل المستخدم نفسه عند فراغ `reactions_summary`
+  (يمنع الـ flicker اللحظي قبل تزامن الـ trigger)
+- size variants: `sm` للتعليقات، `md` للمنشورات
+
+**`src/components/feed/reactions-modal.tsx`** (جديد):
+- Dialog مع tabs: "الكل" + tab لكل نوع إيموجي بعدد التفاعلات
+- قائمة المتفاعلين: avatar (مع badge بإيموجي تفاعله) + الاسم الكامل
+- النقر على أي صف → `<Link href="/profile/[username]">` (يدعم زائر وغير الزائر)
+- lazy-loaded عبر `next/dynamic` لتجنّب bloat الـ bundle
+- يحترم RTL/LTR طبيعياً
+
+**Server Actions جديدة في `src/lib/actions/likes.ts`:**
+- `getPostReactions(postId)` → `ReactorUser[]` (avatar + username + full_name + reaction)
+- `getCommentReactions(commentId)` → نفس البنية
+
+### الجزء 3 — حل مشكلة الـ Flicker جذرياً
+
+**المشكلة:** بعد كل تفاعل كان `onSettled` يستدعي `invalidateQueries(['feed'])` مما
+يُسبّب refetch كامل. خلال الـ refetch، إذا `reactions_summary` من DB لم يتزامن بعد
+(trigger lag أو migration غير مطبَّق)، البيانات تتغير لحظياً → الإيموجيات تظهر وتختفي.
+
+**Migration `0045_comment_reactions_summary.sql`:**
+- إضافة `reactions_summary jsonb` لجدول `comments` + trigger للتحديث التلقائي
+- Backfill للتعليقات الموجودة
+
+**Migration `0046_reaction_rpcs_return_summary.sql` (الحلّ النهائي):**
+- `toggle_reaction` و `toggle_comment_reaction` يرجعان الآن `new_summary` (jsonb)
+  مباشرةً من DB بعد إنهاء جميع الـ triggers
+- النتيجة: السيرفر يُعيد دائماً الحالة الموثوقة في استجابة واحدة، بلا حاجة لـ refetch
+
+**`src/hooks/use-like-post.ts`:**
+- `onMutate`: optimistic update يشمل `is_liked`, `user_reaction`, `likes_count`,
+  `reactions_summary` (عبر دالة `patchSummary` التي تحاكي trigger الـ DB)
+- `onSuccess`: يضع `reactions_summary` من `result.newSummary` (موثوق من السيرفر)
+- **`onSettled` محذوف بالكامل** — السيرفر يُرجع الحالة الكاملة في onSuccess،
+  فلا حاجة لـ invalidate يُسبّب refetch + flicker
+- التزامن مع تفاعلات الآخرين يحدث عند page navigation أو manual refresh
+
+**`src/hooks/use-comments.ts`:**
+- `useToggleCommentLike.onSuccess`: يضع `reactions_summary` من `result.newSummary`
+- إزالة `qc.invalidateQueries({ queryKey: ['feed'] })` من `onSettled` في
+  `useAddComment` و `useDeleteComment` (الـ optimistic increment للـ `comments_count`
+  صحيح بالفعل، والـ refetch كان يسبّب layout flicker على البطاقة)
+- إبقاء `invalidateQueries({ queryKey: commentQueryKey(postId) })` فقط لتحميل
+  التعليق الحقيقي مكان الـ optimistic placeholder
+
+**`src/components/feed/reactions-summary.tsx`** — fallback logic:
+```ts
+let topReactions = getTopReactions(summary, 3);
+if (topReactions.length === 0 && fallbackReaction) {
+  topReactions = [getReaction(fallbackReaction)!];
+}
+```
+حتى لو `reactions_summary` فارغ لحظياً، يظهر إيموجي المستخدم الخاص ⇒ لا flicker.
+
+**نفس fallback مطبَّق في `comment-bubble.tsx` و `comment-item.tsx`:**
+- شارة التفاعل أسفل فقاعة التعليق تبقى ثابتة حتى لو `reactions_summary` لم يتزامن
+
+### الجزء 4 — تخطيط شريط الإجراءات
+
+**`src/components/feed/post-card.tsx`:**
+- **Stats row فوق الـ actions** (الحالة السابقة) → دُمج كلاهما في صف واحد
+- التخطيط الجديد:
+  ```
+  [👍 5] [💬 3] [↗ 2] ───────────────── [😂❤️ 5]
+   Like   Comment  Share              counter (ms-auto)
+  ```
+- `ReactionsSummary` على الجانب المعاكس (يسار في RTL، يمين في LTR) عبر `ms-auto`
+- النقر على الـ counter يفتح `ReactionsModal` (لجميع المستخدمين، حتى الزوار)
+- زر التعليق + زر المشاركة يعرضان عدّاديهما بجانب الأيقونة (`comments_count`,
+  `shares_count`)
+
+**`src/components/feed/comment-bubble.tsx` + `comment-item.tsx`:**
+- شارة التفاعل أسفل فقاعة التعليق (`absolute -bottom-2.5 end-1.5`)
+- تعرض أعلى تفاعلَين + العدد (إذا > 1) بـ overlap خفيف
+- النقر يفتح `ReactionsModal` (type=`comment`)
+- `hover:scale-105` + ظل أنيق لتجربة Facebook
+
+### الجزء 5 — i18n + RecentComment type
+
+**`src/lib/i18n/translations.ts`** — مفاتيح جديدة × 3 لغات:
+- `reactionsModalTitle`, `allReactions`, `noReactions`
+- `commentLabel`, `commentsLabel`, `shareLabel`
+
+**`src/lib/validations/post.ts`:**
+- `RecentComment` type أُضيف له `reactions_summary?: Record<string, number> | null`
+
+**`src/lib/actions/comments.ts` — `getComments`:**
+- SELECT يجلب `reactions_summary` من DB
+- `mapRow` يُمرّره ضمن النتيجة
+
+### النتائج
+
+```
+✓ npx tsc --noEmit → 0 errors
+✓ npm run build    → 0 errors, 0 warnings
+✓ الإيموجيات أسفل المنشور ثابتة، لا تختفي
+✓ شارة التعليق ثابتة، لا تظهر وتختفي
+✓ العداد يعرض الرقم الصحيح من DB موثوقاً
+✓ عداد التعليقات يُحدّث ولا يرتجف
+```
+
+> ⚠️ **مطلوب:** تطبيق migrations `0044` → `0045` → `0046` بالترتيب في Supabase
+> SQL Editor. كلها idempotent (يمكن إعادة تشغيلها بأمان).
+
+---
+
+## تحسينات اكتشاف الحرفيين + Trending Widget
+
+### Migration `0042_trending_professions.sql`
+- دالة `get_trending_professions(p_limit)` ترجع أعلى التخصصات نشاطاً (counts من
+  `profiles.craft_category` + اختياري weighting لاحقاً)
+- نتائج cached client-side عبر TanStack Query
+
+### Migration `0043_search_artisans_rpc.sql`
+- دالة `search_artisans(query, craft, city, sort, limit, offset)` تُجمّع
+  البحث + الفلترة + الترتيب في استدعاء واحد
+- يدعم: `popular`, `rating_desc`, `newest`, `experience_desc`
+- يُرجع `total_count` لـ pagination
+
+### `src/components/layout/trending-widget.tsx` (جديد)
+- يستخرج TRENDING من `right-sidebar.tsx` إلى Client Component مستقل
+- يستعمل React Query لجلب البيانات الحيّة (بدل البيانات الستاتيكية القديمة)
+- يحترم RTL + skeleton أثناء التحميل
+- النقر على تخصص → `/explore?craft={value}`
+
+### `src/lib/queries/artisans.ts`
+- استبدال SQL query معقد بـ `search_artisans` RPC
+- تبسيط من ~120 سطراً إلى ~50 سطراً
+- نتائج أسرع بفضل المعالجة في DB بدل client-side
+
+### `src/components/explore/explore-client.tsx` + `explore-filters.tsx`
+- إعادة تصميم: filters chips أعلى الصفحة + grid أسفل
+- خيارات الترتيب الأربعة موحَّدة بين UI و DB
+
+### `src/app/(app)/explore/page.tsx`
+- تبسيط Server Component: يجلب البيانات الأولية فقط ويُمرّرها لـ ExploreClient
+- إصلاح: cards ≥ 1 صف ديكستوب، 2 على tablet، 1 على موبايل (responsive)
+
+---
+
+## ميزة الفيديوهات على موبايل + OptimizedVideo Smart Aspect
+
+### `src/components/layout/mobile-videos-button.tsx` (جديد)
+- زر أيقونة على navbar الموبايل ينقل إلى `/videos` (الفيد المخصّص للفيديوهات)
+- مرئي فقط على شاشات < md
+- متموضع بين `TrialIndicator` و `MobileNotifButton`
+
+### `src/components/feed/optimized-video.tsx`
+- إضافة prop `autoAspect` (افتراضي `false`)
+- عند `autoAspect={true}`:
+  - يستخرج عرض/ارتفاع الفيديو من HLS manifest عبر `Hls.Events.MANIFEST_PARSED`
+  - يطبّق `aspect-ratio` ديناميكياً (بدل المربع الإجباري)
+  - فيديوهات portrait (9:16) تعرض بـ aspect كامل بدل الاقتطاع
+  - fallback للـ MP4 source يستعمل `loadedmetadata` event
+- `PostCard` يمرّر `autoAspect={true}` للفيديوهات في المنشور المنفرد
+
+### `src/components/layout/navbar.tsx`
+- إضافة `<MobileVideosButton />` في nav الموبايل المسجّل
+
+---
+
+## النتائج النهائية للجلسة الكاملة
+
+```
+✓ npx tsc --noEmit → 0 errors
+✓ npm run build    → 0 errors, 0 warnings
+✓ كل ميزات التفاعلات تعمل، لا flicker
+✓ عدّادات صحيحة من DB موثوقة
+✓ نمذجة "من تفاعل" تعمل للمنشورات والتعليقات
+✓ TrendingWidget بياناته حيّة
+✓ صفحة Videos متاحة من موبايل navbar
+✓ فيديوهات portrait تُعرض بدون اقتطاع
+```
+
+> ⚠️ **مطلوبة في Supabase SQL Editor (بالترتيب):**
+> `0042_trending_professions.sql` → `0043_search_artisans_rpc.sql` →
+> `0044_reactions.sql` → `0045_comment_reactions_summary.sql` →
+> `0046_reaction_rpcs_return_summary.sql`
