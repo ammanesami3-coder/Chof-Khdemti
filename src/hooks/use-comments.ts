@@ -52,7 +52,7 @@ function updateCommentInPages(
     pages: old.pages.map((page) => ({
       ...page,
       comments: page.comments.map((c) => {
-        if (!parentCommentId) return updater(c);
+        if (!parentCommentId) return c.id === commentId ? updater(c) : c;
         if (c.id === parentCommentId) {
           return { ...c, replies: (c.replies ?? []).map((r) => (r.id === commentId ? updater(r) : r)) };
         }

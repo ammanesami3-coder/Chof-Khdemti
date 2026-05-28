@@ -1335,3 +1335,85 @@ if (topReactions.length === 0 && fallbackReaction) {
 > `0042_trending_professions.sql` → `0043_search_artisans_rpc.sql` →
 > `0044_reactions.sql` → `0045_comment_reactions_summary.sql` →
 > `0046_reaction_rpcs_return_summary.sql`
+
+---
+
+## ترجمة i18n شاملة — ماي 2026
+
+> **الهدف:** إزالة كل النصوص المُشفَّرة (hardcoded) العربية من المكوّنات وربطها بنظام الترجمة (ar/fr/en)
+
+### ما أُنجز
+
+#### 1. `src/lib/i18n/translations.ts` — 13 مفتاح جديد × 3 لغات
+
+**الشريط الجانبي الأيمن:**
+- `suggestedArtisans` — "حرفيون مقترحون" / "Artisans suggérés" / "Suggested Artisans"
+- `tipOfDay` — "نصيحة اليوم" / "Conseil du jour" / "Tip of the day"
+- `tipText1/2/3` — النصائح الثلاث المتناوبة مترجمة للثلاث لغات
+
+**ويدجت الترند:**
+- `mostRequested` — "الأكثر طلبًا"
+- `liveLabel` — "مباشر"
+- `exploreAllCrafts` — "استكشاف جميع المهن"
+- `artisanCountSuffix` — "حرفي"
+- `engagementSuffix` — "تفاعل"
+
+**تبويب "عن" في البروفايل:**
+- `memberSince` — "عضو منذ"
+- `bioSectionLabel` — "نبذة"
+- `yearSuffix` — "سنة"
+
+#### 2. `src/lib/constants/crafts.ts` — دعم كامل لثلاث لغات
+
+- إضافة `name_en` لكل التخصصات (24 تخصص)
+- دالة `getCraftName(idOrArabicName, lang)`:
+  - يبحث بالـ id أولاً (`'tiling'`) ثم بالاسم العربي (`'بلاطة'`)
+  - يُرجع الاسم بـ ar/fr/en — يحلّ مشكلة ظهور الأسماء الإنجليزية (`tiling`, `plumbing`) في البطاقات
+
+#### 3. `src/lib/constants/cities.ts` — دالة `getCityName(idOrArabicName, lang)`
+  - نفس آلية البحث — يدعم fr/en عبر `name_fr`
+
+#### 4. `src/components/layout/suggested-artisans.tsx` (جديد)
+- **Client Component** يستخرج منطق "حرفيون مقترحون" + "نصيحة اليوم" من `right-sidebar.tsx` (Server Component)
+- يستعمل `useLang()` لكل النصوص والترجمات
+- يستعمل `getCraftName` + `getCityName` بحسب `lang` الحالية
+- الزر "متابعة" و"عرض الكل" مترجمان عبر `t('follow')` و `t('viewAll')`
+
+#### 5. `src/components/layout/right-sidebar.tsx`
+- يمرّر البيانات المجلوبة من السيرفر لـ `<SuggestedArtisans>` (client)
+- حُذفت النصوص المُشفَّرة (`متابعة`, `حرفيون مقترحون`, `عرض الكل`, `نصيحة اليوم`)
+
+#### 6. `src/components/layout/trending-widget.tsx`
+- إضافة `useLang()` و استبدال 5 نصوص مُشفَّرة بـ `t()`:
+  - `الأكثر طلبًا` → `t('mostRequested')`
+  - `مباشر` → `t('liveLabel')`
+  - `استكشاف جميع المهن` → `t('exploreAllCrafts')`
+  - `حرفي` → `t('artisanCountSuffix')`
+  - `تفاعل` → `t('engagementSuffix')`
+
+#### 7. `src/components/explore/artisan-card.tsx`
+- استبدال `getCraftById + name_ar` بـ `getCraftName(craft, lang)`
+- استبدال `CITIES.find + name_ar` بـ `getCityName(city, lang)`
+
+#### 8. `src/components/profile/profile-header.tsx`
+- نفس الاستبدال — عرض اسم التخصص والمدينة بحسب `lang`
+
+#### 9. `src/components/profile/profile-tabs-list.tsx` (جديد)
+- **Client Component** لعلامات تبويب البروفايل
+- يستعمل `t('postsTab')`, `t('aboutTab')`, `t('ratingsTab')` بدلاً من الأسماء العربية المُشفَّرة
+
+#### 10. `src/components/profile/profile-about-section.tsx` (جديد)
+- **Client Component** لمحتوى تبويب "عن"
+- `t('bioSectionLabel')`, `t('memberSince')`, `t('yearsExperienceLabel')`, `t('yearSuffix')`
+
+#### 11. `src/app/(app)/profile/[username]/page.tsx`
+- استبدال `<TabsList>/<TabsTrigger>` المُشفَّرة بـ `<ProfileTabsList>`
+- استبدال محتوى "عن" المُشفَّر بـ `<ProfileAboutSection>`
+
+### النتائج
+
+```
+✓ npx tsc --noEmit → 0 errors
+✓ npm run build    → 0 errors, 0 warnings
+✓ 30 صفحة تُولَّد بنجاح
+```

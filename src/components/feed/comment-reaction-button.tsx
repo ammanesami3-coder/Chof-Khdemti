@@ -7,6 +7,7 @@ import { ReactionPicker } from './reaction-picker';
 import { useToggleCommentLike } from '@/hooks/use-comments';
 import { useLang } from '@/lib/i18n/language-context';
 
+
 interface CommentReactionButtonProps {
   commentId: string;
   postId: string;
@@ -33,7 +34,7 @@ export function CommentReactionButton({
   isPending = false,
   className,
 }: CommentReactionButtonProps) {
-  const { t } = useLang();
+  const { t, dir } = useLang();
   const toggleLikeMutation = useToggleCommentLike();
 
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -116,6 +117,7 @@ export function CommentReactionButton({
         onReact={handleReact}
         onMouseEnter={handlePickerMouseEnter}
         onMouseLeave={handlePickerMouseLeave}
+        contextDir={dir}
       />
 
       <button

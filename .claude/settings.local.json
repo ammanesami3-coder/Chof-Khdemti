@@ -101,7 +101,15 @@
       "Bash(python -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\('\\\\n'.join\\(f'{k}: {v}' for k,v in p.get\\('dependencies',{}\\).items\\(\\) if any\\(x in k for x in ['base-ui','supabase','next','react','tanstack']\\)\\)\\)\")",
       "Bash(npx eslint *)",
       "Bash(grep -v \"//.*addComment\")",
-      "Bash(dir src *)"
+      "Bash(dir src *)",
+      "Bash(curl -s -o NUL -w \"feed:%{http_code}\\\\n\" http://localhost:3001/feed)",
+      "Bash(curl -s -o NUL -w \"home:%{http_code}\\\\n\" http://localhost:3001/)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(powershell -Command \"Get-ChildItem -Recurse -Path src -Include *notification*,*notifications* -File | Select-Object -ExpandProperty FullName\")",
+      "Bash(powershell -Command \"Get-ChildItem supabase/migrations | Select-Object -ExpandProperty Name\")",
+      "Bash(powershell -Command \"\\(Get-Content PROGRESS.md | Measure-Object -Line\\).Lines\")",
+      "PowerShell(app *)",
+      "Bash(vercel --version)"
     ]
   }
 }

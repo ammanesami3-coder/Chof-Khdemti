@@ -321,14 +321,14 @@ export default function PrivacyPage() {
   }, [router]);
 
   const visibilityOptions: { value: VisibilityOption; label: string }[] = [
-    { value: 'everyone', label: 'الجميع' },
-    { value: 'followers', label: 'المتابعون' },
-    { value: 'none', label: 'لا أحد' },
+    { value: 'everyone', label: t('everyoneOption') },
+    { value: 'followers', label: t('followersOnlyOption') },
+    { value: 'none', label: t('noOneOption') },
   ];
 
   const messageOptions: { value: VisibilityOption; label: string }[] = [
-    { value: 'everyone', label: 'الجميع' },
-    { value: 'followers', label: 'المتابعون' },
+    { value: 'everyone', label: t('everyoneOption') },
+    { value: 'followers', label: t('followersOnlyOption') },
   ];
 
   if (!mounted) {
@@ -349,21 +349,21 @@ export default function PrivacyPage() {
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <BackButton fallback="/settings" />
-        <h1 className="text-2xl font-bold">الخصوصية والأمان</h1>
+        <h1 className="text-2xl font-bold">{t('privacyAndSecurity')}</h1>
       </div>
 
       {/* ── Privacy Settings ── */}
       <section className="mb-5">
         <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          إعدادات الخصوصية
+          {t('privacySettingsSection')}
         </h2>
         <div className="space-y-3">
           <PrivacyCard
             icon={Eye}
             iconBg="bg-teal-50 dark:bg-teal-950/40"
             iconColor="text-teal-600 dark:text-teal-400"
-            title="رؤية الملف الشخصي"
-            description="من يستطيع رؤية منشوراتك وملفك الشخصي"
+            title={t('profileVisibilityLabel')}
+            description={t('profileVisibilityDesc')}
           >
             <SegmentedControl
               options={visibilityOptions}
@@ -376,8 +376,8 @@ export default function PrivacyPage() {
             icon={MessageSquare}
             iconBg="bg-blue-50 dark:bg-blue-950/40"
             iconColor="text-blue-600 dark:text-blue-400"
-            title="من يمكنه مراسلتي"
-            description="التحكم في من يستطيع إرسال رسائل لك"
+            title={t('whoCanMessageLabel')}
+            description={t('whoCanMessageDesc')}
           >
             <SegmentedControl
               options={messageOptions}
@@ -390,8 +390,8 @@ export default function PrivacyPage() {
             icon={MessageCircle}
             iconBg="bg-purple-50 dark:bg-purple-950/40"
             iconColor="text-purple-600 dark:text-purple-400"
-            title="من يمكنه التعليق"
-            description="التحكم في من يستطيع التعليق على منشوراتك"
+            title={t('whoCanCommentLabel')}
+            description={t('whoCanCommentDesc')}
           >
             <SegmentedControl
               options={visibilityOptions}
@@ -402,8 +402,7 @@ export default function PrivacyPage() {
         </div>
 
         <p className="mt-2.5 px-1 text-[11px] leading-relaxed text-muted-foreground/60">
-          * «المتابعون» يعني الأشخاص الذين يتابعونك. تُطبَّق هذه الإعدادات مباشرةً على
-          ملفك ومنشوراتك ومحادثاتك.
+          {t('privacyFollowersHint')}
         </p>
       </section>
 
@@ -453,7 +452,7 @@ export default function PrivacyPage() {
       {/* ── Security Settings ── */}
       <section className="mb-5">
         <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          إعدادات الأمان
+          {t('securitySettingsSectionLabel')}
         </h2>
         <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm divide-y divide-border/40">
           {/* 2FA — coming soon */}
@@ -463,13 +462,13 @@ export default function PrivacyPage() {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium">التحقق بخطوتين</p>
+                <p className="text-sm font-medium">{t('twoFactorAuthLabel')}</p>
                 <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                  قريباً
+                  {t('comingSoon')}
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                حماية إضافية لحسابك
+                {t('twoFactorAuthDesc')}
               </p>
             </div>
             <Lock className="size-4 text-muted-foreground/40" />
@@ -482,13 +481,13 @@ export default function PrivacyPage() {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium">سجل نشاط الدخول</p>
+                <p className="text-sm font-medium">{t('loginActivityLabel')}</p>
                 <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                  قريباً
+                  {t('comingSoon')}
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                مراجعة عمليات الدخول الأخيرة
+                {t('loginActivityDesc')}
               </p>
             </div>
             <Lock className="size-4 text-muted-foreground/40" />
@@ -506,21 +505,20 @@ export default function PrivacyPage() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-destructive">
-                  تسجيل الخروج من جميع الأجهزة
+                  {t('signOutAllDevices')}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  إنهاء جميع الجلسات النشطة
+                  {t('signOutAllDevicesDesc')}
                 </p>
               </div>
             </button>
           ) : (
             <div className="space-y-3 px-4 py-4">
               <p className="text-sm font-semibold">
-                تسجيل الخروج من جميع الأجهزة؟
+                {t('signOutAllDevices')}?
               </p>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                سيتم تسجيل خروجك من جميع الأجهزة الأخرى. ستحتاج لإعادة تسجيل
-                الدخول على كل جهاز.
+                {t('signOutAllConfirmDesc')}
               </p>
               <div className="flex gap-2">
                 <button
@@ -532,10 +530,10 @@ export default function PrivacyPage() {
                   {isSigningOut ? (
                     <span className="flex items-center justify-center gap-1.5">
                       <span className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      جاري...
+                      {t('signingOutAll')}
                     </span>
                   ) : (
-                    'تأكيد الخروج'
+                    t('confirm')
                   )}
                 </button>
                 <button
@@ -543,7 +541,7 @@ export default function PrivacyPage() {
                   onClick={() => setShowSignOutConfirm(false)}
                   className="flex-1 rounded-xl border border-border py-2 text-sm font-medium transition-all hover:bg-muted"
                 >
-                  إلغاء
+                  {t('cancel')}
                 </button>
               </div>
             </div>

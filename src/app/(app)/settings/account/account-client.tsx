@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { BackButton } from '@/components/shared/back-button';
 import { createClient } from '@/lib/supabase/client';
+import { useLang } from '@/lib/i18n/language-context';
 
 type Props = {
   email: string;
@@ -27,6 +28,7 @@ type Props = {
 };
 
 function PasswordStrengthBar({ password }: { password: string }) {
+  const { t } = useLang();
   if (!password) return null;
 
   let score = 0;
@@ -35,7 +37,7 @@ function PasswordStrengthBar({ password }: { password: string }) {
   if (/[0-9]/.test(password)) score++;
   if (/[^A-Za-z0-9]/.test(password)) score++;
 
-  const labels = ['', 'ضعيفة', 'متوسطة', 'جيدة', 'قوية'];
+  const labels = ['', t('passwordWeak'), t('passwordFair'), t('passwordGood'), t('passwordStrong')];
   const barColors = [
     '',
     'bg-red-500',
@@ -64,7 +66,7 @@ function PasswordStrengthBar({ password }: { password: string }) {
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        قوة كلمة المرور:{' '}
+        {t('passwordStrengthLabel')}:{' '}
         <span className={`font-semibold ${textColors[score]}`}>
           {labels[score]}
         </span>
@@ -74,21 +76,22 @@ function PasswordStrengthBar({ password }: { password: string }) {
 }
 
 function getDeviceInfo(): {
-  name: string;
+  key: 'deviceUnknown' | 'deviceIPhone' | 'deviceAndroid' | 'deviceMac' | 'deviceWindows' | 'deviceMobile';
   Icon: typeof Monitor;
 } {
   if (typeof navigator === 'undefined')
-    return { name: 'جهاز غير معروف', Icon: Monitor };
+    return { key: 'deviceUnknown', Icon: Monitor };
   const ua = navigator.userAgent;
-  if (/iPhone|iPad/.test(ua)) return { name: 'iPhone / iPad', Icon: Smartphone };
-  if (/Android/.test(ua)) return { name: 'هاتف Android', Icon: Smartphone };
-  if (/Mac/.test(ua)) return { name: 'Mac', Icon: Monitor };
-  if (/Windows/.test(ua)) return { name: 'Windows PC', Icon: Monitor };
-  return { name: 'جهاز محمول', Icon: Smartphone };
+  if (/iPhone|iPad/.test(ua)) return { key: 'deviceIPhone', Icon: Smartphone };
+  if (/Android/.test(ua)) return { key: 'deviceAndroid', Icon: Smartphone };
+  if (/Mac/.test(ua)) return { key: 'deviceMac', Icon: Monitor };
+  if (/Windows/.test(ua)) return { key: 'deviceWindows', Icon: Monitor };
+  return { key: 'deviceMobile', Icon: Smartphone };
 }
 
 export function AccountClient({ email, lastSignIn }: Props) {
   const router = useRouter();
+  const { t } = useLang();
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [currentPwd, setCurrentPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
@@ -100,7 +103,16 @@ export function AccountClient({ email, lastSignIn }: Props) {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
-  const { name: deviceName, Icon: DeviceIcon } = getDeviceInfo();
+  const { key: deviceKey, Icon: DeviceIcon } = getDeviceInfo();
+  const DEVICE_NAMES: Record<string, string> = {
+    deviceUnknown: t('deviceUnknown'),
+    deviceIPhone: 'iPhone / iPad',
+    deviceAndroid: t('deviceAndroid'),
+    deviceMac: 'Mac',
+    deviceWindows: 'Windows PC',
+    deviceMobile: t('deviceMobile'),
+  };
+  const deviceName = DEVICE_NAMES[deviceKey] ?? deviceKey;
 
   const resetPasswordForm = useCallback(() => {
     setShowPasswordForm(false);
@@ -117,11 +129,11 @@ export function AccountClient({ email, lastSignIn }: Props) {
       e.preventDefault();
 
       if (newPwd.length < 8) {
-        toast.error('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+        toast.error(t('passwordTooShort'));
         return;
       }
       if (newPwd !== confirmPwd) {
-        toast.error('كلمتا المرور غير متطابقتين');
+        toast.error(t('passwordsNotMatch'));
         return;
       }
 
@@ -135,17 +147,17 @@ export function AccountClient({ email, lastSignIn }: Props) {
         });
 
         if (signInError) {
-          toast.error('كلمة المرور الحالية غير صحيحة');
+          toast.error(t('wrongCurrentPassword'));
           return;
         }
 
         const { error } = await supabase.auth.updateUser({ password: newPwd });
         if (error) {
-          toast.error('فشل تحديث كلمة المرور');
+          toast.error(t('passwordUpdateFailed'));
           return;
         }
 
-        toast.success('تم تحديث كلمة المرور بنجاح 🔒');
+        toast.success(t('passwordUpdated'));
         resetPasswordForm();
       } finally {
         setIsUpdating(false);
@@ -172,13 +184,13 @@ export function AccountClient({ email, lastSignIn }: Props) {
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <BackButton fallback="/settings" />
-        <h1 className="text-2xl font-bold">الحساب والأمان</h1>
+        <h1 className="text-2xl font-bold">{t('accountAndSecurity')}</h1>
       </div>
 
       {/* ── Email ── */}
       <section className="mb-5">
         <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          البريد الإلكتروني
+          {t('emailSectionLabel')}
         </h2>
         <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
           <div className="flex items-center gap-3 px-4 py-4">
@@ -189,13 +201,13 @@ export function AccountClient({ email, lastSignIn }: Props) {
               <p className="truncate text-sm font-semibold">{email}</p>
               <p className="mt-0.5 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                 <CheckCircle className="size-3" />
-                بريد إلكتروني موثّق
+                {t('verifiedEmailLabel')}
               </p>
             </div>
           </div>
           <div className="border-t border-border/40 bg-muted/20 px-4 py-3">
             <p className="text-xs text-muted-foreground">
-              لتغيير البريد الإلكتروني، تواصل مع الدعم الفني.
+              {t('changeEmailHint')}
             </p>
           </div>
         </div>
@@ -204,7 +216,7 @@ export function AccountClient({ email, lastSignIn }: Props) {
       {/* ── Password ── */}
       <section className="mb-5">
         <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          كلمة المرور
+          {t('passwordSectionLabel')}
         </h2>
         <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
           {!showPasswordForm ? (
@@ -217,20 +229,20 @@ export function AccountClient({ email, lastSignIn }: Props) {
                 <Lock className="size-5 text-purple-600 dark:text-purple-400" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">تغيير كلمة المرور</p>
+                <p className="text-sm font-medium">{t('changePasswordLabel')}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   ••••••••••••
                 </p>
               </div>
               <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                تغيير
+                {t('edit')}
               </span>
             </button>
           ) : (
             <form onSubmit={handlePasswordChange} className="space-y-4 p-4">
               {/* Form header */}
               <div className="flex items-center justify-between">
-                <p className="font-semibold">تغيير كلمة المرور</p>
+                <p className="font-semibold">{t('changePasswordLabel')}</p>
                 <button
                   type="button"
                   onClick={resetPasswordForm}
@@ -243,7 +255,7 @@ export function AccountClient({ email, lastSignIn }: Props) {
               {/* Current password */}
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                  كلمة المرور الحالية
+                  {t('currentPasswordLabel')}
                 </label>
                 <div className="relative">
                   <input
@@ -272,7 +284,7 @@ export function AccountClient({ email, lastSignIn }: Props) {
               {/* New password */}
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                  كلمة المرور الجديدة
+                  {t('newPasswordLabel')}
                 </label>
                 <div className="relative">
                   <input
@@ -280,7 +292,7 @@ export function AccountClient({ email, lastSignIn }: Props) {
                     value={newPwd}
                     onChange={(e) => setNewPwd(e.target.value)}
                     className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 pe-10"
-                    placeholder="8 أحرف على الأقل"
+                    placeholder={t('passwordPlaceholder')}
                     required
                     minLength={8}
                     autoComplete="new-password"
@@ -303,7 +315,7 @@ export function AccountClient({ email, lastSignIn }: Props) {
               {/* Confirm password */}
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                  تأكيد كلمة المرور الجديدة
+                  {t('confirmPasswordLabel')}
                 </label>
                 <div className="relative">
                   <input
@@ -315,7 +327,7 @@ export function AccountClient({ email, lastSignIn }: Props) {
                         ? 'border-destructive focus:border-destructive focus:ring-destructive/20'
                         : 'border-border focus:border-primary focus:ring-primary/20'
                     }`}
-                    placeholder="أعد إدخال كلمة المرور"
+                    placeholder={t('confirmPasswordLabel')}
                     required
                     autoComplete="new-password"
                   />
@@ -334,7 +346,7 @@ export function AccountClient({ email, lastSignIn }: Props) {
                 {passwordsMismatch && (
                   <p className="mt-1.5 flex items-center gap-1 text-xs text-destructive">
                     <AlertCircle className="size-3 shrink-0" />
-                    كلمتا المرور غير متطابقتين
+                    {t('passwordsNotMatch')}
                   </p>
                 )}
               </div>
@@ -347,10 +359,10 @@ export function AccountClient({ email, lastSignIn }: Props) {
                 {isUpdating ? (
                   <span className="flex items-center justify-center gap-2">
                     <span className="size-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
-                    جاري التحديث...
+                    {t('updatingPassword')}
                   </span>
                 ) : (
-                  'تحديث كلمة المرور'
+                  t('updatePasswordBtn')
                 )}
               </button>
             </form>
@@ -361,7 +373,7 @@ export function AccountClient({ email, lastSignIn }: Props) {
       {/* ── Sessions & Devices ── */}
       <section className="mb-5">
         <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          الجلسات والأجهزة
+          {t('sessionsSectionLabel')}
         </h2>
         <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm divide-y divide-border/40">
           {/* Current device */}
@@ -373,12 +385,12 @@ export function AccountClient({ email, lastSignIn }: Props) {
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium">{deviceName}</p>
                 <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400">
-                  هذا الجهاز
+                  {t('thisDeviceLabel')}
                 </span>
               </div>
               {lastSignIn ? (
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  آخر تسجيل دخول:{' '}
+                  {t('lastSignInLabel')}:{' '}
                   {formatDistanceToNow(new Date(lastSignIn), {
                     addSuffix: true,
                     locale: ar,
@@ -386,7 +398,7 @@ export function AccountClient({ email, lastSignIn }: Props) {
                 </p>
               ) : (
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  جلسة نشطة
+                  {t('activeSessionLabel')}
                 </p>
               )}
             </div>
@@ -405,21 +417,20 @@ export function AccountClient({ email, lastSignIn }: Props) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-destructive">
-                  تسجيل الخروج من جميع الأجهزة
+                  {t('signOutAllDevices')}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  إنهاء جميع الجلسات النشطة
+                  {t('signOutAllDevicesDesc')}
                 </p>
               </div>
             </button>
           ) : (
             <div className="space-y-3 px-4 py-4">
               <p className="text-sm font-semibold">
-                تسجيل الخروج من جميع الأجهزة؟
+                {t('signOutAllDevices')}?
               </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                سيتم تسجيل خروجك من جميع الأجهزة الأخرى. ستحتاج لإعادة تسجيل
-                الدخول على كل جهاز.
+                {t('signOutAllConfirmDesc')}
               </p>
               <div className="flex gap-2">
                 <button
@@ -431,10 +442,10 @@ export function AccountClient({ email, lastSignIn }: Props) {
                   {isSigningOut ? (
                     <span className="flex items-center justify-center gap-1.5">
                       <span className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      جاري...
+                      {t('signingOutAll')}
                     </span>
                   ) : (
-                    'تأكيد الخروج'
+                    t('confirm')
                   )}
                 </button>
                 <button
@@ -442,7 +453,7 @@ export function AccountClient({ email, lastSignIn }: Props) {
                   onClick={() => setShowSignOutConfirm(false)}
                   className="flex-1 rounded-xl border border-border py-2 text-sm font-medium transition-all hover:bg-muted"
                 >
-                  إلغاء
+                  {t('cancel')}
                 </button>
               </div>
             </div>

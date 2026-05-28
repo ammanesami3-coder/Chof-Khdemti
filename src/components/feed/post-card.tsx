@@ -28,10 +28,7 @@ const SharedPostEmbedLazy = dynamic(
   () => import("@/components/feed/shared-post-embed").then((m) => m.SharedPostEmbed),
   { ssr: false, loading: () => <div className="mx-4 mt-3 h-20 animate-pulse rounded-xl bg-muted" /> }
 );
-const ReactionsModalLazy = dynamic(
-  () => import("@/components/feed/reactions-modal").then((m) => m.ReactionsModal),
-  { ssr: false }
-);
+import { ReactionsModal } from "@/components/feed/reactions-modal";
 import {
   BadgeCheck,
   Bookmark,
@@ -600,57 +597,60 @@ export function PostCard({
       )}
 
       {/* ── Actions bar ─────────────────────────────────────────────── */}
-      {/* Layout: [Like 5] [💬 3] [↗ 2] ............ [😂❤️] (counter on opposite side) */}
-      <div className="flex items-center gap-0.5 px-3 py-2">
-        {/* Like / Reactions */}
-        <AuthGate isAuthenticated={!!currentUserId} action="like">
-          <PostReactionButton
-            postId={post.id}
-            likesCount={post.likes_count}
-            userReaction={post.user_reaction}
-          />
-        </AuthGate>
+      {/* Actions bar — justify-between keeps reactions summary reliably at the
+           far end regardless of RTL/LTR direction switch. */}
+      <div className="flex items-center justify-between px-3 py-2">
+        {/* ── Start group: Like / Comment / Share ── */}
+        <div className="flex items-center gap-0.5">
+          {/* Like / Reactions */}
+          <AuthGate isAuthenticated={!!currentUserId} action="like">
+            <PostReactionButton
+              postId={post.id}
+              likesCount={post.likes_count}
+              userReaction={post.user_reaction}
+            />
+          </AuthGate>
 
-        {/* Comment */}
-        <AuthGate isAuthenticated={!!currentUserId} action="comment">
+          {/* Comment */}
+          <AuthGate isAuthenticated={!!currentUserId} action="comment">
+            <button
+              type="button"
+              onClick={() => {
+                setSheetAutoFocus(true);
+                setSheetOpen(true);
+              }}
+              disabled={isPending}
+              aria-label={t('commentAriaLabel')}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none"
+            >
+              <MessageCircle className="size-5" strokeWidth={1.75} />
+              {post.comments_count > 0 && (
+                <span className="tabular-nums">{post.comments_count}</span>
+              )}
+            </button>
+          </AuthGate>
+
+          {/* Share */}
           <button
             type="button"
-            onClick={() => {
-              setSheetAutoFocus(true);
-              setSheetOpen(true);
-            }}
-            disabled={isPending}
-            aria-label={t('commentAriaLabel')}
-            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none"
+            onClick={handleShare}
+            aria-label={t('sharePostAriaLabel')}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            <MessageCircle className="size-5" strokeWidth={1.75} />
-            {post.comments_count > 0 && (
-              <span className="tabular-nums">{post.comments_count}</span>
+            <Share2 className="size-5" strokeWidth={1.75} />
+            {(post.shares_count ?? 0) > 0 && (
+              <span className="tabular-nums">{post.shares_count}</span>
             )}
           </button>
-        </AuthGate>
+        </div>
 
-        {/* Share */}
-        <button
-          type="button"
-          onClick={handleShare}
-          aria-label={t('sharePostAriaLabel')}
-          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <Share2 className="size-5" strokeWidth={1.75} />
-          {(post.shares_count ?? 0) > 0 && (
-            <span className="tabular-nums">{post.shares_count}</span>
-          )}
-        </button>
-
-        {/* Aggregated reactions counter — opposite side (left in RTL, right in LTR) */}
+        {/* ── End: aggregated reactions summary ── */}
         {post.likes_count > 0 && (
           <ReactionsSummary
             summary={post.reactions_summary}
             totalCount={post.likes_count}
             fallbackReaction={post.user_reaction}
             onClick={() => setReactionsModalOpen(true)}
-            className="ms-auto"
           />
         )}
       </div>
@@ -732,14 +732,12 @@ export function PostCard({
       />
 
       {/* ── Reactions modal ───────────────────────────────────────── */}
-      {reactionsModalOpen && (
-        <ReactionsModalLazy
-          open={reactionsModalOpen}
-          onClose={() => setReactionsModalOpen(false)}
-          type="post"
-          entityId={post.id}
-        />
-      )}
+      <ReactionsModal
+        open={reactionsModalOpen}
+        onClose={() => setReactionsModalOpen(false)}
+        type="post"
+        entityId={post.id}
+      />
 
       {/* ── Delete confirmation ───────────────────────────────────── */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

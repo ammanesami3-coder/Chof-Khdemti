@@ -10,6 +10,12 @@ interface ReactionPickerProps {
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   className?: string;
+  /**
+   * The actual CSS layout direction of the container where this picker lives.
+   * Pass 'rtl' when inside main/dir="rtl" (PostCard), or the language dir for portals (CommentsSheet).
+   * Defaults to 'rtl' since the app is RTL-first.
+   */
+  contextDir?: 'rtl' | 'ltr';
 }
 
 export function ReactionPicker({
@@ -19,7 +25,10 @@ export function ReactionPicker({
   onMouseEnter,
   onMouseLeave,
   className,
+  contextDir = 'rtl',
 }: ReactionPickerProps) {
+  const isRtl = contextDir === 'rtl';
+
   return (
     <div
       role="menu"
@@ -27,10 +36,11 @@ export function ReactionPicker({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        'absolute bottom-full mb-2 start-0 z-50',
+        'absolute bottom-full mb-2 z-50',
+        isRtl ? 'right-0' : 'left-0',
         'flex items-center gap-1 px-3 py-2',
         'rounded-full bg-white dark:bg-zinc-800 shadow-xl border border-zinc-200 dark:border-zinc-700',
-        'origin-bottom-start',
+        isRtl ? 'origin-bottom-right' : 'origin-bottom-left',
         visible
           ? 'opacity-100 scale-100 pointer-events-auto transition-all duration-200 ease-out'
           : 'opacity-0 scale-75 pointer-events-none transition-all duration-75 ease-in',

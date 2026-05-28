@@ -155,3 +155,11 @@ export const CITIES: City[] = [
 export function getCityById(id: string): City | null {
   return CITIES.find((c) => c.id === id) ?? null;
 }
+
+/** Returns the city name in the requested language, searching by id OR Arabic name. */
+export function getCityName(idOrArabicName: string, lang: 'ar' | 'fr' | 'en'): string {
+  const city = CITIES.find((c) => c.id === idOrArabicName) ?? CITIES.find((c) => c.name_ar === idOrArabicName);
+  if (!city) return idOrArabicName;
+  if (lang === 'fr' || lang === 'en') return city.name_fr;
+  return city.name_ar;
+}

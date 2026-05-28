@@ -8,8 +8,8 @@ import { useFollow } from '@/hooks/use-follow';
 import { AuthGate } from '@/components/shared/auth-gate';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { SubscribedBadge } from '@/components/shared/subscribed-badge';
-import { getCraftById } from '@/lib/constants/crafts';
-import { CITIES } from '@/lib/constants/cities';
+import { getCraftName } from '@/lib/constants/crafts';
+import { getCityName } from '@/lib/constants/cities';
 import { useLang } from '@/lib/i18n/language-context';
 import type { ArtisanListItem } from '@/lib/queries/artisans';
 
@@ -19,12 +19,10 @@ type Props = {
 };
 
 export function ArtisanCard({ artisan, currentUserId }: Props) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { isFollowing, isPending, toggle } = useFollow(artisan.id, false);
-  const craft = artisan.craft_category ? getCraftById(artisan.craft_category) : null;
-  const cityName = artisan.city
-    ? (CITIES.find((c) => c.id === artisan.city)?.name_ar ?? artisan.city)
-    : null;
+  const craftName = artisan.craft_category ? getCraftName(artisan.craft_category, lang) : null;
+  const cityName  = artisan.city           ? getCityName(artisan.city, lang)            : null;
 
   const isOwnProfile = currentUserId === artisan.id;
 
@@ -53,10 +51,10 @@ export function ArtisanCard({ artisan, currentUserId }: Props) {
 
       {/* ── Badges ──────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-1.5">
-        {craft && (
+        {craftName && (
           <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
             <Briefcase className="size-3" />
-            {craft.name_ar}
+            {craftName}
           </span>
         )}
         {cityName && (

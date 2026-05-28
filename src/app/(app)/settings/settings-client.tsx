@@ -134,7 +134,7 @@ export function SettingsClient({ userData, avatarUrl }: Props) {
           <SettingsRow
             icon={Pencil}
             label={t('editProfile')}
-            description="الاسم والصورة والمعلومات الشخصية"
+            description={t('editProfileDesc')}
             href="/profile/edit"
             iconBg="bg-blue-50 dark:bg-blue-950/40"
             iconColor="text-blue-600 dark:text-blue-400"
@@ -200,7 +200,7 @@ export function SettingsClient({ userData, avatarUrl }: Props) {
           <SettingsRow
             icon={Shield}
             label={t('privacy')}
-            description="التحكم في خصوصيتك وأمان حسابك"
+            description={t('privacyDesc')}
             href="/settings/privacy"
             iconBg="bg-teal-50 dark:bg-teal-950/40"
             iconColor="text-teal-600 dark:text-teal-400"
@@ -208,7 +208,7 @@ export function SettingsClient({ userData, avatarUrl }: Props) {
           <SettingsRow
             icon={HelpCircle}
             label={t('helpCenter')}
-            description="الأسئلة الشائعة والتواصل مع الدعم"
+            description={t('helpDesc')}
             href="/settings/help"
             iconBg="bg-sky-50 dark:bg-sky-950/40"
             iconColor="text-sky-600 dark:text-sky-400"

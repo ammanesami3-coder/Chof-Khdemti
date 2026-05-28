@@ -39,7 +39,7 @@ interface SignupFormProps {
 
 export function SignupForm({ next }: SignupFormProps) {
   const router = useRouter();
-  const { t } = useLang();
+  const { t, dir } = useLang();
   const [loading, setLoading] = useState(false);
 
   const form = useForm<SignUpInput>({
@@ -73,7 +73,7 @@ export function SignupForm({ next }: SignupFormProps) {
   const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
 
   return (
-    <Card className="w-full max-w-md shadow-2xl">
+    <Card className="w-full max-w-md shadow-2xl" dir={dir}>
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">{t('signupTitle')}</CardTitle>
         <CardDescription>{t('signupSubtitle')}</CardDescription>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { TrendingUp, TrendingDown, Minus, Flame } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n/language-context';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -95,10 +96,11 @@ function TrendingSkeleton() {
 // ── Single trending item ──────────────────────────────────────────────────────
 
 function TrendingItem({ item }: { item: TrendingEntry }) {
+  const { t } = useLang();
   const emoji = getCraftEmoji(item.craft_category);
   const isUp = item.trend_direction === 'up';
   const isDown = item.trend_direction === 'down';
-  const isNew = item.artisan_count === 0; // قبل تحميل البيانات
+  const isNew = item.artisan_count === 0;
 
   return (
     <Link
@@ -129,10 +131,10 @@ function TrendingItem({ item }: { item: TrendingEntry }) {
           ) : (
             <>
               <span>{item.artisan_count.toLocaleString('ar')}</span>
-              {' حرفي'}
+              {' '}{t('artisanCountSuffix')}
               {item.engagement_7d > 0 && (
                 <span className="opacity-60">
-                  {' · '}{item.engagement_7d.toLocaleString('ar')} تفاعل
+                  {' · '}{item.engagement_7d.toLocaleString('ar')} {t('engagementSuffix')}
                 </span>
               )}
             </>
@@ -177,6 +179,7 @@ type Props = {
 };
 
 export function TrendingWidget({ initialData }: Props) {
+  const { t } = useLang();
   const { data: trending = initialData, isLoading } = useQuery({
     queryKey: ['trending-professions'],
     queryFn: fetchTrending,
@@ -199,14 +202,14 @@ export function TrendingWidget({ initialData }: Props) {
       <div className="mb-3 flex items-center justify-between px-2">
         <div className="flex items-center gap-2">
           <Flame className="h-4 w-4 text-[#FF9F43]" />
-          <h3 className="text-sm font-semibold">الأكثر طلبًا</h3>
+          <h3 className="text-sm font-semibold">{t('mostRequested')}</h3>
         </div>
         {lastUpdate && (
           <span
             className="text-[10px] text-muted-foreground/50"
             title={lastUpdate.toLocaleString('ar')}
           >
-            مباشر
+            {t('liveLabel')}
             <span
               className="ms-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 align-middle"
               aria-hidden="true"
@@ -231,7 +234,7 @@ export function TrendingWidget({ initialData }: Props) {
         href="/explore"
         className="mt-2 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
-        استكشاف جميع المهن
+        {t('exploreAllCrafts')}
       </Link>
     </div>
   );

@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 
 import { signInSchema, type SignInInput } from "@/lib/validations/auth";
 import { signIn } from "@/lib/actions/auth";
+import { useLang } from "@/lib/i18n/language-context";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,12 +32,13 @@ import {
 } from "@/components/ui/card";
 
 interface LoginFormProps {
-  /** مسار الإعادة بعد الدخول (من ?next أو من middleware) */
+  /** Redirect path after sign-in (from ?next or middleware) */
   next?: string;
 }
 
 export function LoginForm({ next }: LoginFormProps) {
   const router = useRouter();
+  const { t, dir } = useLang();
   const [loading, setLoading] = useState(false);
 
   const form = useForm<SignInInput>({
@@ -58,14 +60,14 @@ export function LoginForm({ next }: LoginFormProps) {
     router.refresh();
   }
 
-  // رابط التسجيل يحافظ على next لو كان موجوداً
+  // Preserve ?next when navigating to signup
   const signupHref = next ? `/signup?next=${encodeURIComponent(next)}` : "/signup";
 
   return (
-    <Card className="w-full max-w-md shadow-2xl">
+    <Card className="w-full max-w-md shadow-2xl" dir={dir}>
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl">تسجيل الدخول</CardTitle>
-        <CardDescription>أهلاً بك مجدداً في شوف خدمتي</CardDescription>
+        <CardTitle className="text-2xl">{t('loginTitle')}</CardTitle>
+        <CardDescription>{t('loginSubtitle')}</CardDescription>
       </CardHeader>
 
       <CardContent>
@@ -76,7 +78,7 @@ export function LoginForm({ next }: LoginFormProps) {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>البريد الإلكتروني</FormLabel>
+                  <FormLabel>{t('emailLabel')}</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
@@ -97,7 +99,7 @@ export function LoginForm({ next }: LoginFormProps) {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>كلمة السر</FormLabel>
+                  <FormLabel>{t('passwordLabel')}</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
@@ -113,7 +115,7 @@ export function LoginForm({ next }: LoginFormProps) {
 
             <Button variant="brand" type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="ms-2 size-4 animate-spin" />}
-              دخول
+              {t('loginBtn')}
             </Button>
           </form>
         </Form>
@@ -121,9 +123,9 @@ export function LoginForm({ next }: LoginFormProps) {
 
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
-          ليس لديك حساب؟{" "}
+          {t('noAccount')}{" "}
           <Link href={signupHref} className="text-primary font-medium hover:underline">
-            سجّل الآن
+            {t('signUpNowLink')}
           </Link>
         </p>
       </CardFooter>

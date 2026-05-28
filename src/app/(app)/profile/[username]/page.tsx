@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { ProfileClient } from '@/components/profile/profile-client';
+import { ProfileTabsList } from '@/components/profile/profile-tabs-list';
+import { ProfileAboutSection } from '@/components/profile/profile-about-section';
 import { FeedList } from '@/components/feed/feed-list';
 import { RatingCard } from '@/components/rating/rating-card';
 import { AddEditRating } from '@/components/rating/add-edit-rating';
@@ -316,32 +318,7 @@ export default async function ProfilePage({ params }: Props) {
       {canViewProfile ? (
       /* ── Tabs ─────────────────────────────────────────────────────────── */
       <Tabs defaultValue="posts" className="mt-2" id="profile-tabs">
-        <TabsList className="w-full rounded-none border-b bg-transparent p-0">
-          <TabsTrigger
-            value="posts"
-            className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-primary data-active:shadow-none"
-          >
-            الأعمال
-          </TabsTrigger>
-          <TabsTrigger
-            value="about"
-            className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-primary data-active:shadow-none"
-          >
-            عن
-          </TabsTrigger>
-          {isArtisan && totalRatingsCount >= 1 && (
-            <TabsTrigger
-              id="profile-ratings-tab"
-              value="ratings"
-              className="flex-1 rounded-none border-b-2 border-transparent py-3 data-active:border-primary data-active:shadow-none"
-            >
-              التقييمات
-              <span className="ms-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs tabular-nums">
-                {totalRatingsCount}
-              </span>
-            </TabsTrigger>
-          )}
-        </TabsList>
+        <ProfileTabsList isArtisan={isArtisan} totalRatingsCount={totalRatingsCount} />
 
         {/* Posts */}
         <TabsContent value="posts" className="pt-4">
@@ -357,23 +334,12 @@ export default async function ProfilePage({ params }: Props) {
         </TabsContent>
 
         {/* About */}
-        <TabsContent value="about" className="p-4 space-y-4">
-          {profile.bio && (
-            <div>
-              <h3 className="mb-1 text-sm font-semibold text-muted-foreground">نبذة</h3>
-              <p className="text-sm leading-relaxed">{profile.bio}</p>
-            </div>
-          )}
-          <div>
-            <h3 className="mb-1 text-sm font-semibold text-muted-foreground">عضو منذ</h3>
-            <p className="text-sm">{joinedAt}</p>
-          </div>
-          {profile.years_experience != null && (
-            <div>
-              <h3 className="mb-1 text-sm font-semibold text-muted-foreground">سنوات الخبرة</h3>
-              <p className="text-sm">{profile.years_experience} سنة</p>
-            </div>
-          )}
+        <TabsContent value="about">
+          <ProfileAboutSection
+            bio={profile.bio ?? null}
+            joinedAt={joinedAt}
+            yearsExperience={profile.years_experience ?? null}
+          />
         </TabsContent>
 
         {/* Ratings */}

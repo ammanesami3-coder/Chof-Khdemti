@@ -8,8 +8,8 @@ import { AuthGate } from '@/components/shared/auth-gate';
 import { RatingDisplay } from '@/components/rating/rating-display';
 import { PresenceText } from '@/components/shared/presence-text';
 import { useIsOnline } from '@/hooks/use-is-online';
-import { getCraftById } from '@/lib/constants/crafts';
-import { CITIES } from '@/lib/constants/cities';
+import { getCraftName } from '@/lib/constants/crafts';
+import { getCityName } from '@/lib/constants/cities';
 import { useLang } from '@/lib/i18n/language-context';
 
 type ProfileUser = {
@@ -72,14 +72,12 @@ export function ProfileHeader({
   lastSeenAt,
   whoCanMessage = 'everyone',
 }: Props) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const isOwnProfile = currentUser?.id === user.id;
   const isOnline = useIsOnline(user.id);
 
-  const craft = profile.craft_category ? getCraftById(profile.craft_category) : null;
-  const cityName = profile.city
-    ? (CITIES.find((c) => c.id === profile.city)?.name_ar ?? profile.city)
-    : null;
+  const craftName = profile.craft_category ? getCraftName(profile.craft_category, lang) : null;
+  const cityName  = profile.city           ? getCityName(profile.city, lang)            : null;
 
   // نُظهر الأزرار للزوار أيضاً — AuthGate يعترض النقر ويوجّه لتسجيل الدخول
   const showFollowBtn = !isOwnProfile;
@@ -250,10 +248,10 @@ export function ProfileHeader({
 
         {/* Badges row */}
         <div className="mt-3 flex flex-wrap gap-2">
-          {craft && (
+          {craftName && (
             <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
               <Briefcase className="size-3" />
-              {craft.name_ar}
+              {craftName}
             </span>
           )}
           {cityName && (

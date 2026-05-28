@@ -169,7 +169,7 @@ export function LeftSidebar({ user }: { user: SidebarUser | null }) {
         {/* ── Account ── */}
         {user && (
           <>
-            <SectionLabel label="الحساب" />
+            <SectionLabel label={t('account')} />
             <SidebarLink href="/settings"              icon={Settings}    label={t('settings')} />
             <SidebarLink href="/settings/subscription" icon={CreditCard}  label={t('subscription')} />
           </>
@@ -178,7 +178,7 @@ export function LeftSidebar({ user }: { user: SidebarUser | null }) {
         <div className="mx-2 my-3 h-px bg-border" />
 
         {/* ── Craft categories ── */}
-        <SectionLabel label="التخصصات" />
+        <SectionLabel label={t('sectionCrafts')} />
         {visibleCrafts.map((c) => (
           <SidebarLink
             key={c.label}
@@ -199,7 +199,7 @@ export function LeftSidebar({ user }: { user: SidebarUser | null }) {
               : <ChevronDown className="h-3.5 w-3.5" />
             }
           </span>
-          <span>{showMore ? 'عرض أقل' : 'عرض المزيد'}</span>
+          <span>{showMore ? t('showLess') : t('showMore')}</span>
         </button>
       </div>
 

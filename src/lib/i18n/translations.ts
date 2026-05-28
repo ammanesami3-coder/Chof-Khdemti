@@ -868,6 +868,90 @@ export const translations = {
     subFaqA4: 'نعم، تصلك فاتورة تفصيلية على بريدك الإلكتروني بعد كل دفعة تلقائياً.',
     subFaqQ5: 'هل بيانات دفعي آمنة؟',
     subFaqA5: 'نعم بالكامل. لا نحتفظ بأي بيانات بطاقة. كل شيء يمر عبر Lemon Squeezy المعتمدة لمعايير PCI DSS.',
+
+    // Auth layout
+    authLayoutTagline: 'منصة الحرفيين والخدمات',
+
+    // Login form
+    loginTitle: 'تسجيل الدخول',
+    loginSubtitle: 'أهلاً بك مجدداً في شوف خدمتي',
+    loginBtn: 'دخول',
+    noAccount: 'ليس لديك حساب؟',
+    signUpNowLink: 'سجّل الآن',
+
+    // Sidebar section labels
+    sectionCrafts: 'التخصصات',
+
+    // Settings descriptions
+    editProfileDesc: 'الاسم والصورة والمعلومات الشخصية',
+    privacyDesc: 'التحكم في خصوصيتك وأمان حسابك',
+    helpDesc: 'الأسئلة الشائعة والتواصل مع الدعم',
+
+    // Device names (account page)
+    deviceUnknown: 'جهاز غير معروف',
+    deviceIPhone: 'iPhone / iPad',
+    deviceAndroid: 'هاتف Android',
+    deviceMac: 'Mac',
+    deviceWindows: 'Windows PC',
+    deviceMobile: 'جهاز محمول',
+
+    // Privacy page (hardcoded text)
+    privacyFollowersHint: '«المتابعون» يعني الأشخاص الذين يتابعونك. تُطبَّق هذه الإعدادات مباشرةً على ملفك ومنشوراتك ومحادثاتك.',
+
+    // Help page (hardcoded text)
+    helpHowCanWeHelp: 'كيف يمكننا مساعدتك؟',
+    helpSearchResultsCount: 'نتائج البحث',
+    helpNoResultsFor: 'لا توجد نتائج لـ',
+    helpTryDifferentSearch: 'جرّب كلمات بحث مختلفة أو تصفّح الأسئلة أدناه',
+    helpEmailLabel: 'البريد الإلكتروني',
+    helpWhatsAppLabel: 'واتساب',
+    helpWhatsAppHours: 'متاح من 9:00 صباحاً إلى 6:00 مساءً',
+    helpOpenLabel: 'فتح',
+    helpSendLabel: 'إرسال',
+    helpReportIssueTitle: 'هل واجهتَ مشكلة؟',
+    helpReportIssueDesc: 'إذا وجدت محتوى مسيئاً أو سلوكاً غير لائق، يمكنك الإبلاغ مباشرة من أي منشور أو حساب باستخدام زر الخيارات «···».',
+    appVersionLabel: 'الإصدار',
+
+    // Explore page
+    exploreTitle: 'اكتشف الحرفيين',
+    exploreSubtitle: 'ابحث عن الحرفيين والمهنيين في منطقتك',
+
+    // How it works steps (help page)
+    howItWorksStep1Title: 'أنشئ حسابك',
+    howItWorksStep1Desc: 'سجّل كحرفي أو زبون في أقل من دقيقتين',
+    howItWorksStep2Title: 'أكمل ملفك المهني',
+    howItWorksStep2Desc: 'أضف تخصصك ومدينتك وصورك للظهور في نتائج البحث',
+    howItWorksStep3Title: 'انشر أعمالك',
+    howItWorksStep3Desc: 'شارك صوراً وفيديوهات لأعمالك مع المجتمع',
+    howItWorksStep4Title: 'تواصل مع الزبائن',
+    howItWorksStep4Desc: 'استقبل رسائل الزبائن وردّ عليها مباشرة',
+    howItWorksStep5Title: 'بنِ سمعتك',
+    howItWorksStep5Desc: 'اجمع التقييمات وارفع مستوى ظهورك في البحث',
+
+    // Back button
+    backLabel: 'رجوع',
+
+    // Messages page header
+    messagesPageTitle: 'الرسائل',
+
+    // Right sidebar
+    suggestedArtisans: 'حرفيون مقترحون',
+    tipOfDay: 'نصيحة اليوم',
+    tipText1: 'أضف صور أعمالك لزيادة طلبات الخدمة',
+    tipText2: 'ردّ على رسائل الزبائن بسرعة لبناء سمعة ممتازة',
+    tipText3: 'اكتب وصفاً واضحاً لتخصصك في ملفك الشخصي',
+
+    // Trending widget
+    mostRequested: 'الأكثر طلبًا',
+    liveLabel: 'مباشر',
+    exploreAllCrafts: 'استكشاف جميع المهن',
+    artisanCountSuffix: 'حرفي',
+    engagementSuffix: 'تفاعل',
+
+    // Profile about tab
+    memberSince: 'عضو منذ',
+    bioSectionLabel: 'نبذة',
+    yearSuffix: 'سنة',
   },
 
   fr: {
@@ -1731,6 +1815,90 @@ export const translations = {
     subFaqA4: 'Oui, une facture détaillée vous sera envoyée automatiquement par e-mail après chaque paiement.',
     subFaqQ5: 'Mes données de paiement sont-elles sécurisées ?',
     subFaqA5: "Oui, entièrement. Nous ne conservons aucune donnée de carte. Tout passe par Lemon Squeezy, certifiée PCI DSS.",
+
+    // Auth layout
+    authLayoutTagline: 'La plateforme des artisans',
+
+    // Login form
+    loginTitle: 'Connexion',
+    loginSubtitle: 'Bienvenue sur Chof Khdemti',
+    loginBtn: 'Se connecter',
+    noAccount: 'Pas encore de compte ?',
+    signUpNowLink: "S'inscrire",
+
+    // Sidebar section labels
+    sectionCrafts: 'Spécialités',
+
+    // Settings descriptions
+    editProfileDesc: 'Nom, photo et informations personnelles',
+    privacyDesc: 'Gérez votre confidentialité et la sécurité de votre compte',
+    helpDesc: 'Questions fréquentes et contact du support',
+
+    // Device names (account page)
+    deviceUnknown: 'Appareil inconnu',
+    deviceIPhone: 'iPhone / iPad',
+    deviceAndroid: 'Téléphone Android',
+    deviceMac: 'Mac',
+    deviceWindows: 'PC Windows',
+    deviceMobile: 'Appareil mobile',
+
+    // Privacy page (hardcoded text)
+    privacyFollowersHint: '«Abonnés» désigne les personnes qui vous suivent. Ces paramètres s\'appliquent directement à votre profil, vos publications et vos conversations.',
+
+    // Help page (hardcoded text)
+    helpHowCanWeHelp: 'Comment pouvons-nous vous aider ?',
+    helpSearchResultsCount: 'Résultats de recherche',
+    helpNoResultsFor: 'Aucun résultat pour',
+    helpTryDifferentSearch: 'Essayez d\'autres mots-clés ou parcourez les questions ci-dessous',
+    helpEmailLabel: 'E-mail',
+    helpWhatsAppLabel: 'WhatsApp',
+    helpWhatsAppHours: 'Disponible de 9h00 à 18h00',
+    helpOpenLabel: 'Ouvrir',
+    helpSendLabel: 'Envoyer',
+    helpReportIssueTitle: 'Vous avez rencontré un problème ?',
+    helpReportIssueDesc: 'Si vous trouvez du contenu abusif ou un comportement inapproprié, vous pouvez le signaler directement depuis n\'importe quelle publication ou compte en utilisant le bouton «···».',
+    appVersionLabel: 'Version',
+
+    // Explore page
+    exploreTitle: 'Découvrir les artisans',
+    exploreSubtitle: 'Trouvez des artisans et des professionnels près de chez vous',
+
+    // How it works steps (help page)
+    howItWorksStep1Title: 'Créez votre compte',
+    howItWorksStep1Desc: 'Inscrivez-vous en tant qu\'artisan ou client en moins de 2 minutes',
+    howItWorksStep2Title: 'Complétez votre profil',
+    howItWorksStep2Desc: 'Ajoutez votre spécialité, ville et photos pour apparaître dans les résultats',
+    howItWorksStep3Title: 'Publiez vos travaux',
+    howItWorksStep3Desc: 'Partagez des photos et vidéos de vos réalisations avec la communauté',
+    howItWorksStep4Title: 'Communiquez avec les clients',
+    howItWorksStep4Desc: 'Recevez les messages des clients et répondez-leur directement',
+    howItWorksStep5Title: 'Construisez votre réputation',
+    howItWorksStep5Desc: 'Collectez des avis et améliorez votre visibilité dans les recherches',
+
+    // Back button
+    backLabel: 'Retour',
+
+    // Messages page header
+    messagesPageTitle: 'Messages',
+
+    // Right sidebar
+    suggestedArtisans: 'Artisans suggérés',
+    tipOfDay: 'Conseil du jour',
+    tipText1: 'Ajoutez des photos de vos travaux pour plus de demandes',
+    tipText2: 'Répondez vite aux messages pour bâtir une excellente réputation',
+    tipText3: 'Rédigez une description claire de votre spécialité',
+
+    // Trending widget
+    mostRequested: 'Les plus demandés',
+    liveLabel: 'En direct',
+    exploreAllCrafts: 'Explorer tous les métiers',
+    artisanCountSuffix: 'artisan(s)',
+    engagementSuffix: 'interaction(s)',
+
+    // Profile about tab
+    memberSince: 'Membre depuis',
+    bioSectionLabel: 'À propos',
+    yearSuffix: 'an(s)',
   },
 
   en: {
@@ -2594,6 +2762,90 @@ export const translations = {
     subFaqA4: 'Yes, a detailed invoice will be sent automatically to your email after each payment.',
     subFaqQ5: 'Is my payment data secure?',
     subFaqA5: 'Yes, completely. We store no card data. Everything goes through Lemon Squeezy, certified to PCI DSS standards.',
+
+    // Auth layout
+    authLayoutTagline: 'The artisans & services platform',
+
+    // Login form
+    loginTitle: 'Sign In',
+    loginSubtitle: 'Welcome back to Chof Khdemti',
+    loginBtn: 'Sign In',
+    noAccount: "Don't have an account?",
+    signUpNowLink: 'Sign up',
+
+    // Sidebar section labels
+    sectionCrafts: 'Specialties',
+
+    // Settings descriptions
+    editProfileDesc: 'Name, photo and personal information',
+    privacyDesc: 'Control your privacy and account security',
+    helpDesc: 'FAQs and support contact',
+
+    // Device names (account page)
+    deviceUnknown: 'Unknown device',
+    deviceIPhone: 'iPhone / iPad',
+    deviceAndroid: 'Android phone',
+    deviceMac: 'Mac',
+    deviceWindows: 'Windows PC',
+    deviceMobile: 'Mobile device',
+
+    // Privacy page (hardcoded text)
+    privacyFollowersHint: '"Followers" means people who follow you. These settings apply directly to your profile, posts and conversations.',
+
+    // Help page (hardcoded text)
+    helpHowCanWeHelp: 'How can we help you?',
+    helpSearchResultsCount: 'Search results',
+    helpNoResultsFor: 'No results for',
+    helpTryDifferentSearch: 'Try different search terms or browse the questions below',
+    helpEmailLabel: 'Email',
+    helpWhatsAppLabel: 'WhatsApp',
+    helpWhatsAppHours: 'Available 9:00 AM – 6:00 PM',
+    helpOpenLabel: 'Open',
+    helpSendLabel: 'Send',
+    helpReportIssueTitle: 'Did you encounter an issue?',
+    helpReportIssueDesc: 'If you find abusive content or inappropriate behaviour, you can report it directly from any post or account using the "···" options button.',
+    appVersionLabel: 'Version',
+
+    // Explore page
+    exploreTitle: 'Discover Artisans',
+    exploreSubtitle: 'Find artisans and professionals near you',
+
+    // How it works steps (help page)
+    howItWorksStep1Title: 'Create your account',
+    howItWorksStep1Desc: 'Sign up as an artisan or customer in under 2 minutes',
+    howItWorksStep2Title: 'Complete your profile',
+    howItWorksStep2Desc: 'Add your specialty, city and photos to appear in search results',
+    howItWorksStep3Title: 'Post your work',
+    howItWorksStep3Desc: 'Share photos and videos of your work with the community',
+    howItWorksStep4Title: 'Connect with customers',
+    howItWorksStep4Desc: 'Receive customer messages and reply directly',
+    howItWorksStep5Title: 'Build your reputation',
+    howItWorksStep5Desc: 'Collect reviews and improve your visibility in searches',
+
+    // Back button
+    backLabel: 'Back',
+
+    // Messages page header
+    messagesPageTitle: 'Messages',
+
+    // Right sidebar
+    suggestedArtisans: 'Suggested Artisans',
+    tipOfDay: 'Tip of the day',
+    tipText1: 'Add photos of your work to increase service requests',
+    tipText2: 'Reply to customer messages quickly to build a great reputation',
+    tipText3: 'Write a clear description of your specialty in your profile',
+
+    // Trending widget
+    mostRequested: 'Most Requested',
+    liveLabel: 'Live',
+    exploreAllCrafts: 'Explore all crafts',
+    artisanCountSuffix: 'artisan(s)',
+    engagementSuffix: 'interaction(s)',
+
+    // Profile about tab
+    memberSince: 'Member since',
+    bioSectionLabel: 'About',
+    yearSuffix: 'year(s)',
   },
 } as const;
 

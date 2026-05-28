@@ -108,6 +108,7 @@ export function PostReactionButton({
         onReact={handleReact}
         onMouseEnter={handlePickerMouseEnter}
         onMouseLeave={handlePickerMouseLeave}
+        contextDir="rtl"
       />
 
       <button

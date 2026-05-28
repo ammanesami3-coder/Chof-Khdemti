@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/supabase/require-user';
 import { canStartConversation } from '@/lib/privacy/visibility';
 import { fetchUserConversations } from '@/lib/queries/conversations';
 import { ConversationList } from '@/components/messages/conversation-list';
+import { MessagesHeader } from '@/components/messages/messages-header';
 
 export const metadata = { title: 'الرسائل — Chof Khdemti' };
 
@@ -76,9 +77,7 @@ export default async function MessagesPage({ searchParams }: Props) {
 
   return (
     <main className="mx-auto max-w-2xl">
-      <div className="border-b px-4 py-4">
-        <h1 className="text-xl font-bold">الرسائل</h1>
-      </div>
+      <MessagesHeader />
       <ConversationList initialData={conversations} currentUserId={user.id} />
     </main>
   );

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { ar, fr, enUS } from "date-fns/locale";
@@ -25,10 +24,7 @@ import {
 import { useLang } from "@/lib/i18n/language-context";
 import type { RecentComment } from "@/lib/validations/post";
 
-const ReactionsModalLazy = dynamic(
-  () => import("@/components/feed/reactions-modal").then((m) => m.ReactionsModal),
-  { ssr: false }
-);
+import { ReactionsModal } from "@/components/feed/reactions-modal";
 
 type CurrentUser = {
   id: string;
@@ -368,14 +364,12 @@ export function CommentBubble({
       </div>
 
       {/* Reactions modal */}
-      {reactionsModalOpen && (
-        <ReactionsModalLazy
-          open={reactionsModalOpen}
-          onClose={() => setReactionsModalOpen(false)}
-          type="comment"
-          entityId={comment.id}
-        />
-      )}
+      <ReactionsModal
+        open={reactionsModalOpen}
+        onClose={() => setReactionsModalOpen(false)}
+        type="comment"
+        entityId={comment.id}
+      />
     </div>
   );
 }
