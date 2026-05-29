@@ -882,6 +882,20 @@ export const translations = {
     // Sidebar section labels
     sectionCrafts: 'التخصصات',
 
+    // Videos page
+    videosTitle: 'الفيديوهات',
+    videosSubtitle: 'أعمال الحرفيين بالصوت والصورة',
+
+    // Follow lists + their privacy
+    followListPrivateTitle: 'هذه القائمة خاصة',
+    followListPrivateDesc: 'صاحب الحساب جعل هذه القائمة غير متاحة للعرض',
+    noFollowersYet: 'لا يوجد متابِعون بعد',
+    noFollowingYet: 'لا يتابع أحداً بعد',
+    whoCanSeeFollowersLabel: 'من يرى متابِعيك',
+    whoCanSeeFollowersDesc: 'تحكّم بمن يستطيع رؤية قائمة الأشخاص الذين يتابعونك',
+    whoCanSeeFollowingLabel: 'من يرى من تتابعهم',
+    whoCanSeeFollowingDesc: 'تحكّم بمن يستطيع رؤية قائمة الأشخاص الذين تتابعهم',
+
     // Settings descriptions
     editProfileDesc: 'الاسم والصورة والمعلومات الشخصية',
     privacyDesc: 'التحكم في خصوصيتك وأمان حسابك',
@@ -1829,6 +1843,20 @@ export const translations = {
     // Sidebar section labels
     sectionCrafts: 'Spécialités',
 
+    // Videos page
+    videosTitle: 'Vidéos',
+    videosSubtitle: 'Le travail des artisans en son et en image',
+
+    // Follow lists + their privacy
+    followListPrivateTitle: 'Cette liste est privée',
+    followListPrivateDesc: 'Le propriétaire du compte a masqué cette liste',
+    noFollowersYet: 'Aucun abonné pour le moment',
+    noFollowingYet: "N'abonné à personne pour le moment",
+    whoCanSeeFollowersLabel: 'Qui voit vos abonnés',
+    whoCanSeeFollowersDesc: 'Contrôlez qui peut voir la liste de vos abonnés',
+    whoCanSeeFollowingLabel: 'Qui voit vos abonnements',
+    whoCanSeeFollowingDesc: 'Contrôlez qui peut voir la liste de vos abonnements',
+
     // Settings descriptions
     editProfileDesc: 'Nom, photo et informations personnelles',
     privacyDesc: 'Gérez votre confidentialité et la sécurité de votre compte',
@@ -2775,6 +2803,20 @@ export const translations = {
 
     // Sidebar section labels
     sectionCrafts: 'Specialties',
+
+    // Videos page
+    videosTitle: 'Videos',
+    videosSubtitle: "Artisans' work in sound and motion",
+
+    // Follow lists + their privacy
+    followListPrivateTitle: 'This list is private',
+    followListPrivateDesc: 'The account owner has hidden this list',
+    noFollowersYet: 'No followers yet',
+    noFollowingYet: 'Not following anyone yet',
+    whoCanSeeFollowersLabel: 'Who can see your followers',
+    whoCanSeeFollowersDesc: 'Control who can view the list of people who follow you',
+    whoCanSeeFollowingLabel: 'Who can see your following',
+    whoCanSeeFollowingDesc: 'Control who can view the list of people you follow',
 
     // Settings descriptions
     editProfileDesc: 'Name, photo and personal information',

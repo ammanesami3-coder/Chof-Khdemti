@@ -27,7 +27,7 @@ export default async function ConversationPage({ params }: Props) {
   const isArtisan = conv.artisan_id === user.id;
   const partnerId = isArtisan ? conv.customer_id : conv.artisan_id;
 
-  const [currentUserResult, currentProfileResult, partnerUserResult, partnerProfileResult, rawMessagesResult] =
+  const [currentUserResult, currentProfileResult, partnerUserResult, partnerProfileResult, rawMessagesResult, partnerSubResult] =
     await Promise.all([
       supabase.from('users').select('account_type').eq('id', user.id).single(),
       supabase.from('profiles').select('avatar_url').eq('user_id', user.id).maybeSingle(),
@@ -43,6 +43,8 @@ export default async function ConversationPage({ params }: Props) {
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: false })
         .limit(50) as Promise<{ data: RawMessage[] | null }>,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).rpc('get_subscribed_user_ids', { p_user_ids: [partnerId] }) as Promise<{ data: string[] | null }>,
     ]);
 
   if (!partnerUserResult.data) notFound();
@@ -194,6 +196,7 @@ export default async function ConversationPage({ params }: Props) {
     username:     partnerUserResult.data.username,
     full_name:    partnerUserResult.data.full_name,
     avatar_url:   partnerProfileResult.data?.avatar_url ?? null,
+    is_subscribed: (partnerSubResult.data ?? []).includes(partnerId),
     last_seen_at: partnerProfileResult.data?.last_seen_hidden
       ? null
       : (partnerProfileResult.data?.last_seen_at ?? null),

@@ -28,7 +28,7 @@ const SharedPostEmbedLazy = dynamic(
   () => import("@/components/feed/shared-post-embed").then((m) => m.SharedPostEmbed),
   { ssr: false, loading: () => <div className="mx-4 mt-3 h-20 animate-pulse rounded-xl bg-muted" /> }
 );
-import { ReactionsModal } from "@/components/feed/reactions-modal";
+import { ReactionsModalLazy, preloadReactionsModal } from "@/components/feed/reactions-modal-lazy";
 import {
   BadgeCheck,
   Bookmark,
@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PostReactionButton } from "@/components/feed/post-reaction-button";
 import { ReactionsSummary } from "@/components/feed/reactions-summary";
+import { usePrefetchReactors } from "@/hooks/use-reactors";
 import { followUser, unfollowUser } from "@/lib/actions/follow";
 import { followStore } from "@/lib/stores/follow-store";
 import { toggleSavePost } from "@/lib/actions/save-post";
@@ -336,6 +337,7 @@ export function PostCard({
   initialCommentHighlight,
 }: PostCardProps) {
   const { t, lang } = useLang();
+  const prefetchReactors = usePrefetchReactors();
   const [sheetOpen, setSheetOpen] = useState(!!initialCommentHighlight);
   const [sheetAutoFocus, setSheetAutoFocus] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -651,6 +653,10 @@ export function PostCard({
             totalCount={post.likes_count}
             fallbackReaction={post.user_reaction}
             onClick={() => setReactionsModalOpen(true)}
+            onPrefetch={() => {
+              preloadReactionsModal();
+              prefetchReactors('post', post.id);
+            }}
           />
         )}
       </div>
@@ -731,13 +737,15 @@ export function PostCard({
         isAuthenticated={!!currentUserId}
       />
 
-      {/* ── Reactions modal ───────────────────────────────────────── */}
-      <ReactionsModal
-        open={reactionsModalOpen}
-        onClose={() => setReactionsModalOpen(false)}
-        type="post"
-        entityId={post.id}
-      />
+      {/* ── Reactions modal (chunk loaded on first open) ──────────── */}
+      {reactionsModalOpen && (
+        <ReactionsModalLazy
+          open={reactionsModalOpen}
+          onClose={() => setReactionsModalOpen(false)}
+          type="post"
+          entityId={post.id}
+        />
+      )}
 
       {/* ── Delete confirmation ───────────────────────────────────── */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

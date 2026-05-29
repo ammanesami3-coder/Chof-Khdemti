@@ -2,6 +2,7 @@
 
 import { Video } from 'lucide-react';
 import { FeedList } from '@/components/feed/feed-list';
+import { useLang } from '@/lib/i18n/language-context';
 import type { FeedPage } from '@/lib/queries/posts';
 
 type CurrentUser = {
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export function VideoFeed({ currentUser, initialFeed }: Props) {
+  const { t } = useLang();
   return (
     <div className="mx-auto max-w-[680px] px-3 sm:px-4 py-4 lg:py-6 pb-24 md:pb-8">
       {/* Page header */}
@@ -28,8 +30,8 @@ export function VideoFeed({ currentUser, initialFeed }: Props) {
           <Video className="h-5 w-5 text-white" strokeWidth={2.5} />
         </div>
         <div>
-          <h1 className="text-xl font-bold leading-tight">الفيديوهات</h1>
-          <p className="text-sm text-muted-foreground">أعمال الحرفيين بالصوت والصورة</p>
+          <h1 className="text-xl font-bold leading-tight">{t('videosTitle')}</h1>
+          <p className="text-sm text-muted-foreground">{t('videosSubtitle')}</p>
         </div>
       </div>
 

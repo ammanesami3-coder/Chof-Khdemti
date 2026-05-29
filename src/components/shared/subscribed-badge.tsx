@@ -1,38 +1,46 @@
-import { Sparkles } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Size = 'xs' | 'sm' | 'md';
 
-const sizeMap: Record<Size, string> = {
-  xs: 'gap-0.5 px-1.5 py-0 text-[10px]',
-  sm: 'gap-1 px-2 py-0.5 text-xs',
-  md: 'gap-1 px-2.5 py-0.5 text-sm',
+// Circular badge sizes — keep compact so it sits inline next to a name.
+const circleMap: Record<Size, string> = {
+  xs: 'size-[15px]',
+  sm: 'size-[18px]',
+  md: 'size-5',
 };
 
 const iconMap: Record<Size, string> = {
-  xs: 'size-2.5',
-  sm: 'size-3',
-  md: 'size-3.5',
+  xs: 'size-2',
+  sm: 'size-2.5',
+  md: 'size-3',
 };
 
 type Props = {
   size?: Size;
   className?: string;
+  /** Tooltip / accessible label (defaults to Arabic "subscribed artisan"). */
+  title?: string;
 };
 
-export function SubscribedBadge({ size = 'sm', className }: Props) {
+/**
+ * Gradient check-mark badge shown next to a subscribed artisan's name.
+ * Presentational only (no hooks) so it works in both server and client trees.
+ */
+export function SubscribedBadge({ size = 'sm', className, title = 'حرفي مشترك' }: Props) {
   return (
     <span
+      role="img"
+      title={title}
+      aria-label={title}
       className={cn(
-        'inline-flex shrink-0 items-center rounded-full font-medium',
-        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-        sizeMap[size],
+        'inline-flex shrink-0 items-center justify-center rounded-full text-white',
+        circleMap[size],
         className,
       )}
-      title="حرفي مشترك"
+      style={{ background: 'var(--brand-gradient)' }}
     >
-      <Sparkles className={iconMap[size]} />
-      موثوق
+      <Check className={cn(iconMap[size], 'stroke-[3.5]')} aria-hidden="true" />
     </span>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import dynamic from "next/dynamic";
 import { formatDistanceToNow } from "date-fns";
 import { ar, fr, enUS } from "date-fns/locale";
 import { Send } from "lucide-react";
@@ -16,11 +15,9 @@ import {
 import { getReaction, getTopReactions, type Reaction } from "@/lib/constants/reactions";
 import { useLang } from "@/lib/i18n/language-context";
 import type { RecentComment } from "@/lib/validations/post";
-
-const ReactionsModalLazy = dynamic(
-  () => import("@/components/feed/reactions-modal").then((m) => m.ReactionsModal),
-  { ssr: false }
-);
+import { ReactionsModalLazy, preloadReactionsModal } from "@/components/feed/reactions-modal-lazy";
+import { usePrefetchReactors } from "@/hooks/use-reactors";
+import { SubscribedBadge } from "@/components/shared/subscribed-badge";
 
 type CurrentUser = {
   id: string;
@@ -49,6 +46,7 @@ export function CommentItem({
   isPending = false,
 }: Props) {
   const { t, lang } = useLang();
+  const prefetchReactors = usePrefetchReactors();
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(comment.content);
   const [showReply, setShowReply] = useState(false);
@@ -149,9 +147,12 @@ export function CommentItem({
           className={`relative inline-block max-w-full ${likesCount > 0 ? "mb-3" : "mb-0.5"}`}
         >
           <div className="rounded-2xl bg-muted px-3 py-2 text-sm leading-relaxed">
-            <p className="font-semibold leading-tight text-foreground">
-              {comment.author.full_name}
-            </p>
+            <span className="flex items-center gap-1">
+              <span className="font-semibold leading-tight text-foreground">
+                {comment.author.full_name}
+              </span>
+              {comment.author.is_subscribed && <SubscribedBadge size="xs" />}
+            </span>
 
             {editing ? (
               <div className="mt-1.5 flex items-center gap-1.5">
@@ -191,6 +192,10 @@ export function CommentItem({
             <button
               type="button"
               onClick={() => setReactionsModalOpen(true)}
+              onPointerEnter={() => {
+                preloadReactionsModal();
+                prefetchReactors('comment', comment.id);
+              }}
               aria-label={t('viewReactionsAriaLabel')}
               className="absolute -bottom-2.5 end-2 flex items-center gap-0.5 rounded-full border border-border/60 bg-background px-1.5 py-0.5 text-xs shadow-sm transition-all hover:scale-105 hover:bg-muted"
             >

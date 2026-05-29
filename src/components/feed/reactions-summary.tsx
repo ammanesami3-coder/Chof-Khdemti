@@ -10,6 +10,8 @@ interface ReactionsSummaryProps {
    *  (prevents flicker before reactions_summary has propagated). */
   fallbackReaction?: string | null;
   onClick?: () => void;
+  /** Warm the reactor list + modal chunk before the click lands (hover/focus). */
+  onPrefetch?: () => void;
   className?: string;
   /** Visual sizing — 'sm' for comments, 'md' for posts (default) */
   size?: 'sm' | 'md';
@@ -22,6 +24,7 @@ export function ReactionsSummary({
   totalCount,
   fallbackReaction,
   onClick,
+  onPrefetch,
   className,
   size = 'md',
   showCount = true,
@@ -44,6 +47,8 @@ export function ReactionsSummary({
     <button
       type="button"
       onClick={onClick}
+      onPointerEnter={onPrefetch}
+      onFocus={onPrefetch}
       disabled={!onClick}
       aria-label={`${totalCount}`}
       className={cn(

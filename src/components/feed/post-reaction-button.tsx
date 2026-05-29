@@ -51,15 +51,17 @@ export function PostReactionButton({
     if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
   }, []);
 
-  // ── Desktop hover ──────────────────────────────────────────────────────────
+  // ── Desktop hover (mouse only — ignore synthetic touch mouse events) ────────
 
-  const handleMouseEnterButton = () => {
+  const handlePointerEnterButton = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
     cancelHide();
     if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
     hoverOpenTimerRef.current = setTimeout(showPicker, HOVER_DELAY_MS);
   };
 
-  const handleMouseLeaveButton = () => {
+  const handlePointerLeaveButton = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
     if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
     scheduleHide();
   };
@@ -67,9 +69,10 @@ export function PostReactionButton({
   const handlePickerMouseEnter = () => cancelHide();
   const handlePickerMouseLeave = () => scheduleHide();
 
-  // ── Mobile long-press ──────────────────────────────────────────────────────
+  // ── Mobile long-press (touch/pen only — mouse uses hover) ───────────────────
 
-  const handlePointerDown = () => {
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') return;
     longPressedRef.current = false;
     longPressTimerRef.current = setTimeout(() => {
       longPressedRef.current = true;
@@ -113,8 +116,8 @@ export function PostReactionButton({
 
       <button
         onClick={handleClick}
-        onMouseEnter={handleMouseEnterButton}
-        onMouseLeave={handleMouseLeaveButton}
+        onPointerEnter={handlePointerEnterButton}
+        onPointerLeave={handlePointerLeaveButton}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}

@@ -61,6 +61,14 @@ export async function RightSidebar({ currentUserId }: Props) {
     getTrendingData(),
   ]);
 
+  // Resolve which of the suggested artisans are subscribed (active trial / paid).
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: subscribedIds } = await (supabase as any).rpc('get_subscribed_user_ids', {
+    p_user_ids: artisans.map((a) => a.id),
+  }) as { data: string[] | null };
+  const subscribedSet = new Set<string>(subscribedIds ?? []);
+
   const suggestedArtisans: SuggestedArtisan[] = artisans.map((a) => ({
     id: a.id,
     username: a.username,
@@ -68,6 +76,7 @@ export async function RightSidebar({ currentUserId }: Props) {
     craft_category: a.profiles?.craft_category ?? null,
     city: a.profiles?.city ?? null,
     avatar_url: a.profiles?.avatar_url ?? null,
+    is_subscribed: subscribedSet.has(a.id),
   }));
 
   return (

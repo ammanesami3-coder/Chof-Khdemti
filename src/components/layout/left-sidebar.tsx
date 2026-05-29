@@ -12,6 +12,7 @@ import { UserAvatar } from '@/components/shared/user-avatar';
 import { useUnreadMessagesCount } from '@/hooks/use-unread-messages-count';
 import { useUnreadNotificationsCount } from '@/hooks/use-notifications';
 import { useLang } from '@/lib/i18n/language-context';
+import { CRAFTS as ALL_CRAFTS } from '@/lib/constants/crafts';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -23,17 +24,22 @@ export type SidebarUser = {
 
 // ── Craft categories ───────────────────────────────────────────────────────────
 
-const CRAFTS = [
-  { emoji: '🪵', label: 'نجارة' },
-  { emoji: '⚡', label: 'كهرباء' },
-  { emoji: '🎨', label: 'صباغة' },
-  { emoji: '🔧', label: 'سباكة' },
-  { emoji: '🚗', label: 'ميكانيك' },
-  { emoji: '🏗️', label: 'بناء' },
-  { emoji: '📱', label: 'إصلاح هواتف' },
-  { emoji: '✂️', label: 'خياطة' },
-  { emoji: '👨‍🍳', label: 'طبخ' },
-  { emoji: '📸', label: 'تصوير' },
+const CRAFT_EMOJI: Record<string, string> = {
+  carpentry:       '🪵',
+  electricity:     '⚡',
+  painting:        '🎨',
+  plumbing:        '🔧',
+  mechanic:        '🚗',
+  construction:    '🏗️',
+  'phone-repair':  '📱',
+  tailoring:       '✂️',
+  cooking:         '👨‍🍳',
+  photography:     '📸',
+};
+
+const SIDEBAR_CRAFT_IDS = [
+  'carpentry', 'electricity', 'painting', 'plumbing', 'mechanic',
+  'construction', 'phone-repair', 'tailoring', 'cooking', 'photography',
 ];
 
 // ── SidebarLink ────────────────────────────────────────────────────────────────
@@ -119,12 +125,19 @@ function SectionLabel({ label }: { label: string }) {
 // ── LeftSidebar ────────────────────────────────────────────────────────────────
 
 export function LeftSidebar({ user }: { user: SidebarUser | null }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const unreadMessages      = useUnreadMessagesCount();
   const unreadNotifications = useUnreadNotificationsCount();
   const [showMore, setShowMore] = useState(false);
 
-  const visibleCrafts = showMore ? CRAFTS : CRAFTS.slice(0, 5);
+  const sidebarCrafts = SIDEBAR_CRAFT_IDS.flatMap((id) => {
+    const craft = ALL_CRAFTS.find((c) => c.id === id);
+    if (!craft) return [];
+    const label = lang === 'fr' ? craft.name_fr : lang === 'en' ? craft.name_en : craft.name_ar;
+    return [{ id, emoji: CRAFT_EMOJI[id] ?? '🔨', label, nameAr: craft.name_ar }];
+  });
+
+  const visibleCrafts = showMore ? sidebarCrafts : sidebarCrafts.slice(0, 5);
 
   return (
     <aside
@@ -181,8 +194,8 @@ export function LeftSidebar({ user }: { user: SidebarUser | null }) {
         <SectionLabel label={t('sectionCrafts')} />
         {visibleCrafts.map((c) => (
           <SidebarLink
-            key={c.label}
-            href={`/explore?craft=${encodeURIComponent(c.label)}`}
+            key={c.id}
+            href={`/explore?craft=${encodeURIComponent(c.nameAr)}`}
             emoji={c.emoji}
             label={c.label}
           />

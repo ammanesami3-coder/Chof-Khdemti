@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore, useTransition } from 'react';
 import { toast } from 'sonner';
 import { ProfileHeader } from './profile-header';
 import { ProfileStats } from './profile-stats';
+import { FollowListModal } from './follow-list-modal';
 import { followUser, unfollowUser } from '@/lib/actions/follow';
 import { followStore } from '@/lib/stores/follow-store';
 import { StatusViewer } from '@/components/status/status-viewer';
@@ -31,6 +32,7 @@ type ProfileData = {
   city: string | null;
   years_experience: number | null;
   is_verified: boolean;
+  is_subscribed?: boolean;
   last_seen_at?: string | null;
 };
 
@@ -81,6 +83,13 @@ export function ProfileClient({
   const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
   const [coverLightboxOpen, setCoverLightboxOpen] = useState(false);
   const [avatarChoiceOpen, setAvatarChoiceOpen] = useState(false);
+  const [followListOpen, setFollowListOpen] = useState(false);
+  const [followListTab, setFollowListTab] = useState<'followers' | 'following'>('followers');
+
+  function openFollowList(tab: 'followers' | 'following') {
+    setFollowListTab(tab);
+    setFollowListOpen(true);
+  }
 
   function toggleFollow() {
     const wasFollowing = isFollowing;
@@ -149,6 +158,17 @@ export function ProfileClient({
         postsCount={postsCount}
         followersCount={followersCount}
         followingCount={followingCount}
+        onFollowersClick={() => openFollowList('followers')}
+        onFollowingClick={() => openFollowList('following')}
+      />
+
+      <FollowListModal
+        open={followListOpen}
+        onClose={() => setFollowListOpen(false)}
+        ownerId={user.id}
+        initialTab={followListTab}
+        isAuthenticated={!!currentUser}
+        currentUserId={currentUser?.id}
       />
 
       {localStatus && (() => {

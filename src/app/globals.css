@@ -330,3 +330,41 @@
   border-radius: 9999px;
   overflow: hidden;
 }
+
+/* ── Auth animated brand gradient background ─────────────────────────────── */
+/* Elegant, slowly drifting multi-stop gradient built from the brand palette,
+   with a soft top sheen + deeper edges for a premium, luxurious feel. */
+.auth-animated-bg {
+  background: linear-gradient(
+    -45deg,
+    #FF4D4D 0%,
+    #FF6B4A 22%,
+    #FF9F43 48%,
+    #FFC24D 72%,
+    #FF7A3D 100%
+  );
+  background-size: 320% 320%;
+  animation: authGradientShift 22s ease-in-out infinite;
+}
+
+@keyframes authGradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Floating ambient orbs — slow, weightless drift for depth. */
+@keyframes authOrbFloat {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(0, -28px, 0) scale(1.08); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+.auth-orb {
+  animation: authOrbFloat 16s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-animated-bg { animation: none; }
+  .auth-orb { animation: none; }
+}

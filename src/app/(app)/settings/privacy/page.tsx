@@ -12,6 +12,8 @@ import {
   Lock,
   Wifi,
   PenLine,
+  Users,
+  UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -26,6 +28,17 @@ type VisibilitySettings = {
   profileVisibility: VisibilityOption;
   whoCanMessage: VisibilityOption;
   whoCanComment: VisibilityOption;
+  whoCanSeeFollowers: VisibilityOption;
+  whoCanSeeFollowing: VisibilityOption;
+};
+
+/** Maps each visibility setting to its `profiles` table column. */
+const VISIBILITY_COLUMN: Record<keyof VisibilitySettings, string> = {
+  profileVisibility: 'profile_visibility',
+  whoCanMessage: 'who_can_message',
+  whoCanComment: 'who_can_comment',
+  whoCanSeeFollowers: 'who_can_see_followers',
+  whoCanSeeFollowing: 'who_can_see_following',
 };
 
 /** Presence toggles — `show*` is the user-facing value (true = visible). */
@@ -39,6 +52,8 @@ const VISIBILITY_DEFAULTS: VisibilitySettings = {
   profileVisibility: 'everyone',
   whoCanMessage: 'everyone',
   whoCanComment: 'everyone',
+  whoCanSeeFollowers: 'everyone',
+  whoCanSeeFollowing: 'everyone',
 };
 
 /** Apply a presence toggle to the live store (used app-wide, instantly). */
@@ -201,10 +216,11 @@ export default function PrivacyPage() {
       // The DB is the source of truth for both presence and visibility.
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase as any)
           .from('profiles')
           .select(
-            'last_seen_hidden, online_hidden, typing_hidden, profile_visibility, who_can_message, who_can_comment',
+            'last_seen_hidden, online_hidden, typing_hidden, profile_visibility, who_can_message, who_can_comment, who_can_see_followers, who_can_see_following',
           )
           .eq('user_id', user.id)
           .single();
@@ -218,6 +234,8 @@ export default function PrivacyPage() {
             profileVisibility: (data.profile_visibility as VisibilityOption) ?? 'everyone',
             whoCanMessage: (data.who_can_message as VisibilityOption) ?? 'everyone',
             whoCanComment: (data.who_can_comment as VisibilityOption) ?? 'everyone',
+            whoCanSeeFollowers: (data.who_can_see_followers as VisibilityOption) ?? 'everyone',
+            whoCanSeeFollowing: (data.who_can_see_following as VisibilityOption) ?? 'everyone',
           });
         }
       }
@@ -241,13 +259,9 @@ export default function PrivacyPage() {
       const { data: { user } } = await supabase.auth.getUser();
       let saveFailed = !user;
       if (user) {
-        const patch =
-          key === 'profileVisibility'
-            ? { profile_visibility: value }
-            : key === 'whoCanMessage'
-              ? { who_can_message: value }
-              : { who_can_comment: value };
-        const { error } = await supabase
+        const patch = { [VISIBILITY_COLUMN[key]]: value };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any)
           .from('profiles')
           .update(patch)
           .eq('user_id', user.id);
@@ -397,6 +411,34 @@ export default function PrivacyPage() {
               options={visibilityOptions}
               value={visibility.whoCanComment}
               onChange={(val) => updateVisibility('whoCanComment', val)}
+            />
+          </PrivacyCard>
+
+          <PrivacyCard
+            icon={Users}
+            iconBg="bg-indigo-50 dark:bg-indigo-950/40"
+            iconColor="text-indigo-600 dark:text-indigo-400"
+            title={t('whoCanSeeFollowersLabel')}
+            description={t('whoCanSeeFollowersDesc')}
+          >
+            <SegmentedControl
+              options={visibilityOptions}
+              value={visibility.whoCanSeeFollowers}
+              onChange={(val) => updateVisibility('whoCanSeeFollowers', val)}
+            />
+          </PrivacyCard>
+
+          <PrivacyCard
+            icon={UserCheck}
+            iconBg="bg-pink-50 dark:bg-pink-950/40"
+            iconColor="text-pink-600 dark:text-pink-400"
+            title={t('whoCanSeeFollowingLabel')}
+            description={t('whoCanSeeFollowingDesc')}
+          >
+            <SegmentedControl
+              options={visibilityOptions}
+              value={visibility.whoCanSeeFollowing}
+              onChange={(val) => updateVisibility('whoCanSeeFollowing', val)}
             />
           </PrivacyCard>
         </div>

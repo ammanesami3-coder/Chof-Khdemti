@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { REACTIONS, getReaction } from '@/lib/constants/reactions';
-import { getPostReactions, getCommentReactions, type ReactorUser } from '@/lib/actions/likes';
+import type { ReactorUser } from '@/lib/actions/likes';
+import { useReactors } from '@/hooks/use-reactors';
 import { useLang } from '@/lib/i18n/language-context';
 import { cn } from '@/lib/utils';
 
@@ -18,30 +19,15 @@ interface ReactionsModalProps {
 
 export function ReactionsModal({ open, onClose, type, entityId }: ReactionsModalProps) {
   const { t } = useLang();
-  const [reactors, setReactors] = useState<ReactorUser[]>([]);
-  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('all');
 
-  const loadReactions = useCallback(async () => {
-    if (!entityId) return;
-    setLoading(true);
-    try {
-      const fn = type === 'post' ? getPostReactions : getCommentReactions;
-      const data = await fn(entityId);
-      setReactors(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [entityId, type]);
+  const { data: reactors = [], isLoading } = useReactors(type, entityId, open);
+  // Skeleton only when there's no cached data yet (first open / cache miss).
+  const loading = isLoading && reactors.length === 0;
 
   useEffect(() => {
-    if (open) {
-      setActiveTab('all');
-      loadReactions();
-    } else {
-      setReactors([]);
-    }
-  }, [open, loadReactions]);
+    if (open) setActiveTab('all');
+  }, [open]);
 
   // Group by reaction type
   const grouped = reactors.reduce<Record<string, ReactorUser[]>>((acc, r) => {
@@ -107,8 +93,13 @@ export function ReactionsModal({ open, onClose, type, entityId }: ReactionsModal
         {/* User list */}
         <div className="max-h-[60vh] min-h-[100px] overflow-y-auto py-1">
           {loading ? (
-            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-              {t('loading')}
+            <div className="py-1" aria-hidden="true">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+                  <div className="size-8 shrink-0 animate-pulse rounded-full bg-muted" />
+                  <div className="h-3.5 w-32 animate-pulse rounded bg-muted" />
+                </div>
+              ))}
             </div>
           ) : displayed.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Users } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import { SubscribedBadge } from '@/components/shared/subscribed-badge';
 import { useLang } from '@/lib/i18n/language-context';
 import { getCraftName } from '@/lib/constants/crafts';
 import { getCityName } from '@/lib/constants/cities';
@@ -14,6 +15,7 @@ export type SuggestedArtisan = {
   craft_category: string | null;
   city: string | null;
   avatar_url: string | null;
+  is_subscribed?: boolean;
 };
 
 type Props = {
@@ -37,8 +39,9 @@ function ArtisanRow({ artisan, lang }: { artisan: SuggestedArtisan; lang: 'ar' |
       </Link>
       <div className="min-w-0 flex-1">
         <Link href={`/profile/${artisan.username}`} className="block">
-          <p className="truncate text-sm font-semibold group-hover:text-[#FF9F43] transition-colors">
-            {artisan.full_name}
+          <p className="flex items-center gap-1 truncate text-sm font-semibold group-hover:text-[#FF9F43] transition-colors">
+            <span className="truncate">{artisan.full_name}</span>
+            {artisan.is_subscribed && <SubscribedBadge size="xs" />}
           </p>
           {(craftName || cityName) && (
             <p className="truncate text-xs text-muted-foreground">

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { BadgeCheck, MapPin, Briefcase, Clock, MessageCircle, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AuthGate } from '@/components/shared/auth-gate';
+import { SubscribedBadge } from '@/components/shared/subscribed-badge';
 import { RatingDisplay } from '@/components/rating/rating-display';
 import { PresenceText } from '@/components/shared/presence-text';
 import { useIsOnline } from '@/hooks/use-is-online';
@@ -27,6 +28,7 @@ type ProfileData = {
   city: string | null;
   years_experience: number | null;
   is_verified: boolean;
+  is_subscribed?: boolean;
 };
 
 type CurrentUser = {
@@ -205,6 +207,7 @@ export function ProfileHeader({
               {profile.is_verified && (
                 <BadgeCheck className="size-5 shrink-0 text-blue-500 dark:text-blue-400" aria-label={t('verifiedBadgeAriaLabel')} />
               )}
+              {profile.is_subscribed && <SubscribedBadge size="md" />}
             </div>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
             <PresenceText userId={user.id} lastSeenAt={lastSeenAt} className="mt-0.5 text-xs" />

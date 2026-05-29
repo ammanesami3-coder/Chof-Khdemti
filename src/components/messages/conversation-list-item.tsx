@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { MoreHorizontal, Pin, BellOff } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import { SubscribedBadge } from '@/components/shared/subscribed-badge';
 import { cn } from '@/lib/utils';
 import { useLongPress } from '@/hooks/use-long-press';
 import { useLang } from '@/lib/i18n/language-context';
@@ -155,8 +156,9 @@ export function ConversationListItem({ conv, currentUserId, onOptimisticUpdate }
               {muted && (
                 <BellOff className="h-3 w-3 shrink-0 text-muted-foreground" aria-label={t('mutedConversationAriaLabel')} />
               )}
-              <span className={cn('truncate text-sm', isUnread ? 'font-semibold' : 'font-medium')}>
-                {partner_full_name}
+              <span className={cn('flex min-w-0 items-center gap-1 text-sm', isUnread ? 'font-semibold' : 'font-medium')}>
+                <span className="truncate">{partner_full_name}</span>
+                {conv.partner_is_subscribed && <SubscribedBadge size="xs" />}
               </span>
             </div>
           </div>

@@ -23,8 +23,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLang } from "@/lib/i18n/language-context";
 import type { RecentComment } from "@/lib/validations/post";
-
-import { ReactionsModal } from "@/components/feed/reactions-modal";
+import { ReactionsModalLazy, preloadReactionsModal } from "@/components/feed/reactions-modal-lazy";
+import { usePrefetchReactors } from "@/hooks/use-reactors";
+import { SubscribedBadge } from "@/components/shared/subscribed-badge";
 
 type CurrentUser = {
   id: string;
@@ -55,6 +56,7 @@ export function CommentBubble({
   highlightId,
 }: Props) {
   const { t, lang } = useLang();
+  const prefetchReactors = usePrefetchReactors();
   const elId = `comment-${comment.id}`;
   const isHighlighted = highlightId === comment.id;
 
@@ -174,12 +176,15 @@ export function CommentBubble({
             )}
           >
             {/* Author name */}
-            <Link
-              href={`/profile/${comment.author.username}`}
-              className="block text-[13px] font-semibold leading-tight text-foreground hover:underline"
-            >
-              {comment.author.full_name}
-            </Link>
+            <span className="flex items-center gap-1">
+              <Link
+                href={`/profile/${comment.author.username}`}
+                className="text-[13px] font-semibold leading-tight text-foreground hover:underline"
+              >
+                {comment.author.full_name}
+              </Link>
+              {comment.author.is_subscribed && <SubscribedBadge size="xs" />}
+            </span>
 
             {/* Content / edit input */}
             {editing ? (
@@ -216,6 +221,10 @@ export function CommentBubble({
             <button
               type="button"
               onClick={() => setReactionsModalOpen(true)}
+              onPointerEnter={() => {
+                preloadReactionsModal();
+                prefetchReactors('comment', comment.id);
+              }}
               aria-label={t('viewReactionsAriaLabel')}
               className="absolute -bottom-2.5 end-1.5 flex items-center gap-0.5 rounded-full border border-border/60 bg-background px-1.5 py-0.5 shadow-sm transition-all hover:scale-105 hover:bg-muted"
             >
@@ -363,13 +372,15 @@ export function CommentBubble({
         )}
       </div>
 
-      {/* Reactions modal */}
-      <ReactionsModal
-        open={reactionsModalOpen}
-        onClose={() => setReactionsModalOpen(false)}
-        type="comment"
-        entityId={comment.id}
-      />
+      {/* Reactions modal (chunk loaded on first open) */}
+      {reactionsModalOpen && (
+        <ReactionsModalLazy
+          open={reactionsModalOpen}
+          onClose={() => setReactionsModalOpen(false)}
+          type="comment"
+          entityId={comment.id}
+        />
+      )}
     </div>
   );
 }

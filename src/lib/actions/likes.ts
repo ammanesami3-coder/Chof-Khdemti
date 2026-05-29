@@ -58,20 +58,29 @@ export type ReactorUser = {
   reaction: string;
 };
 
-export async function getPostReactions(postId: string): Promise<ReactorUser[]> {
+/**
+ * Shared reactor-lookup used by both post and comment reaction lists.
+ * One reactions query, then user + profile rows resolved in a single
+ * parallel round trip.
+ */
+async function fetchReactors(
+  table: 'likes' | 'comment_likes',
+  idColumn: 'post_id' | 'comment_id',
+  entityId: string,
+): Promise<ReactorUser[]> {
   const supabase = await createClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: likes } = await (supabase as any)
-    .from('likes')
+  const { data: rows } = await (supabase as any)
+    .from(table)
     .select('user_id, reaction_type')
-    .eq('post_id', postId)
+    .eq(idColumn, entityId)
     .order('created_at', { ascending: false })
     .limit(200) as { data: { user_id: string; reaction_type: string }[] | null };
 
-  if (!likes?.length) return [];
+  if (!rows?.length) return [];
 
-  const userIds = [...new Set(likes.map((l) => l.user_id))];
+  const userIds = [...new Set(rows.map((r) => r.user_id))];
 
   const [usersRes, profilesRes] = await Promise.all([
     supabase.from('users').select('id, username, full_name').in('id', userIds),
@@ -81,43 +90,19 @@ export async function getPostReactions(postId: string): Promise<ReactorUser[]> {
   const userMap = new Map((usersRes.data ?? []).map((u) => [u.id, u]));
   const profileMap = new Map((profilesRes.data ?? []).map((p) => [p.user_id, p]));
 
-  return likes.map((like) => ({
-    user_id: like.user_id,
-    username: userMap.get(like.user_id)?.username ?? '',
-    full_name: userMap.get(like.user_id)?.full_name ?? '',
-    avatar_url: profileMap.get(like.user_id)?.avatar_url ?? null,
-    reaction: like.reaction_type ?? 'like',
+  return rows.map((row) => ({
+    user_id: row.user_id,
+    username: userMap.get(row.user_id)?.username ?? '',
+    full_name: userMap.get(row.user_id)?.full_name ?? '',
+    avatar_url: profileMap.get(row.user_id)?.avatar_url ?? null,
+    reaction: row.reaction_type ?? 'like',
   }));
 }
 
+export async function getPostReactions(postId: string): Promise<ReactorUser[]> {
+  return fetchReactors('likes', 'post_id', postId);
+}
+
 export async function getCommentReactions(commentId: string): Promise<ReactorUser[]> {
-  const supabase = await createClient();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: commentLikes } = await (supabase as any)
-    .from('comment_likes')
-    .select('user_id, reaction_type')
-    .eq('comment_id', commentId)
-    .order('created_at', { ascending: false })
-    .limit(200) as { data: { user_id: string; reaction_type: string }[] | null };
-
-  if (!commentLikes?.length) return [];
-
-  const userIds = [...new Set(commentLikes.map((l) => l.user_id))];
-
-  const [usersRes, profilesRes] = await Promise.all([
-    supabase.from('users').select('id, username, full_name').in('id', userIds),
-    supabase.from('profiles').select('user_id, avatar_url').in('user_id', userIds),
-  ]);
-
-  const userMap = new Map((usersRes.data ?? []).map((u) => [u.id, u]));
-  const profileMap = new Map((profilesRes.data ?? []).map((p) => [p.user_id, p]));
-
-  return commentLikes.map((like) => ({
-    user_id: like.user_id,
-    username: userMap.get(like.user_id)?.username ?? '',
-    full_name: userMap.get(like.user_id)?.full_name ?? '',
-    avatar_url: profileMap.get(like.user_id)?.avatar_url ?? null,
-    reaction: like.reaction_type ?? 'like',
-  }));
+  return fetchReactors('comment_likes', 'comment_id', commentId);
 }

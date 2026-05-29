@@ -231,6 +231,16 @@ export default async function ProfilePage({ params }: Props) {
 
   const initialIsFollowing = (isFollowingRes.count ?? 0) > 0;
 
+  // ── Subscription badge — artisans with an active trial / paid plan ─────────
+  let isSubscribed = false;
+  if (isArtisan) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: subIds } = await (supabase as any).rpc('get_subscribed_user_ids', {
+      p_user_ids: [profileUser.id],
+    }) as { data: string[] | null };
+    isSubscribed = (subIds ?? []).includes(profileUser.id);
+  }
+
   // ── Visibility settings — isolated query so a missing column (migration
   //    0040 not yet applied) cannot break this public page ──────────────────
   let whoCanMessage = 'everyone';
@@ -302,7 +312,7 @@ export default async function ProfilePage({ params }: Props) {
     <main className="mx-auto max-w-2xl">
       <ProfileClient
         user={profileUser}
-        profile={profile}
+        profile={{ ...profile, is_subscribed: isSubscribed }}
         avgRating={avgRating}
         totalRatingsCount={totalRatingsCount}
         currentUser={currentUser}

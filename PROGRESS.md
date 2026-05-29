@@ -4,6 +4,59 @@
 
 ---
 
+## تحديثات جلسة مايو 2026 — الأداء + شارة الاشتراك + المتابعة + خلفية الدخول
+
+### 1. تحسين تجربة التفاعلات (Reactions) على الموبايل
+
+- **إصلاح ظهور شريط التفاعل التلقائي:** عند النقر على إيموجي لإزالة التفاعل في الموبايل كان شريط التفاعل يظهر من تلقاء نفسه (أحداث ماوس اصطناعية بعد اللمس).
+  - `post-reaction-button.tsx` + `comment-reaction-button.tsx`: استبدال `onMouseEnter/Leave` بـ `onPointerEnter/Leave` مع فحص `e.pointerType === 'mouse'` فقط، والضغط المطوّل للّمس فقط (`pointerType !== 'mouse'`).
+
+### 2. تسريع مربع "من تفاعل" (Reactions Modal)
+
+- `hooks/use-reactors.ts` (جديد): TanStack Query hook + `prefetchReactors` + `usePrefetchReactors`.
+- `components/feed/reactions-modal-lazy.tsx` (جديد): تحميل ديناميكي للمربع + `preloadReactionsModal` لتسخين الـ chunk.
+- `reactions-modal.tsx`: يستهلك الـ hook + **skeletons** بدل "تحميل".
+- `reactions-summary.tsx`: prop `onPrefetch` يُطلَق على `onPointerEnter/onFocus`.
+- `post-card.tsx` / `comment-bubble.tsx` / `comment-item.tsx`: تحميل المربع lazy + عرض شرطي + prefetch عند المرور.
+- `lib/actions/likes.ts`: توحيد `getPostReactions`/`getCommentReactions` في `fetchReactors` واحدة.
+- `next.config.ts`: `optimizePackageImports` (lucide-react, date-fns) + إزالة `console.*` في الإنتاج. → نتيجة: `/feed` ≈ 788 B.
+
+### 3. الشريط الجانبي + ترجمات
+
+- `left-sidebar.tsx`: استخدام `CRAFTS` من `constants/crafts` (ترجمة ar/fr/en) بدل قائمة عربية مُشفَّرة + تصحيح أسماء الـ href لتطابق DB.
+- ترجمة صفحة الفيديوهات: `videosTitle` + `videosSubtitle` في `video-feed.tsx` (ar/fr/en).
+
+### 4. شارة الاشتراك → علامة صح بالتدرج اللوني، في كل مكان
+
+- `subscribed-badge.tsx`: إعادة تصميم من نص "موثوق" إلى **دائرة بعلامة صح بيضاء على `--brand-gradient`** (مكوّن عرض خالص).
+- تظهر الآن بجانب اسم الحرفي المشترك في: المنشورات، بطاقات الاكتشاف، **التعليقات والردود**، **الحرفيون المقترحون**، **البروفايل**، **رأس المحادثة**، **قائمة المحادثات**.
+- ربط البيانات عبر RPC `get_subscribed_user_ids`:
+  - `lib/validations/post.ts` (نوع `RecentComment.author`) + `lib/actions/comments.ts` (getComments + addComment).
+  - `suggested-artisans.tsx` + `right-sidebar.tsx`.
+  - `chat-window.tsx` + `messages/[conversationId]/page.tsx`.
+  - `conversation-list-item.tsx` + `lib/queries/conversations.ts` (`partner_is_subscribed`).
+  - `profile-header.tsx` + `profile-client.tsx` + `profile/[username]/page.tsx`.
+
+### 5. خلفية متحركة لصفحات الدخول/التسجيل
+
+- `globals.css`: `.auth-animated-bg` (تدرج ألوان المنصة منساب 22s) + `.auth-orb` (كرات عائمة) + احترام `prefers-reduced-motion`.
+- `(auth)/layout.tsx`: استخدام الخلفية + طبقة عمق (sheen + حواف داكنة) + محتوى فوقها بـ `z-10`.
+
+### 6. قوائم المتابِعين/المتابَعين (Facebook-style) + خصوصيتها
+
+- `lib/actions/follow.ts`: `getFollowList(ownerId, type)` — يجلب القائمة مع حالة الاشتراك + متابعة المُشاهد، **ويطبّق الخصوصية** (`restricted`).
+- `components/profile/follow-list-modal.tsx` (جديد): مودال بتبويبين + زر متابعة/إلغاء فوري (followStore).
+- `profile-stats.tsx`: العددان قابلان للنقر → `profile-client.tsx` يفتح المودال.
+- **Migration `0048_follow_list_visibility.sql`**: عمودا `who_can_see_followers` / `who_can_see_following` (everyone/followers/none).
+- `settings/privacy/page.tsx`: بطاقتان جديدتان للتحكم + توحيد منطق التحديث عبر `VISIBILITY_COLUMN`.
+- ترجمات: `followListPrivateTitle/Desc`, `noFollowersYet`, `noFollowingYet`, `whoCanSeeFollowers/Following Label/Desc` (ar/fr/en).
+
+> ⚠️ **يتطلّب تطبيق Migration `0048` على Supabase** لتفعيل خصوصية القوائم (حتى ذلك الحين الافتراضي "الجميع").
+
+**النتائج:** `npx tsc --noEmit` ✓ · `npm run build` ✓ · `eslint` ✓
+
+---
+
 ## المرحلة 1 — الأساس والبنية التحتية ✅
 
 - [x] هيكل المشروع (Next.js 15, TypeScript strict, Tailwind, shadcn/ui)

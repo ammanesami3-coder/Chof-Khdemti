@@ -44,6 +44,8 @@ export type RecentComment = {
     username: string;
     full_name: string;
     avatar_url: string | null;
+    /** True when the author has an active trial or paid subscription */
+    is_subscribed?: boolean;
   };
   replies?: RecentComment[];
 };

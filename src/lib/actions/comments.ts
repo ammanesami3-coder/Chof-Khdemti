@@ -181,9 +181,11 @@ export async function addComment(
     commentParentId = c1.parent_comment_id ?? null;
   }
 
-  const [userRes, profileRes] = await Promise.all([
+  const [userRes, profileRes, subscribedRes] = await Promise.all([
     supabase.from('users').select('username, full_name').eq('id', user.id).single(),
     supabase.from('profiles').select('avatar_url').eq('user_id', user.id).single(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).rpc('get_subscribed_user_ids', { p_user_ids: [user.id] }) as Promise<{ data: string[] | null }>,
   ]);
 
   return {
@@ -198,6 +200,7 @@ export async function addComment(
       username: userRes.data?.username ?? '',
       full_name: userRes.data?.full_name ?? '',
       avatar_url: profileRes.data?.avatar_url ?? null,
+      is_subscribed: (subscribedRes.data ?? []).includes(user.id),
     },
   };
 }
@@ -346,8 +349,8 @@ export async function getComments(
   const allIds = allRows.map((c: { id: string }) => c.id);
   const authorIds = [...new Set(allRows.map((c: { author_id: string }) => c.author_id))];
 
-  // 3. Fetch author data + current user's reactions in parallel
-  const [usersRes, profilesRes, likesRes] = await Promise.all([
+  // 3. Fetch author data + current user's reactions + subscribed authors in parallel
+  const [usersRes, profilesRes, likesRes, subscribedRes] = await Promise.all([
     supabase.from('users').select('id, username, full_name').in('id', authorIds),
     supabase.from('profiles').select('user_id, avatar_url').in('user_id', authorIds),
     user
@@ -358,6 +361,8 @@ export async function getComments(
           .eq('user_id', user.id)
           .in('comment_id', allIds) as Promise<{ data: { comment_id: string; reaction_type: string }[] | null }>
       : Promise.resolve({ data: [] as { comment_id: string; reaction_type: string }[] }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).rpc('get_subscribed_user_ids', { p_user_ids: authorIds }) as Promise<{ data: string[] | null }>,
   ]);
 
   const userMap = new Map((usersRes.data ?? []).map((u) => [u.id, u]));
@@ -366,6 +371,7 @@ export async function getComments(
   const reactionMap = new Map(
     (likesRes.data ?? []).map((l) => [l.comment_id, l.reaction_type ?? 'like']),
   );
+  const subscribedSet = new Set<string>(subscribedRes.data ?? []);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function mapRow(c: any): RecentComment {
@@ -384,6 +390,7 @@ export async function getComments(
         username: userMap.get(c.author_id)?.username ?? '',
         full_name: userMap.get(c.author_id)?.full_name ?? '',
         avatar_url: profileMap.get(c.author_id)?.avatar_url ?? null,
+        is_subscribed: subscribedSet.has(c.author_id),
       },
     };
   }

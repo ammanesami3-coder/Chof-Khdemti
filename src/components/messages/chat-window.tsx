@@ -24,6 +24,7 @@ import { useNotificationSound } from '@/hooks/use-notification-sound';
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { PresenceText } from '@/components/shared/presence-text';
+import { SubscribedBadge } from '@/components/shared/subscribed-badge';
 import { useTypingIndicator } from '@/hooks/use-typing-indicator';
 import { VoiceRecorder } from '@/components/messages/voice-recorder';
 import { VoiceMessageBubble } from '@/components/messages/voice-message-bubble';
@@ -122,6 +123,7 @@ type Partner = {
   username:      string;
   full_name:     string;
   avatar_url:    string | null;
+  is_subscribed?: boolean;
   last_seen_at?: string | null;
 };
 
@@ -918,7 +920,10 @@ export function ChatWindow({
         </Link>
         <UserAvatar user={partner} size="md" userId={partner.id} />
         <Link href={`/profile/${partner.username}`} className="min-w-0 flex-1 rounded-md px-1 transition-colors hover:bg-accent/50">
-          <p className="truncate font-semibold leading-tight">{partner.full_name}</p>
+          <p className="flex items-center gap-1 truncate font-semibold leading-tight">
+            <span className="truncate">{partner.full_name}</span>
+            {partner.is_subscribed && <SubscribedBadge size="xs" />}
+          </p>
           {isPartnerTyping ? (
             <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
               <span className="inline-flex gap-0.5">
