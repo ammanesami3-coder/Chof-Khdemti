@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -328,7 +327,6 @@ function CustomerStep2({ onSubmit, isPending }: {
 
 export function OnboardingForm({ defaultAccountType }: Props) {
   const { t } = useLang();
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [step, setStep] = useState<1 | 2>(1);
   const [accountType, setAccountType] = useState<'artisan' | 'customer' | null>(
@@ -355,7 +353,8 @@ export function OnboardingForm({ defaultAccountType }: Props) {
         return;
       }
       toast.success(t('welcomeToast'));
-      router.push('/');
+      // انتقال كامل لضمان تحميل الجلسة وإبطال نسخة الزائر المخزّنة في Router Cache
+      window.location.assign('/');
     });
   }
 

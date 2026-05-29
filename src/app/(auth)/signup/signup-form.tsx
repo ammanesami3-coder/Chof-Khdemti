@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2, Wrench, ShoppingBag } from "lucide-react";
@@ -38,7 +37,6 @@ interface SignupFormProps {
 }
 
 export function SignupForm({ next }: SignupFormProps) {
-  const router = useRouter();
   const { t, dir } = useLang();
   const [loading, setLoading] = useState(false);
 
@@ -66,8 +64,10 @@ export function SignupForm({ next }: SignupFormProps) {
     }
 
     toast.success(t('signupSuccess'));
-    // المستخدم الجديد يمرّ بـ Onboarding أولاً — middleware يتولى التوجيه
-    router.push("/");
+    // المستخدم الجديد يمرّ بـ Onboarding أولاً.
+    // انتقال كامل (hard navigation) بدل router.push لضمان أن السيرفر يعيد
+    // التصيير بالجلسة الجديدة بدل عرض نسخة الزائر المخزّنة في Router Cache.
+    window.location.assign("/onboarding");
   }
 
   const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
