@@ -12,7 +12,7 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: "M3alem — منصة الحرفيين",
+  title: "Chof Khdemti — منصة الحرفيين",
   description: "منصة اجتماعية للحرفيين وأصحاب الخدمات في المغرب والعالم العربي",
 };
 
