@@ -5,6 +5,7 @@ import Link from "next/link";
 import { X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { useLang } from "@/lib/i18n/language-context";
+import { createClient } from "@/lib/supabase/client";
 
 const STORAGE_KEY = "guest_banner_dismissed";
 
@@ -13,9 +14,21 @@ export function GuestBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      setVisible(true);
-    }
+    // لا يظهر الشريط إلا للزوّار غير المسجّلين. المستخدم المسجّل لا يراه أبداً.
+    let active = true;
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return;
+      const isGuest = !session;
+      if (isGuest && !localStorage.getItem(STORAGE_KEY)) {
+        setVisible(true);
+      } else {
+        setVisible(false);
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   function dismiss() {
