@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { ar, fr, enUS } from 'date-fns/locale';
 import { Heart, MessageCircle, Reply, UserPlus, ThumbsUp, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
 import { useLang } from '@/lib/i18n/language-context';
 import type { NotificationItem } from '@/hooks/use-notifications';
 
@@ -36,9 +36,6 @@ function getDestination(n: NotificationItem): string {
   }
   return `/profile/${n.actor.username}`;
 }
-
-const initials = (name: string) =>
-  name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
 export function NotificationItemCard({ notification: n, onRead, onClose }: Props) {
   const { t, lang } = useLang();
@@ -88,7 +85,7 @@ export function NotificationItemCard({ notification: n, onRead, onClose }: Props
             />
           ) : (
             <div className="flex size-full items-center justify-center bg-gradient-to-br from-red-500 to-green-600 text-xs font-bold text-white">
-              {initials(n.actor.full_name)}
+              {getInitials(n.actor.full_name)}
             </div>
           )}
         </div>

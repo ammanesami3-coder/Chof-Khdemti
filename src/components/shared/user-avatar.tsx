@@ -23,7 +23,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import { useLang } from "@/lib/i18n/language-context";
 import { useIsOnline } from "@/hooks/use-is-online";
 
@@ -87,15 +87,6 @@ const DOT: Record<AvatarSize, string> = {
   xl: "size-4 border-[3px]",
 };
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((w) => w[0] ?? "")
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
-
 /**
  * The green online indicator — small, professional, with a soft glow.
  * Rendered as a sibling of the (clipped) image so it is never cut off.
@@ -157,7 +148,7 @@ export function UserAvatar({
             )}
             style={{ background: "var(--brand-gradient)" }}
           >
-            {initials(user.full_name)}
+            {getInitials(user.full_name)}
           </span>
         )}
       </span>

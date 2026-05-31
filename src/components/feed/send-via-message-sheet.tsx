@@ -6,7 +6,7 @@ import { ArrowRight, Loader2, MessageCircle, Search, Check, X } from 'lucide-rea
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
 import { getShareableUsers, sharePostViaMessage, type ShareableUser } from '@/lib/actions/shares';
 import { useLang } from '@/lib/i18n/language-context';
 import type { PostWithAuthor } from '@/lib/validations/post';
@@ -18,15 +18,9 @@ type Props = {
 };
 
 function UserInitials({ name }: { name: string }) {
-  const initials = name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
   return (
     <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary/80 to-primary text-xs font-bold text-primary-foreground">
-      {initials}
+      {getInitials(name)}
     </div>
   );
 }

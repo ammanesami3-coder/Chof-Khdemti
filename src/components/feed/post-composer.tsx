@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { Loader2, Plus, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import { useScrollDirection } from "@/hooks/use-scroll-direction";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -157,11 +157,7 @@ export function PostComposer({
     });
   }
 
-  const initials = currentUser.full_name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("");
+  const initials = getInitials(currentUser.full_name);
 
   return (
     <>

@@ -31,6 +31,7 @@ type RawPost = {
   created_at: string;
   author_id: string;
   shared_post_id?: string | null;
+  reactions_summary?: Record<string, number> | null;
 };
 
 function cursorFilter(cursor: FeedCursor) {
@@ -38,6 +39,15 @@ function cursorFilter(cursor: FeedCursor) {
 }
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+// `posts` has columns added in later migrations (shares_count 0021, has_video
+// 0041, reactions_summary 0044) that aren't in the generated types yet. Route
+// post selects through this cast so POST_SELECT can request them in one query.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function postsTable(supabase: SupabaseClient): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (supabase as any).from('posts');
+}
 
 async function fetchSharedPosts(
   supabase: SupabaseClient,
@@ -107,18 +117,10 @@ async function enrichPosts(
   const authorIds = [...new Set(rawPosts.map((p) => p.author_id))];
   const postIds = rawPosts.map((p) => p.id);
 
-  // Fetch shares_count + shared_post_id + reactions_summary via any-cast (new columns not in generated types yet)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: extrasRows } = await (supabase as any)
-    .from('posts')
-    .select('id, shares_count, shared_post_id, reactions_summary')
-    .in('id', postIds) as {
-      data: { id: string; shares_count: number; shared_post_id: string | null; reactions_summary: Record<string, number> | null }[] | null;
-    };
-  const extrasMap = new Map((extrasRows ?? []).map((r) => [r.id, r]));
-
-  const sharedIds = (extrasRows ?? [])
-    .map((r) => r.shared_post_id)
+  // shares_count / shared_post_id / reactions_summary now arrive on rawPosts
+  // (folded into POST_SELECT) — no separate round-trip needed.
+  const sharedIds = rawPosts
+    .map((p) => p.shared_post_id)
     .filter((id): id is string => !!id);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -166,8 +168,7 @@ async function enrichPosts(
   const subscribedSet = new Set<string>(subscribedRes.data ?? []);
 
   return rawPosts.map((p) => {
-    const extras = extrasMap.get(p.id);
-    const sharedPostId = extras?.shared_post_id ?? null;
+    const sharedPostId = p.shared_post_id ?? null;
     const userReaction = reactionMap.get(p.id) ?? null;
     return {
       id: p.id,
@@ -175,12 +176,12 @@ async function enrichPosts(
       media: ((p.media ?? []) as unknown) as PostMedia[],
       likes_count: p.likes_count,
       comments_count: p.comments_count,
-      shares_count: extras?.shares_count ?? 0,
+      shares_count: p.shares_count ?? 0,
       created_at: p.created_at,
       author_id: p.author_id,
       is_liked: userReaction !== null,
       user_reaction: userReaction,
-      reactions_summary: extras?.reactions_summary ?? {},
+      reactions_summary: p.reactions_summary ?? {},
       is_following: currentUserId ? followingSet.has(p.author_id) : undefined,
       is_saved: currentUserId ? savedSet.has(p.id) : undefined,
       shared_post_id: sharedPostId,
@@ -197,8 +198,11 @@ async function enrichPosts(
   });
 }
 
-// shares_count and shared_post_id added in migration 0021 — use string literal to bypass stale types
-const POST_SELECT = 'id, content, media, likes_count, comments_count, created_at, author_id';
+// String literal (not typed) so we can request columns missing from the stale
+// generated types — shares_count/shared_post_id (0021) + reactions_summary (0044).
+// Selected together with the base columns to avoid a second round-trip per page.
+const POST_SELECT =
+  'id, content, media, likes_count, comments_count, created_at, author_id, shares_count, shared_post_id, reactions_summary';
 
 // ── Public Server Actions ─────────────────────────────────────────────────────
 
@@ -216,8 +220,7 @@ export async function fetchFollowingFeed(
   const followingIds = (follows ?? []).map((f) => f.following_id);
   const authorIds = [...new Set([currentUserId, ...followingIds])];
 
-  let query = supabase
-    .from('posts')
+  let query = postsTable(supabase)
     .select(POST_SELECT)
     .in('author_id', authorIds)
     .order('created_at', { ascending: false })
@@ -247,8 +250,7 @@ export async function fetchDiscoverFeed(
 ): Promise<FeedPage> {
   const supabase = await createClient();
 
-  let query = supabase
-    .from('posts')
+  let query = postsTable(supabase)
     .select(POST_SELECT)
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
@@ -322,8 +324,7 @@ export async function fetchUserPosts(
 ): Promise<FeedPage> {
   const supabase = await createClient();
 
-  let query = supabase
-    .from('posts')
+  let query = postsTable(supabase)
     .select(POST_SELECT)
     .eq('author_id', profileUserId)
     .order('created_at', { ascending: false })
@@ -375,8 +376,7 @@ export async function fetchSmartFeed(
 
   // ── Discover (guest / no-follows / phase 2) ────────────────────────────────
   if (!hasFollows || phase === 'discover') {
-    let q = supabase
-      .from('posts')
+    let q = postsTable(supabase)
       .select(POST_SELECT)
       .order('created_at', { ascending: false })
       .order('id',         { ascending: false })
@@ -406,8 +406,7 @@ export async function fetchSmartFeed(
   const authorIds   = [...new Set([currentUserId!, ...followingIds])];
   const baseCursor  = cursor ? { created_at: cursor.created_at, id: cursor.id } : undefined;
 
-  let fq = supabase
-    .from('posts')
+  let fq = postsTable(supabase)
     .select(POST_SELECT)
     .in('author_id', authorIds)
     .order('created_at', { ascending: false })
@@ -442,8 +441,7 @@ export async function fetchSmartFeed(
 
   // Exclude already-shown authors from discover fill
   const excludeList = `(${authorIds.join(',')})`;
-  const dq = supabase
-    .from('posts')
+  const dq = postsTable(supabase)
     .select(POST_SELECT)
     .not('author_id', 'in', excludeList)
     .order('created_at', { ascending: false })
@@ -506,12 +504,11 @@ export async function fetchSavedPosts(
   if (!page.length) return { posts: [], nextCursor: null };
 
   const postIds = page.map((r) => r.post_id);
-  const { data: rawPosts } = await supabase
-    .from('posts')
+  const { data: rawPosts } = await postsTable(supabase)
     .select(POST_SELECT)
     .in('id', postIds);
 
-  const postMap = new Map((rawPosts ?? []).map((p) => [p.id, p]));
+  const postMap = new Map(((rawPosts ?? []) as RawPost[]).map((p) => [p.id, p]));
   const ordered = postIds.map((id) => postMap.get(id)).filter(Boolean);
 
   return {
@@ -529,8 +526,7 @@ export async function fetchPostById(
 ): Promise<PostWithAuthor | null> {
   const supabase = await createClient();
 
-  const { data: raw } = await supabase
-    .from('posts')
+  const { data: raw } = await postsTable(supabase)
     .select(POST_SELECT)
     .eq('id', postId)
     .single();

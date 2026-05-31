@@ -12,6 +12,7 @@ import { useIsOnline } from '@/hooks/use-is-online';
 import { getCraftName } from '@/lib/constants/crafts';
 import { getCityName } from '@/lib/constants/cities';
 import { useLang } from '@/lib/i18n/language-context';
+import { getInitials } from '@/lib/utils';
 
 type ProfileUser = {
   id: string;
@@ -92,12 +93,7 @@ export function ProfileHeader({
       (user.account_type === 'customer' && currentUser?.account_type === 'customer')) &&
     canMessage;
 
-  const initials = user.full_name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = getInitials(user.full_name);
 
   return (
     <div>
