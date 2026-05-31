@@ -2,44 +2,35 @@ import { createClient } from '@/lib/supabase/server';
 import { TrendingWidget, type TrendingEntry } from './trending-widget';
 import { SuggestedArtisans, type SuggestedArtisan } from './suggested-artisans';
 
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-type ArtisanRow = {
-  id: string;
-  username: string;
-  full_name: string;
-  profiles: { avatar_url: string | null; craft_category: string | null; city: string | null } | null;
-};
-
 // ── Data fetching ──────────────────────────────────────────────────────────────
 
-async function getTopArtisans(currentUserId?: string): Promise<ArtisanRow[]> {
+// Subscribed-only artisans for the current 30-min rotation window (see
+// migration 0049_suggested_artisans_rotation.sql). This is just the SSR initial
+// payload — the client component re-fetches on each half-hour boundary.
+async function getSuggestedArtisans(currentUserId?: string): Promise<SuggestedArtisan[]> {
   const supabase = await createClient();
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
-    .from('users')
-    .select('id, username, full_name, profiles(avatar_url, craft_category, city)')
-    .eq('account_type', 'artisan')
-    .limit(5);
+  const { data, error } = await (supabase as any).rpc('get_suggested_artisans', {
+    p_exclude: currentUserId ?? null,
+    p_limit: 5,
+  });
+  if (error || !data) return [];
 
-  if (currentUserId) {
-    query = query.neq('id', currentUserId);
-  }
-
-  const { data } = await query;
-  const rows = (data ?? []) as unknown as Array<{
+  return (data as unknown as Array<{
     id: string;
     username: string;
     full_name: string;
-    profiles: ArtisanRow['profiles'] | ArtisanRow['profiles'][];
-  }>;
-
-  return rows.map((r) => ({
+    avatar_url: string | null;
+    craft_category: string | null;
+    city: string | null;
+  }>).map((r) => ({
     id: r.id,
     username: r.username,
     full_name: r.full_name,
-    profiles: Array.isArray(r.profiles) ? (r.profiles[0] ?? null) : r.profiles,
+    craft_category: r.craft_category,
+    city: r.city,
+    avatar_url: r.avatar_url,
+    is_subscribed: true, // الـ RPC يرجع المشتركين فقط
   }));
 }
 
@@ -56,28 +47,10 @@ async function getTrendingData(): Promise<TrendingEntry[]> {
 type Props = { currentUserId?: string };
 
 export async function RightSidebar({ currentUserId }: Props) {
-  const [artisans, trendingData] = await Promise.all([
-    getTopArtisans(currentUserId),
+  const [suggestedArtisans, trendingData] = await Promise.all([
+    getSuggestedArtisans(currentUserId),
     getTrendingData(),
   ]);
-
-  // Resolve which of the suggested artisans are subscribed (active trial / paid).
-  const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: subscribedIds } = await (supabase as any).rpc('get_subscribed_user_ids', {
-    p_user_ids: artisans.map((a) => a.id),
-  }) as { data: string[] | null };
-  const subscribedSet = new Set<string>(subscribedIds ?? []);
-
-  const suggestedArtisans: SuggestedArtisan[] = artisans.map((a) => ({
-    id: a.id,
-    username: a.username,
-    full_name: a.full_name,
-    craft_category: a.profiles?.craft_category ?? null,
-    city: a.profiles?.city ?? null,
-    avatar_url: a.profiles?.avatar_url ?? null,
-    is_subscribed: subscribedSet.has(a.id),
-  }));
 
   return (
     <aside
@@ -87,7 +60,7 @@ export async function RightSidebar({ currentUserId }: Props) {
       <div className="space-y-5 p-3">
 
         {/* ── Suggested artisans + tip (client component for translations) ── */}
-        <SuggestedArtisans artisans={suggestedArtisans} />
+        <SuggestedArtisans artisans={suggestedArtisans} excludeUserId={currentUserId} />
 
         <div className="h-px bg-border" />
 

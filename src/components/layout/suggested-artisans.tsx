@@ -1,12 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import { Users } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { SubscribedBadge } from '@/components/shared/subscribed-badge';
+import { createClient } from '@/lib/supabase/client';
 import { useLang } from '@/lib/i18n/language-context';
 import { getCraftName } from '@/lib/constants/crafts';
 import { getCityName } from '@/lib/constants/cities';
+
+const SLOT_MS = 30 * 60 * 1000; // نافذة التدوير: نصف ساعة
 
 export type SuggestedArtisan = {
   id: string;
@@ -20,7 +24,38 @@ export type SuggestedArtisan = {
 
 type Props = {
   artisans: SuggestedArtisan[];
+  excludeUserId?: string;
 };
+
+// ── Data fetcher ────────────────────────────────────────────────────────────────
+// كل من يرجعه الـ RPC هو حرفي مشترك فعلاً (active أو trial نشط)، والتدوير يتم داخل
+// قاعدة البيانات بناءً على نافذة الـ 30 دقيقة الحالية.
+async function fetchSuggested(excludeUserId?: string): Promise<SuggestedArtisan[]> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc('get_suggested_artisans', {
+    p_exclude: excludeUserId ?? null,
+    p_limit: 5,
+  });
+  if (error || !data) return [];
+
+  return (data as unknown as Array<{
+    id: string;
+    username: string;
+    full_name: string;
+    avatar_url: string | null;
+    craft_category: string | null;
+    city: string | null;
+  }>).map((r) => ({
+    id: r.id,
+    username: r.username,
+    full_name: r.full_name,
+    craft_category: r.craft_category,
+    city: r.city,
+    avatar_url: r.avatar_url,
+    is_subscribed: true, // كلهم مشتركون بحكم منطق الـ RPC
+  }));
+}
 
 function ArtisanRow({ artisan, lang }: { artisan: SuggestedArtisan; lang: 'ar' | 'fr' | 'en' }) {
   const { t } = useLang();
@@ -57,12 +92,27 @@ function ArtisanRow({ artisan, lang }: { artisan: SuggestedArtisan; lang: 'ar' |
   );
 }
 
-export function SuggestedArtisans({ artisans }: Props) {
+export function SuggestedArtisans({ artisans, excludeUserId }: Props) {
   const { t, lang } = useLang();
   const tips = [t('tipText1'), t('tipText2'), t('tipText3')];
   const tip = tips[Math.floor(Math.random() * tips.length)];
 
-  if (artisans.length === 0) return null;
+  // تدوير تلقائي: يُعاد الجلب تماماً عند حدود النصف ساعة لتظهر مجموعة جديدة لم تُعرض.
+  const { data: rotated = artisans } = useQuery({
+    queryKey: ['suggested-artisans', excludeUserId ?? null],
+    queryFn: () => fetchSuggested(excludeUserId),
+    initialData: artisans.length > 0 ? artisans : undefined,
+    staleTime: SLOT_MS,
+    refetchInterval: () => {
+      // الوقت المتبقي حتى حدّ النصف ساعة القادم (+ ثانيتان احتياطاً) ثم يُعاد الجلب.
+      const now = Date.now();
+      const next = Math.ceil(now / SLOT_MS) * SLOT_MS;
+      return next - now + 2000;
+    },
+    refetchIntervalInBackground: false,
+  });
+
+  if (rotated.length === 0) return null;
 
   return (
     <>
@@ -81,7 +131,7 @@ export function SuggestedArtisans({ artisans }: Props) {
           </Link>
         </div>
         <div className="space-y-0.5">
-          {artisans.map((a) => (
+          {rotated.map((a) => (
             <ArtisanRow key={a.id} artisan={a} lang={lang} />
           ))}
         </div>

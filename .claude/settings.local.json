@@ -109,7 +109,12 @@
       "Bash(powershell -Command \"Get-ChildItem supabase/migrations | Select-Object -ExpandProperty Name\")",
       "Bash(powershell -Command \"\\(Get-Content PROGRESS.md | Measure-Object -Line\\).Lines\")",
       "PowerShell(app *)",
-      "Bash(vercel --version)"
+      "Bash(vercel --version)",
+      "Bash(echo \"---TSC DONE \\(exit $?\\)---\")",
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(gh pr *)",
+      "Bash(git remote *)"
     ]
   }
 }
