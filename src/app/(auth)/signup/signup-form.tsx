@@ -48,10 +48,12 @@ export function SignupForm({ next }: SignupFormProps) {
       email: "",
       password: "",
       account_type: undefined,
+      terms_accepted: false,
     },
   });
 
   const accountType = form.watch("account_type");
+  const termsAccepted = form.watch("terms_accepted");
 
   async function onSubmit(data: SignUpInput) {
     setLoading(true);
@@ -203,7 +205,59 @@ export function SignupForm({ next }: SignupFormProps) {
               )}
             />
 
-            <Button variant="brand" type="submit" className="w-full" disabled={loading}>
+            {/* الموافقة على الشروط — إلزامية */}
+            <FormField
+              control={form.control}
+              name="terms_accepted"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-start gap-2.5">
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        checked={field.value}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                        name={field.name}
+                        aria-label={t('agreeToTermsPrefix')}
+                        className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+                      />
+                    </FormControl>
+                    <FormLabel className="text-sm font-normal leading-snug text-muted-foreground">
+                      {t('agreeToTermsPrefix')}{" "}
+                      <Link
+                        href="/terms"
+                        target="_blank"
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {t('termsOfUseLink')}
+                      </Link>{" "}
+                      {/* No space after the connector: Arabic wāw attaches to
+                          the next word (وسياسة); FR/EN carry their own trailing
+                          space in the translation value. */}
+                      {t('andConnector')}
+                      <Link
+                        href="/privacy"
+                        target="_blank"
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {t('privacyPolicyLink')}
+                      </Link>{" "}
+                      {t('platformSuffix')}
+                    </FormLabel>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button
+              variant="brand"
+              type="submit"
+              className="w-full"
+              disabled={loading || !termsAccepted}
+            >
               {loading && <Loader2 className="ms-2 size-4 animate-spin" />}
               {t('createAccountBtn')}
             </Button>

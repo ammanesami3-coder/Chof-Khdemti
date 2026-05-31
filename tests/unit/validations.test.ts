@@ -129,6 +129,7 @@ describe('Zod validations', () => {
       email: 'test@example.com',
       password: 'password123',
       account_type: 'customer' as const,
+      terms_accepted: true,
     };
 
     it('accepts lowercase alphanumeric with underscore', () => {
@@ -165,6 +166,32 @@ describe('Zod validations', () => {
       expect(
         signUpSchema.safeParse({ ...baseUser, username: 'a'.repeat(31) }).success,
       ).toBe(false);
+    });
+  });
+
+  describe('signUpSchema terms consent', () => {
+    const validUser = {
+      full_name: 'اسم المستخدم',
+      username: 'valid_user',
+      email: 'test@example.com',
+      password: 'password123',
+      account_type: 'artisan' as const,
+    };
+
+    it('accepts signup when terms are accepted', () => {
+      expect(
+        signUpSchema.safeParse({ ...validUser, terms_accepted: true }).success,
+      ).toBe(true);
+    });
+
+    it('rejects signup when terms are not accepted', () => {
+      expect(
+        signUpSchema.safeParse({ ...validUser, terms_accepted: false }).success,
+      ).toBe(false);
+    });
+
+    it('rejects signup when terms field is missing', () => {
+      expect(signUpSchema.safeParse(validUser).success).toBe(false);
     });
   });
 });

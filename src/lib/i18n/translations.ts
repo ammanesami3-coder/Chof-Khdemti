@@ -966,6 +966,17 @@ export const translations = {
     memberSince: 'عضو منذ',
     bioSectionLabel: 'نبذة',
     yearSuffix: 'سنة',
+
+    // Legal & consent
+    legalBackToHome: 'العودة للرئيسية',
+    legalLastUpdated: 'آخر تحديث',
+    agreeToTermsPrefix: 'أوافق على',
+    termsOfUseLink: 'شروط الاستخدام',
+    // Arabic conjunction wāw attaches to the following word (وسياسة), so no
+    // trailing space here — the form omits the space after the connector.
+    andConnector: 'و',
+    privacyPolicyLink: 'سياسة الخصوصية',
+    platformSuffix: 'لمنصة شوف خدمتي',
   },
 
   fr: {
@@ -1927,6 +1938,15 @@ export const translations = {
     memberSince: 'Membre depuis',
     bioSectionLabel: 'À propos',
     yearSuffix: 'an(s)',
+
+    // Legal & consent
+    legalBackToHome: 'Retour à l’accueil',
+    legalLastUpdated: 'Dernière mise à jour',
+    agreeToTermsPrefix: 'J’accepte les',
+    termsOfUseLink: 'conditions d’utilisation',
+    andConnector: 'et la ',
+    privacyPolicyLink: 'politique de confidentialité',
+    platformSuffix: 'de la plateforme Chof Khdemti',
   },
 
   en: {
@@ -2888,6 +2908,15 @@ export const translations = {
     memberSince: 'Member since',
     bioSectionLabel: 'About',
     yearSuffix: 'year(s)',
+
+    // Legal & consent
+    legalBackToHome: 'Back to home',
+    legalLastUpdated: 'Last updated',
+    agreeToTermsPrefix: 'I agree to the',
+    termsOfUseLink: 'Terms of Use',
+    andConnector: 'and ',
+    privacyPolicyLink: 'Privacy Policy',
+    platformSuffix: 'of the Chof Khdemti platform',
   },
 } as const;
 

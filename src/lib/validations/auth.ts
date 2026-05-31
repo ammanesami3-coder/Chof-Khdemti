@@ -18,6 +18,12 @@ export const signUpSchema = z.object({
   account_type: z.enum(["artisan", "customer"] as const, {
     message: "يرجى اختيار نوع الحساب",
   }),
+  // Mandatory consent — must be explicitly true. Enforced on both the client
+  // (zodResolver) and the server (signUp safeParse) so the API cannot be
+  // called without acceptance.
+  terms_accepted: z.boolean().refine((v) => v === true, {
+    message: "يجب الموافقة على شروط الاستخدام وسياسة الخصوصية للمتابعة",
+  }),
 });
 
 export const signInSchema = z.object({
