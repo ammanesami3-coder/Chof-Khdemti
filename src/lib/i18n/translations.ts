@@ -977,6 +977,15 @@ export const translations = {
     andConnector: 'و',
     privacyPolicyLink: 'سياسة الخصوصية',
     platformSuffix: 'لمنصة شوف خدمتي',
+
+    // Terms acceptance gate (existing users)
+    termsGateTitle: 'تحديث الشروط وسياسة الخصوصية',
+    termsGatePrompt:
+      'لقد قمنا بتحديث شروط الاستخدام وسياسة الخصوصية لحمايتك وحماية بياناتك. يرجى الموافقة للمتابعة لاستخدام منصة شوف خدمتي.',
+    termsGateReadPrefix: 'يمكنك مراجعة',
+    termsGateAgreeBtn: 'الموافقة والمتابعة',
+    termsGateLogout: 'تسجيل الخروج',
+    termsGateError: 'تعذّر حفظ موافقتك، يرجى المحاولة مجدداً',
   },
 
   fr: {
@@ -1947,6 +1956,15 @@ export const translations = {
     andConnector: 'et la ',
     privacyPolicyLink: 'politique de confidentialité',
     platformSuffix: 'de la plateforme Chof Khdemti',
+
+    // Terms acceptance gate (existing users)
+    termsGateTitle: 'Mise à jour des conditions et de la confidentialité',
+    termsGatePrompt:
+      'Nous avons mis à jour nos conditions d’utilisation et notre politique de confidentialité pour vous protéger ainsi que vos données. Veuillez les accepter pour continuer à utiliser la plateforme Chof Khdemti.',
+    termsGateReadPrefix: 'Vous pouvez consulter',
+    termsGateAgreeBtn: 'Accepter et continuer',
+    termsGateLogout: 'Se déconnecter',
+    termsGateError: 'Impossible d’enregistrer votre acceptation, veuillez réessayer',
   },
 
   en: {
@@ -2917,6 +2935,15 @@ export const translations = {
     andConnector: 'and ',
     privacyPolicyLink: 'Privacy Policy',
     platformSuffix: 'of the Chof Khdemti platform',
+
+    // Terms acceptance gate (existing users)
+    termsGateTitle: 'Updated Terms & Privacy',
+    termsGatePrompt:
+      'We have updated our Terms of Use and Privacy Policy to protect you and your data. Please accept to continue using the Chof Khdemti platform.',
+    termsGateReadPrefix: 'You can review the',
+    termsGateAgreeBtn: 'Agree & Continue',
+    termsGateLogout: 'Log out',
+    termsGateError: 'Could not save your acceptance, please try again',
   },
 } as const;
 

@@ -56,6 +56,16 @@ export function LoginForm({ next }: LoginFormProps) {
       return;
     }
 
+    // Existing users who predate the consent checkbox must accept first.
+    if (result.requiresTermsAcceptance) {
+      const dest = next
+        ? `/auth/accept-terms?next=${encodeURIComponent(next)}`
+        : "/auth/accept-terms";
+      router.push(dest);
+      router.refresh();
+      return;
+    }
+
     router.push(next ?? "/feed");
     router.refresh();
   }

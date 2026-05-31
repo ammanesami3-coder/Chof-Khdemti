@@ -1,6 +1,44 @@
 # PROGRESS.md — Chof Khdemti
 
-## المرحلة الحالية: ✅ 5.5 مكتملة + تدقيق أمني وأداء — جاهز للمرحلة 6 (الإطلاق)
+## المرحلة الحالية: ✅ 5.5 مكتملة + تدقيق أمني وأداء + بوابة الشروط القانونية — جاهز للمرحلة 6 (الإطلاق)
+
+---
+
+## الحماية القانونية — مايو 2026 (شروط الاستخدام + بوابة الموافقة)
+
+> **الهدف:** صفحات قانونية (شروط/خصوصية) + إلزام الموافقة عند التسجيل، ثم **إجبار المستخدمين القدامى** (قبل إضافة checkbox) على الموافقة عند أول تسجيل دخول لاحق.
+
+### الجزء أ — الصفحات القانونية + checkbox التسجيل (مكتمل سابقاً في نفس الجلسة)
+
+- صفحتان عامتان `/terms` و `/privacy` بثلاث لغات (ar/fr/en) — تشمل **بند الوسيط** (المنصة وسيط تقني، لا مسؤولية)، **التحقق من الهوية**، و**إخلاء المسؤولية عن الأسعار والدفع**.
+- `src/lib/legal/legal-content.ts` (المحتوى) + `src/components/legal/legal-document.tsx` (عارض موحّد يتبع لغة المستخدم).
+- checkbox موافقة إلزامي في التسجيل + `terms_accepted` في `signUpSchema` (refine → must be true) — مفروض على العميل والسيرفر معاً.
+
+### الجزء ب — بوابة الشروط للمستخدمين القدامى
+
+**قاعدة البيانات:**
+- **Migration `0050_terms_acceptance.sql`**: عمود `terms_accepted_at timestamptz` (nullable) على `profiles`. `NULL` = لم يوافق بعد (مُبوَّب). الصفوف القديمة تبقى `NULL` (بدون backfill) فيُجبَر كل مستخدم قديم على الموافقة مرة واحدة.
+
+**السيرفر:**
+- `signIn` (auth.ts): بعد نجاح كلمة السر، يستعلم `terms_accepted_at` — إن كان `null` يُرجع `{ requiresTermsAcceptance: true }`.
+- `signUp` (auth.ts): يضبط `terms_accepted_at = now()` للمستخدم الجديد (الـ trigger 0005 أنشأ صف profiles مسبقاً) فلا يُبوَّب بعد موافقته في الفورم.
+- `src/lib/actions/terms.ts` (جديد): `acceptTerms()` — يضبط `terms_accepted_at = now()` للمستخدم الحالي (RLS `profiles_update_own` يحصر الكتابة).
+
+**الواجهة:**
+- `src/app/auth/accept-terms/page.tsx` (Server): `requireUser` + إن كان موافقاً مسبقاً → `redirect` للوجهة؛ وإلا يعرض الشاشة (يقرأ `?next` بأمان، ويمنع الحلقة على البوابة نفسها).
+- `src/app/auth/accept-terms/accept-terms-client.tsx`: شاشة نظيفة (شعار + أيقونة درع + نص الموافقة + روابط الشروط/الخصوصية) + زر **«الموافقة والمتابعة»** + زر ثانوي **«تسجيل الخروج»** (للخروج والتصفح كزائر).
+- `login-form.tsx`: عند `requiresTermsAcceptance` يوجّه لـ `/auth/accept-terms?next=…` بدل الفيد.
+
+**Middleware (تطبيق صارم + cache):**
+- استبدال `getOnboardingComplete` بـ `getGateState` (استعلام واحد يجلب `onboarding_complete` + `terms_accepted_at`).
+- استبدال كوكي `ob_done` بكوكي **`gate_ok`** يُضبط على `user.id` فقط حين يكتمل **الشرطان** — فلا استعلام DB في كل تنقّل بعد اجتياز البوابة.
+- المستخدم المسجّل غير الموافق يُوجَّه لـ `/auth/accept-terms` من أي صفحة، مع استثناء `/onboarding`, `/auth/accept-terms`, `/logout`, `/terms`, `/privacy`.
+
+**i18n:** مفاتيح البوابة (`termsGateTitle/Prompt/AgreeBtn/Logout/Error/ReadPrefix`) بثلاث لغات.
+
+**النتائج:** `npx tsc --noEmit` ✓ · `eslint` ✓ · `next build` ✓ (`/auth/accept-terms` ديناميكي) · `vitest` → **59 اختباراً ✓**.
+
+> ⚠️ **يتطلّب تطبيق Migration `0050` على Supabase** قبل تفعيل البوابة (وإلا سيفشل استعلام `terms_accepted_at`).
 
 ---
 

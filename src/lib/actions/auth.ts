@@ -99,6 +99,15 @@ export async function signUp(
       .then(() => null, () => null);
   }
 
+  // 3.5 سجّل الموافقة على الشروط (الفورم فرض terms_accepted === true).
+  // الـ trigger (0005) أنشأ صف profiles مسبقاً، فالتحديث يجد صفاً جاهزاً.
+  // (terms_accepted_at غير موجود في الأنواع المولّدة بعد — cast لتجاوز ذلك)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (adminClient as any)
+    .from("profiles")
+    .update({ terms_accepted_at: new Date().toISOString() })
+    .eq("user_id", userId);
+
   // 4. سجّل الدخول تلقائياً لتأسيس الجلسة
   const supabase = await createClient();
   const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -119,7 +128,7 @@ export async function signUp(
 // ---------------------------------------------------------------
 export async function signIn(
   input: SignInInput
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; requiresTermsAcceptance?: boolean }> {
   // Throttle login attempts per IP — 8 attempts / minute (brute-force guard).
   const ip = await getClientIp();
   if (!rateLimit(`signin:${ip}`, 8, 60_000).success) {
@@ -134,7 +143,7 @@ export async function signIn(
   const { email, password } = parsed.data;
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     console.error("[signIn] error:", error.message, error.status);
@@ -150,6 +159,28 @@ export async function signIn(
     }
 
     return { error: `خطأ تسجيل الدخول: ${error.message}` };
+  }
+
+  // بوابة الشروط: المستخدمون القدامى (قبل إضافة checkbox الموافقة) لم يوافقوا بعد.
+  // إن كان terms_accepted_at = null، نوجّههم لشاشة /auth/accept-terms.
+  // (العمود غير موجود في الأنواع المولّدة بعد — cast لتجاوز ذلك)
+  const userId = data.user?.id;
+  if (userId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: profile, error: profileErr } = (await (supabase as any)
+      .from("profiles")
+      .select("terms_accepted_at")
+      .eq("user_id", userId)
+      .maybeSingle()) as {
+      data: { terms_accepted_at: string | null } | null;
+      error: { message: string } | null;
+    };
+
+    // Fail open: if the query errors (e.g. column missing before migration 0050
+    // is applied) we let the user in rather than locking everyone out.
+    if (!profileErr && !profile?.terms_accepted_at) {
+      return { requiresTermsAcceptance: true };
+    }
   }
 
   return {};
