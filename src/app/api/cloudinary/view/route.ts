@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { cloudinary } from "@/lib/cloudinary";
+import { createClient } from "@/lib/supabase/server";
 
 // ── Cloudinary proxy route ────────────────────────────────────────────────────
 //
@@ -9,15 +9,17 @@ import { cloudinary } from "@/lib/cloudinary";
 // GET /api/cloudinary/view?url=<encoded-cloudinary-url>&filename=<encoded-name>
 //   → Content-Disposition: attachment  (download with correct filename)
 //
+// Security:
+//   • Requires an authenticated session — this is not a public proxy.
+//   • Only serves PUBLIC delivery URLs from OUR cloud. The previous
+//     restricted-asset signing fallback was removed: it let any caller fetch
+//     access-controlled Cloudinary assets by handing the route a public_id,
+//     effectively bypassing Cloudinary's own access control.
+//
 // Strategy:
-//   1. Strip upload-signature and try the clean public URL.
-//   2. If Cloudinary returns 401/403 (restricted delivery), fall back to a
-//      Cloudinary SDK-signed delivery URL — works for any access-control setting.
-//   3. Read as ArrayBuffer (avoids ReadableStream issues in serverless).
-//   4. Set RFC 5987–encoded Content-Disposition for correct filename in browser.
-
-const VALID_RESOURCE_TYPES = ["raw", "image", "video"] as const;
-type ResourceType = (typeof VALID_RESOURCE_TYPES)[number];
+//   1. Strip upload-signature and fetch the clean public URL.
+//   2. Read as ArrayBuffer (avoids ReadableStream issues in serverless).
+//   3. Set RFC 5987–encoded Content-Disposition for correct filename in browser.
 
 /** RFC 5987 percent-encoding — stricter than encodeURIComponent (also escapes * ' () ) */
 function rfc5987Encode(str: string): string {
@@ -27,35 +29,16 @@ function rfc5987Encode(str: string): string {
   );
 }
 
-/** Parse resource_type and clean public_id from a Cloudinary delivery URL */
-function parseCloudinaryUrl(rawUrl: string, cloudName: string) {
-  let resourceType: ResourceType = "raw";
-  for (const rt of VALID_RESOURCE_TYPES) {
-    if (rawUrl.includes(`/${rt}/upload/`)) {
-      resourceType = rt;
-      break;
-    }
+export async function GET(request: NextRequest) {
+  // ── Require an authenticated session ──────────────────────────────────────
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const prefix    = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/`;
-  let   remainder = rawUrl.slice(prefix.length);
-
-  // Remove upload-signature segment (s--XXX--/)
-  remainder = remainder.replace(/^s--[^/]+--\//, "");
-  // Remove version segment (v<digits>/)
-  remainder = remainder.replace(/^v\d+\//, "");
-
-  // Raw resources: public_id INCLUDES the file extension (e.g. folder/file.pdf)
-  // Image/video:   public_id does NOT include the extension
-  const publicId =
-    resourceType === "raw"
-      ? remainder
-      : remainder.replace(/\.[^/.]+$/, "");
-
-  return { resourceType, publicId };
-}
-
-export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const rawUrl    = searchParams.get("url");
   const filename  = searchParams.get("filename") ?? null;
@@ -69,38 +52,14 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Invalid Cloudinary URL", { status: 400 });
   }
 
-  // ── Step 1: try clean public URL ──────────────────────────────────────────
+  // ── Step 1: fetch clean public URL ────────────────────────────────────────
   const cleanUrl = rawUrl.replace(/\/s--[^/]+--\//, "/");
 
-  let upstreamRes = await fetch(cleanUrl, { cache: "no-store" }).catch(
+  const upstreamRes = await fetch(cleanUrl, { cache: "no-store" }).catch(
     () => null,
   );
 
-  // ── Step 2: 401/403 → fall back to Cloudinary signed delivery URL ─────────
-  if (!upstreamRes || upstreamRes.status === 401 || upstreamRes.status === 403) {
-    try {
-      const { resourceType, publicId } = parseCloudinaryUrl(rawUrl, cloudName);
-
-      if (!publicId) {
-        return new NextResponse("Could not parse public_id", { status: 400 });
-      }
-
-      const signedUrl = cloudinary.url(publicId, {
-        resource_type: resourceType,
-        type:          "upload",
-        sign_url:      true,
-        secure:        true,
-      });
-
-      upstreamRes = await fetch(signedUrl, { cache: "no-store" }).catch(
-        () => null,
-      );
-    } catch (err) {
-      console.error("[cloudinary/view] Signed URL generation failed:", err);
-    }
-  }
-
-  // ── Step 3: check upstream is OK ─────────────────────────────────────────
+  // ── Step 2: check upstream is OK ─────────────────────────────────────────
   if (!upstreamRes || !upstreamRes.ok) {
     const status = upstreamRes?.status ?? 502;
     console.error("[cloudinary/view] Upstream failed", {
@@ -110,7 +69,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(`Upstream error: ${status}`, { status });
   }
 
-  // ── Step 4: read as ArrayBuffer (reliable in serverless / edge) ───────────
+  // ── Step 3: read as ArrayBuffer (reliable in serverless / edge) ───────────
   let buffer: ArrayBuffer;
   try {
     buffer = await upstreamRes.arrayBuffer();
@@ -119,7 +78,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Failed to read upstream body", { status: 502 });
   }
 
-  // ── Step 5: build response headers ───────────────────────────────────────
+  // ── Step 4: build response headers ───────────────────────────────────────
   const contentType =
     upstreamRes.headers.get("content-type") ?? "application/octet-stream";
 

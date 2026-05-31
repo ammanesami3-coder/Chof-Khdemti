@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
 import { createClient } from '@/lib/supabase/server';
 import { setupLS } from '@/lib/lemon-squeezy';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST() {
   const supabase = await createClient();
@@ -11,6 +12,14 @@ export async function POST() {
 
   if (!user) {
     return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
+  }
+
+  // Throttle checkout-link creation per user — 5 / minute (it hits the LS API).
+  if (!rateLimit(`checkout:${user.id}`, 5, 60_000).success) {
+    return NextResponse.json(
+      { error: 'محاولات كثيرة، يرجى المحاولة بعد قليل' },
+      { status: 429 },
+    );
   }
 
   const [userRes, subRes] = await Promise.all([

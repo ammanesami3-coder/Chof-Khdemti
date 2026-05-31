@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { cloudinaryUrlSchema } from '@/lib/cloudinary-url';
 
 const updateProfileSchema = z.object({
   full_name: z.string().min(2, 'الاسم قصير جداً').max(100, 'الاسم طويل جداً'),
@@ -9,8 +10,8 @@ const updateProfileSchema = z.object({
   city: z.string().optional(),
   craft_category: z.string().optional(),
   years_experience: z.number({ error: 'أدخل رقماً صحيحاً' }).min(0).max(50).nullable().optional(),
-  avatar_url: z.string().url().nullable().optional(),
-  cover_url: z.string().url().nullable().optional(),
+  avatar_url: cloudinaryUrlSchema.nullable().optional(),
+  cover_url: cloudinaryUrlSchema.nullable().optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

@@ -1,6 +1,16 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
+  // Require an authenticated session — this is not a public open proxy.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return new NextResponse('Unauthorized', { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const url      = searchParams.get('url');
   const filename = searchParams.get('filename') ?? 'download';
@@ -17,8 +27,14 @@ export async function GET(request: NextRequest) {
     return new NextResponse('Invalid url', { status: 400 });
   }
 
-  // Security: only proxy Cloudinary URLs to prevent SSRF
-  if (!parsedUrl.hostname.endsWith('.cloudinary.com')) {
+  // Security: only proxy our own Cloudinary cloud (prevents SSRF + open proxy).
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  if (
+    parsedUrl.protocol !== 'https:' ||
+    parsedUrl.hostname !== 'res.cloudinary.com' ||
+    !cloudName ||
+    !parsedUrl.pathname.startsWith(`/${cloudName}/`)
+  ) {
     return new NextResponse('Forbidden', { status: 403 });
   }
 

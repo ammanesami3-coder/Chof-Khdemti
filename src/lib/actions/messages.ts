@@ -2,6 +2,13 @@
 
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { cloudinaryUrlSchema } from '@/lib/cloudinary-url';
+import { rateLimit } from '@/lib/rate-limit';
+
+// Per-user message throttle — 30 messages / 30s across all message types.
+function withinSendRate(userId: string): boolean {
+  return rateLimit(`msg:${userId}`, 30, 30_000).success;
+}
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
@@ -18,7 +25,7 @@ type AttachmentType = typeof ATTACHMENT_TYPES[number];
 
 const attachmentSchema = z.object({
   conversationId:    z.string().uuid(),
-  attachmentUrl:     z.string().url(),
+  attachmentUrl:     cloudinaryUrlSchema,
   messageType:       z.enum(ATTACHMENT_TYPES),
   metadata:          z.record(z.string(), z.unknown()),
   caption:           z.string().max(1000).nullable().optional(),
@@ -27,7 +34,7 @@ const attachmentSchema = z.object({
 
 const voiceSchema = z.object({
   conversationId: z.string().uuid(),
-  voiceUrl:       z.string().url(),
+  voiceUrl:       cloudinaryUrlSchema,
   voiceDuration:  z.number().int().min(0).max(600),
 });
 
@@ -119,6 +126,7 @@ export async function sendMessage(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'يجب تسجيل الدخول' };
+  if (!withinSendRate(user.id)) return { error: 'إرسال سريع جداً، تمهّل قليلاً' };
 
   const { conv, isArtisan, isCustomer, isArtisanAccount } = await verifyConversationMember(
     supabase, parsed.data.conversationId, user.id
@@ -161,6 +169,7 @@ export async function sendVoiceMessage(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'يجب تسجيل الدخول' };
+  if (!withinSendRate(user.id)) return { error: 'إرسال سريع جداً، تمهّل قليلاً' };
 
   const { conv, isArtisan, isCustomer, isArtisanAccount } = await verifyConversationMember(
     supabase, parsed.data.conversationId, user.id
@@ -210,6 +219,7 @@ export async function sendAttachmentMessage(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'يجب تسجيل الدخول' };
+  if (!withinSendRate(user.id)) return { error: 'إرسال سريع جداً، تمهّل قليلاً' };
 
   const { conv, isArtisan, isCustomer, isArtisanAccount } = await verifyConversationMember(
     supabase, parsed.data.conversationId, user.id
@@ -364,6 +374,7 @@ export async function sendLocationMessage(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'يجب تسجيل الدخول' };
+  if (!withinSendRate(user.id)) return { error: 'إرسال سريع جداً، تمهّل قليلاً' };
 
   const { conv, isArtisan, isCustomer, isArtisanAccount } = await verifyConversationMember(
     supabase, parsed.data.conversationId, user.id,

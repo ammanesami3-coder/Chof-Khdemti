@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { signUpSchema, signInSchema } from "@/lib/validations/auth";
 import type { SignUpInput, SignInInput } from "@/lib/validations/auth";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------
 // signUp
@@ -13,6 +14,12 @@ import type { SignUpInput, SignInInput } from "@/lib/validations/auth";
 export async function signUp(
   input: SignUpInput
 ): Promise<{ error?: string }> {
+  // Throttle account creation per IP — 5 signups / 10 minutes.
+  const ip = await getClientIp();
+  if (!rateLimit(`signup:${ip}`, 5, 10 * 60_000).success) {
+    return { error: "محاولات كثيرة، يرجى المحاولة بعد قليل" };
+  }
+
   const parsed = signUpSchema.safeParse(input);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
@@ -113,6 +120,12 @@ export async function signUp(
 export async function signIn(
   input: SignInInput
 ): Promise<{ error?: string }> {
+  // Throttle login attempts per IP — 8 attempts / minute (brute-force guard).
+  const ip = await getClientIp();
+  if (!rateLimit(`signin:${ip}`, 8, 60_000).success) {
+    return { error: "محاولات كثيرة، يرجى المحاولة بعد قليل" };
+  }
+
   const parsed = signInSchema.safeParse(input);
   if (!parsed.success) {
     return { error: "بيانات غير صالحة" };
