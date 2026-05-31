@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { ar, fr, enUS } from "date-fns/locale";
-import { Send, Pencil, Trash2, MoreHorizontal, ChevronDown, ChevronUp } from "lucide-react";
+import { Send, Pencil, Trash2, MoreHorizontal, ChevronDown, ChevronUp, Flag } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { AuthGate } from "@/components/shared/auth-gate";
 import { CommentReactionButton } from "@/components/feed/comment-reaction-button";
@@ -26,6 +26,10 @@ import type { RecentComment } from "@/lib/validations/post";
 import { ReactionsModalLazy, preloadReactionsModal } from "@/components/feed/reactions-modal-lazy";
 import { usePrefetchReactors } from "@/hooks/use-reactors";
 import { SubscribedBadge } from "@/components/shared/subscribed-badge";
+import { OfficialBadge } from "@/components/shared/official-badge";
+import { isOfficialAccount } from "@/lib/constants/official";
+import { ReportDialog } from "@/components/feed/report-dialog";
+import { ModerationToolbar } from "@/components/moderation/moderation-toolbar";
 
 type CurrentUser = {
   id: string;
@@ -78,6 +82,7 @@ export function CommentBubble({
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   // Auto-open replies when this comment is highlighted OR when a reply within it is the highlight target
   const repliesContainHighlight = (comment.replies ?? []).some((r) => r.id === highlightId);
   const [repliesOpen, setRepliesOpen] = useState(isHighlighted || repliesContainHighlight);
@@ -103,6 +108,9 @@ export function CommentBubble({
     comment.author_id === currentUser.id &&
     !isPending &&
     Date.now() - new Date(comment.created_at).getTime() < 15 * 60 * 1000;
+
+  const canReport =
+    !!currentUser && comment.author_id !== currentUser.id && !isPending;
 
   const dateLocale = lang === 'ar' ? ar : lang === 'fr' ? fr : enUS;
   const timeAgo = isPending
@@ -183,7 +191,11 @@ export function CommentBubble({
               >
                 {comment.author.full_name}
               </Link>
-              {comment.author.is_subscribed && <SubscribedBadge size="xs" />}
+              {isOfficialAccount({ id: comment.author_id, username: comment.author.username }) ? (
+                <OfficialBadge size="xs" />
+              ) : (
+                comment.author.is_subscribed && <SubscribedBadge size="xs" />
+              )}
             </span>
 
             {/* Content / edit input */}
@@ -278,8 +290,8 @@ export function CommentBubble({
           {/* Time */}
           <span className="text-[11px] text-muted-foreground/70 font-normal">{timeAgo}</span>
 
-          {/* Overflow menu: edit / delete */}
-          {(canEdit || canDelete) && !isPending && (
+          {/* Overflow menu: edit / report / delete */}
+          {(canEdit || canDelete || canReport) && !isPending && (
             <DropdownMenu>
               <DropdownMenuTrigger
                 className="ms-auto rounded-full p-0.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
@@ -295,6 +307,11 @@ export function CommentBubble({
                     <Pencil className="size-3.5" /> {t('commentEdit')}
                   </DropdownMenuItem>
                 )}
+                {canReport && (
+                  <DropdownMenuItem onClick={() => setReportOpen(true)}>
+                    <Flag className="size-3.5" /> {t('reportComment')}
+                  </DropdownMenuItem>
+                )}
                 {canDelete && (
                   <DropdownMenuItem
                     variant="destructive"
@@ -308,6 +325,24 @@ export function CommentBubble({
             </DropdownMenu>
           )}
         </div>
+
+        {/* ── Moderation quick-actions (admins / moderators only) ──────── */}
+        <ModerationToolbar
+          targetType="comment"
+          contentId={comment.id}
+          authorId={comment.author_id}
+          postId={postId}
+          currentUserId={currentUser?.id}
+          className="mt-1.5 w-fit"
+        />
+
+        {/* ── Report dialog ───────────────────────────────────────────── */}
+        <ReportDialog
+          targetType="comment"
+          targetId={comment.id}
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+        />
 
         {/* ── Inline reply composer ───────────────────────────────────────── */}
         {showReply && currentUser && (
