@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import cloudinaryLoader from "@/lib/cloudinary-loader";
@@ -58,7 +58,8 @@ import { usePrefetchReactors } from "@/hooks/use-reactors";
 import { followUser, unfollowUser } from "@/lib/actions/follow";
 import { followStore } from "@/lib/stores/follow-store";
 import { toggleSavePost } from "@/lib/actions/save-post";
-import { reportPost, type ReportReason } from "@/lib/actions/report-post";
+import { ReportDialog } from "@/components/feed/report-dialog";
+import { ModerationToolbar } from "@/components/moderation/moderation-toolbar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,13 +70,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { AuthGate } from "@/components/shared/auth-gate";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { StatusAwareAvatar } from "@/components/shared/status-aware-avatar";
 import { SubscribedBadge } from "@/components/shared/subscribed-badge";
+import { OfficialBadge } from "@/components/shared/official-badge";
+import { isOfficialAccount } from "@/lib/constants/official";
 import { useLang } from "@/lib/i18n/language-context";
 import type { PostMedia, PostWithAuthor } from "@/lib/validations/post";
 
@@ -353,9 +353,6 @@ export function PostCard({
   const [isDeleting, startDeleteTransition] = useTransition();
   // Report dialog
   const [reportOpen, setReportOpen] = useState(false);
-  const [reportReason, setReportReason] = useState<ReportReason>('spam');
-  const [isReporting, startReportTransition] = useTransition();
-  const reportedRef = useRef(false);
   // Module-level store — syncs follow state across ALL PostCards globally
   const followMap = useSyncExternalStore(
     followStore.subscribe,
@@ -427,23 +424,6 @@ export function PostCard({
     });
   }
 
-  function handleReportSubmit() {
-    if (reportedRef.current || isReporting) return;
-    startReportTransition(async () => {
-      const result = await reportPost(post.id, reportReason);
-      if (result.already) {
-        toast.info(t('alreadyReported'));
-      } else if (result.error) {
-        toast.error(result.error);
-        return;
-      } else {
-        reportedRef.current = true;
-        toast.success(t('reportSent'));
-      }
-      setReportOpen(false);
-    });
-  }
-
   return (
     <article className={`rounded-xl border bg-card transition-opacity${post.is_pending ? " opacity-50" : ""}`}>
       {/* ── Repost indicator ────────────────────────────────────────── */}
@@ -479,13 +459,20 @@ export function PostCard({
             >
               {post.author.full_name}
             </Link>
-            {post.author.is_verified && (
-              <BadgeCheck
-                className="size-4 shrink-0 fill-green-600 text-white"
-                aria-label={t('verifiedBadgeAriaLabel')}
-              />
+            {isOfficialAccount(post.author) ? (
+              // Official platform account: show only the distinct official seal.
+              <OfficialBadge size="xs" />
+            ) : (
+              <>
+                {post.author.is_verified && (
+                  <BadgeCheck
+                    className="size-4 shrink-0 fill-green-600 text-white"
+                    aria-label={t('verifiedBadgeAriaLabel')}
+                  />
+                )}
+                {post.author.is_subscribed && <SubscribedBadge size="xs" />}
+              </>
             )}
-            {post.author.is_subscribed && <SubscribedBadge size="xs" />}
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
             <Link
@@ -561,6 +548,15 @@ export function PostCard({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* ── Moderation quick-actions (admins / moderators only) ──────── */}
+      <ModerationToolbar
+        targetType="post"
+        contentId={post.id}
+        authorId={post.author_id}
+        currentUserId={currentUserId}
+        className="mx-4 mt-2"
+      />
 
       {/* ── Text content ────────────────────────────────────────────── */}
       {post.content && (
@@ -770,55 +766,12 @@ export function PostCard({
       </AlertDialog>
 
       {/* ── Report dialog ─────────────────────────────────────────── */}
-      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t('reportPostTitle')}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {t('reportPostDesc')}
-          </p>
-          <RadioGroup
-            value={reportReason}
-            onValueChange={(v) => setReportReason(v as ReportReason)}
-            className="mt-1 space-y-2"
-            dir={lang === 'ar' ? 'rtl' : 'ltr'}
-          >
-            {([
-              ['spam',          t('reportSpam')],
-              ['fraud',         t('reportFraud')],
-              ['inappropriate', t('reportInappropriate')],
-              ['harassment',    t('reportHarassment')],
-              ['impersonation', t('reportImpersonation')],
-              ['other',         t('reportOther')],
-            ] as [ReportReason, string][]).map(([value, label]) => (
-              <div key={value} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/50">
-                <RadioGroupItem value={value} id={`report-${value}-${post.id}`} />
-                <Label htmlFor={`report-${value}-${post.id}`} className="flex-1 cursor-pointer text-sm font-medium">
-                  {label}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
-          <div className="mt-2 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setReportOpen(false)}
-              className="rounded-lg border px-4 py-2 text-sm transition-colors hover:bg-muted"
-            >
-              {t('cancel')}
-            </button>
-            <button
-              type="button"
-              onClick={handleReportSubmit}
-              disabled={isReporting}
-              className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:opacity-50"
-            >
-              {isReporting ? t('submittingReport') : t('submitReport')}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ReportDialog
+        targetType="post"
+        targetId={post.id}
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+      />
     </article>
   );
 }

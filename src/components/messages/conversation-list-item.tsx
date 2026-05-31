@@ -7,6 +7,8 @@ import { ar } from 'date-fns/locale';
 import { MoreHorizontal, Pin, BellOff } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { SubscribedBadge } from '@/components/shared/subscribed-badge';
+import { OfficialBadge } from '@/components/shared/official-badge';
+import { isOfficialAccount } from '@/lib/constants/official';
 import { cn } from '@/lib/utils';
 import { useLongPress } from '@/hooks/use-long-press';
 import { useLang } from '@/lib/i18n/language-context';
@@ -158,7 +160,11 @@ export function ConversationListItem({ conv, currentUserId, onOptimisticUpdate }
               )}
               <span className={cn('flex min-w-0 items-center gap-1 text-sm', isUnread ? 'font-semibold' : 'font-medium')}>
                 <span className="truncate">{partner_full_name}</span>
-                {conv.partner_is_subscribed && <SubscribedBadge size="xs" />}
+                {isOfficialAccount({ id: conv.partner_id, username: partner_username }) ? (
+                  <OfficialBadge size="xs" />
+                ) : (
+                  conv.partner_is_subscribed && <SubscribedBadge size="xs" />
+                )}
               </span>
             </div>
           </div>

@@ -6,6 +6,8 @@ import { BadgeCheck, MapPin, Briefcase, Clock, MessageCircle, Pencil } from 'luc
 import { Button } from '@/components/ui/button';
 import { AuthGate } from '@/components/shared/auth-gate';
 import { SubscribedBadge } from '@/components/shared/subscribed-badge';
+import { OfficialBadge } from '@/components/shared/official-badge';
+import { isOfficialAccount } from '@/lib/constants/official';
 import { RatingDisplay } from '@/components/rating/rating-display';
 import { PresenceText } from '@/components/shared/presence-text';
 import { useIsOnline } from '@/hooks/use-is-online';
@@ -200,10 +202,16 @@ export function ProfileHeader({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h1 className="truncate text-xl font-bold">{user.full_name}</h1>
-              {profile.is_verified && (
-                <BadgeCheck className="size-5 shrink-0 text-blue-500 dark:text-blue-400" aria-label={t('verifiedBadgeAriaLabel')} />
+              {isOfficialAccount(user) ? (
+                <OfficialBadge size="md" />
+              ) : (
+                <>
+                  {profile.is_verified && (
+                    <BadgeCheck className="size-5 shrink-0 text-blue-500 dark:text-blue-400" aria-label={t('verifiedBadgeAriaLabel')} />
+                  )}
+                  {profile.is_subscribed && <SubscribedBadge size="md" />}
+                </>
               )}
-              {profile.is_subscribed && <SubscribedBadge size="md" />}
             </div>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
             <PresenceText userId={user.id} lastSeenAt={lastSeenAt} className="mt-0.5 text-xs" />

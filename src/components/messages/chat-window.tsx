@@ -25,6 +25,8 @@ import { UpgradePrompt } from '@/components/subscription/upgrade-prompt';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { PresenceText } from '@/components/shared/presence-text';
 import { SubscribedBadge } from '@/components/shared/subscribed-badge';
+import { OfficialBadge } from '@/components/shared/official-badge';
+import { isOfficialAccount } from '@/lib/constants/official';
 import { useTypingIndicator } from '@/hooks/use-typing-indicator';
 import { VoiceRecorder } from '@/components/messages/voice-recorder';
 import { VoiceMessageBubble } from '@/components/messages/voice-message-bubble';
@@ -922,7 +924,11 @@ export function ChatWindow({
         <Link href={`/profile/${partner.username}`} className="min-w-0 flex-1 rounded-md px-1 transition-colors hover:bg-accent/50">
           <p className="flex items-center gap-1 truncate font-semibold leading-tight">
             <span className="truncate">{partner.full_name}</span>
-            {partner.is_subscribed && <SubscribedBadge size="xs" />}
+            {isOfficialAccount(partner) ? (
+              <OfficialBadge size="xs" />
+            ) : (
+              partner.is_subscribed && <SubscribedBadge size="xs" />
+            )}
           </p>
           {isPartnerTyping ? (
             <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">

@@ -22,7 +22,28 @@ const GATE_ALLOWED_PREFIXES = [
   "/privacy",
 ];
 
+// مسارات يُسمح للمحظور بالوصول إليها (صفحة الحظر + الخروج) لتفادي حلقة التوجيه.
+const BANNED_ALLOWED_PREFIXES = ["/banned", "/logout"];
+
 type GateState = { onboardingComplete: boolean; termsAccepted: boolean };
+
+/**
+ * Security-critical ban check. Intentionally NOT cached behind the `gate_ok`
+ * cookie — a user banned mid-session must be stopped on their next navigation.
+ * A single PK-indexed boolean lookup per page navigation (assets are excluded
+ * by the matcher).
+ */
+async function isUserBanned(
+  supabase: Awaited<ReturnType<typeof updateSession>>["supabase"],
+  userId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("banned_at")
+    .eq("user_id", userId)
+    .single();
+  return data?.banned_at != null;
+}
 
 /**
  * Single profiles lookup feeding both gates (onboarding + terms). Combined so a
@@ -103,6 +124,15 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user) {
+    // بوابة الحظر — أولوية قصوى قبل أي منطق آخر. المستخدم المحظور يُوجَّه إلى
+    // /banned (مع السماح بـ /banned و /logout لتفادي حلقة التوجيه).
+    const isBannedAllowed = BANNED_ALLOWED_PREFIXES.some(
+      (p) => pathname === p || pathname.startsWith(p + "/")
+    );
+    if (!isBannedAllowed && (await isUserBanned(supabase, user.id))) {
+      return redirectWithAuth(new URL("/banned", request.url), supabaseResponse);
+    }
+
     // مسجّل ويحاول فتح صفحة auth → وجّهه حسب اكتمال onboarding
     if (isAuthPage) {
       const { onboardingComplete } = await getGateState(supabase, user.id);

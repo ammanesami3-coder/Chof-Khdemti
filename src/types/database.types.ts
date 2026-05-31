@@ -332,9 +332,108 @@ export type Database = {
           },
         ]
       }
+      content_reports: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string | null
+          reporter_id: string
+          status: string
+          target_comment_id: string | null
+          target_post_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          reporter_id: string
+          status?: string
+          target_comment_id?: string | null
+          target_post_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          reporter_id?: string
+          status?: string
+          target_comment_id?: string | null
+          target_post_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "content_reports_target_post_id_fkey"
+            columns: ["target_post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_reports_target_comment_id_fkey"
+            columns: ["target_comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moderator_permissions: {
+        Row: {
+          assigned_by: string | null
+          can_ban_users: boolean
+          can_delete_comments: boolean
+          can_delete_posts: boolean
+          can_view_reports: boolean
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          can_ban_users?: boolean
+          can_delete_comments?: boolean
+          can_delete_posts?: boolean
+          can_view_reports?: boolean
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          can_ban_users?: boolean
+          can_delete_comments?: boolean
+          can_delete_posts?: boolean
+          can_view_reports?: boolean
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderator_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "moderator_permissions_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
+          banned_at: string | null
+          banned_by: string | null
           bio: string | null
           city: string | null
           cover_url: string | null
@@ -349,12 +448,15 @@ export type Database = {
           who_can_message: string
           who_can_comment: string
           onboarding_complete: boolean
+          role: string
           updated_at: string
           user_id: string
           years_experience: number | null
         }
         Insert: {
           avatar_url?: string | null
+          banned_at?: string | null
+          banned_by?: string | null
           bio?: string | null
           city?: string | null
           cover_url?: string | null
@@ -369,12 +471,15 @@ export type Database = {
           who_can_message?: string
           who_can_comment?: string
           onboarding_complete?: boolean
+          role?: string
           updated_at?: string
           user_id: string
           years_experience?: number | null
         }
         Update: {
           avatar_url?: string | null
+          banned_at?: string | null
+          banned_by?: string | null
           bio?: string | null
           city?: string | null
           cover_url?: string | null
@@ -389,6 +494,7 @@ export type Database = {
           who_can_message?: string
           who_can_comment?: string
           onboarding_complete?: boolean
+          role?: string
           updated_at?: string
           user_id?: string
           years_experience?: number | null
@@ -700,6 +806,14 @@ export type Database = {
       }
       can_customer_rate: {
         Args: { p_artisan_id: string; p_customer_id: string }
+        Returns: boolean
+      }
+      is_platform_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      can_view_reports: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       get_artisan_rating: {

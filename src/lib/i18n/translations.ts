@@ -149,6 +149,23 @@ export const translations = {
     reportOther: 'سبب آخر',
     submittingReport: 'جاري الإرسال...',
     submitReport: 'إرسال البلاغ',
+    reportComment: 'إبلاغ عن التعليق',
+    reportCommentTitle: 'إبلاغ عن التعليق',
+    // Moderation tools
+    moderationTools: 'أدوات الإشراف',
+    deleteContent: 'حذف المحتوى',
+    banUser: 'حظر المستخدم',
+    deleteContentTitle: 'حذف هذا المحتوى؟',
+    deleteContentDesc: 'سيتم حذف هذا المحتوى نهائياً كإجراء إشرافي. لا يمكن التراجع عن هذا الإجراء.',
+    banUserTitle: 'حظر هذا المستخدم؟',
+    banUserDesc: 'لن يتمكن هذا المستخدم من استخدام المنصة. يمكنك التراجع لاحقاً من لوحة الإدارة.',
+    contentDeleted: 'تم حذف المحتوى',
+    userBanned: 'تم حظر المستخدم',
+    moderationActionFailed: 'تعذّر تنفيذ الإجراء',
+    // Banned page
+    bannedTitle: 'تم تقييد حسابك',
+    bannedDesc: 'تم تعليق حسابك من قِبل فريق الإشراف لمخالفة شروط الاستخدام. إذا كنت تعتقد أن هذا خطأ، تواصل مع الدعم.',
+    bannedLogout: 'تسجيل الخروج',
 
     // Comments
     commentLiked: 'أعجبني ✓',
@@ -1136,6 +1153,23 @@ export const translations = {
     reportOther: 'Autre raison',
     submittingReport: 'Envoi...',
     submitReport: 'Envoyer le signalement',
+    reportComment: 'Signaler le commentaire',
+    reportCommentTitle: 'Signaler le commentaire',
+    // Moderation tools
+    moderationTools: 'Modération',
+    deleteContent: 'Supprimer le contenu',
+    banUser: "Bannir l'utilisateur",
+    deleteContentTitle: 'Supprimer ce contenu ?',
+    deleteContentDesc: 'Ce contenu sera définitivement supprimé en tant qu’action de modération. Cette action est irréversible.',
+    banUserTitle: 'Bannir cet utilisateur ?',
+    banUserDesc: "Cet utilisateur ne pourra plus utiliser la plateforme. Vous pourrez annuler depuis le tableau d'administration.",
+    contentDeleted: 'Contenu supprimé',
+    userBanned: 'Utilisateur banni',
+    moderationActionFailed: "Échec de l'action",
+    // Banned page
+    bannedTitle: 'Votre compte est restreint',
+    bannedDesc: "Votre compte a été suspendu par l'équipe de modération pour non-respect des conditions d'utilisation. Si vous pensez qu'il s'agit d'une erreur, contactez le support.",
+    bannedLogout: 'Se déconnecter',
 
     // Comments
     commentLiked: "J'aime ✓",
@@ -2115,6 +2149,23 @@ export const translations = {
     reportOther: 'Other reason',
     submittingReport: 'Sending...',
     submitReport: 'Submit report',
+    reportComment: 'Report comment',
+    reportCommentTitle: 'Report comment',
+    // Moderation tools
+    moderationTools: 'Moderation',
+    deleteContent: 'Delete content',
+    banUser: 'Ban user',
+    deleteContentTitle: 'Delete this content?',
+    deleteContentDesc: 'This content will be permanently deleted as a moderation action. This action cannot be undone.',
+    banUserTitle: 'Ban this user?',
+    banUserDesc: 'This user will no longer be able to use the platform. You can reverse this later from the admin dashboard.',
+    contentDeleted: 'Content deleted',
+    userBanned: 'User banned',
+    moderationActionFailed: 'Action failed',
+    // Banned page
+    bannedTitle: 'Your account is restricted',
+    bannedDesc: 'Your account has been suspended by the moderation team for violating the terms of use. If you believe this is a mistake, contact support.',
+    bannedLogout: 'Log out',
 
     // Comments
     commentLiked: 'Liked ✓',

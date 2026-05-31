@@ -3,6 +3,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { User2, FileText, Search } from 'lucide-react';
 import { SearchPageInput } from './search-input';
+import { OfficialBadge } from '@/components/shared/official-badge';
+import { isOfficialAccount } from '@/lib/constants/official';
 import type { Metadata } from 'next';
 
 type Props = {
@@ -161,7 +163,12 @@ export default async function SearchPage({ searchParams }: Props) {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium truncate">{a.full_name}</p>
+                  <p className="flex items-center gap-1 font-medium">
+                    <span className="truncate">{a.full_name}</span>
+                    {isOfficialAccount({ id: a.id, username: a.username }) && (
+                      <OfficialBadge size="xs" />
+                    )}
+                  </p>
                   <p className="text-sm text-muted-foreground truncate">
                     @{a.username}
                     {a.profiles?.craft_category && ` · ${a.profiles.craft_category}`}
@@ -202,7 +209,12 @@ export default async function SearchPage({ searchParams }: Props) {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{p.users?.full_name ?? 'مجهول'}</p>
+                  <p className="flex items-center gap-1 text-sm font-medium">
+                    <span className="truncate">{p.users?.full_name ?? 'مجهول'}</span>
+                    {isOfficialAccount({ id: p.author_id, username: p.users?.username }) && (
+                      <OfficialBadge size="xs" />
+                    )}
+                  </p>
                   <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
                     {p.content}
                   </p>
