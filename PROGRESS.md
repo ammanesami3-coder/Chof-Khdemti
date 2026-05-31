@@ -1,6 +1,41 @@
 # PROGRESS.md — Chof Khdemti
 
-## المرحلة الحالية: ✅ 5.5 مكتملة + تحديثات الهوية البصرية — جاهز للمرحلة 6 (الإطلاق)
+## المرحلة الحالية: ✅ 5.5 مكتملة + تدقيق أمني وأداء — جاهز للمرحلة 6 (الإطلاق)
+
+---
+
+## تدقيق احترافي — مايو 2026 (المرحلة 1: أمان · المرحلة 2: أداء وتنظيف)
+
+> **الهدف:** تدقيق أمني شامل للـ API/الإجراءات + تحسين الأداء وإزالة الديون التقنية. النتيجة: `tsc` ✓ · `eslint` (0 errors) ✓ · `next build` ✓.
+
+### المرحلة 1 — تشديد الأمان (5 إصلاحات)
+
+> **الخلاصة:** النواة سليمة أصلاً — RLS مفعّل على كل الجداول، توقيع webhook بـ `timingSafeEqual`، ودوال `SECURITY DEFINER` محصّنة بـ `search_path` ثابت وفحص هوية المُستدعي. الإصلاحات أدناه تسدّ ثغرات تشغيلية وحوافّ.
+
+1. **حماية مفتاح الخدمة (`server-only`)** — `src/lib/supabase/admin.ts`: إضافة `import "server-only"` فيصبح أي استيراد من كود العميل خطأ وقت البناء، ويستحيل تسريب `SERVICE_ROLE_KEY` إلى حزمة المتصفح.
+2. **تقييد روابط الوسائط لنطاق Cloudinary فقط** — `src/lib/cloudinary-url.ts` (جديد): `isOurCloudinaryUrl` + `cloudinaryUrlSchema` (host = `res.cloudinary.com` + مسار سحابتنا فقط). طُبِّق على مرفقات/صوت الرسائل (`messages.ts`) وصورة/غلاف البروفايل (`profile.ts`) بدل `z.string().url()` المفتوح — يمنع تخزين روابط خارجية (تتبّع/محتوى مختلط/SSRF).
+3. **تأمين `/api/proxy-file`** — يتطلّب جلسة مصادَقة الآن + تضييق فحص SSRF من `*.cloudinary.com` إلى `res.cloudinary.com` + بادئة سحابتنا + `https:` فقط.
+4. **تأمين `/api/cloudinary/view`** — إضافة فحص `getUser()` + **إزالة fallback توقيع الموارد المقيّدة** الذي كان يسمح لأي طلب مجهول بجلب أصول محمية عبر `public_id` (تجاوز التحكم بالوصول).
+5. **تحديد المعدّل (Rate Limiting)** — `src/lib/rate-limit.ts` (جديد): محدِّد نافذة ثابتة في الذاكرة بدون أي مكتبة خارجية (best-effort لكل instance، مع مسار ترقية لاحق لـ Upstash). طُبِّق على:
+   - المصادقة (`auth.ts`): تسجيل دخول 8/دقيقة، تسجيل جديد 5/10 دقائق — حسب IP.
+   - الرسائل (`messages.ts`): 30/30 ثانية — حسب المستخدم (كل أنواع الإرسال).
+   - الدفع (`checkout/route.ts`): 5/دقيقة — حسب المستخدم (HTTP 429).
+
+### المرحلة 2 — الأداء وإعادة الهيكلة
+
+> **الخلاصة:** المسارات الساخنة (الفيد، الاكتشاف، المحادثات) خالية من مشاكل N+1 — كلها تجمّع عبر `.in(...)` أو RPC واحد.
+
+1. **حذف استعلام مكرّر في `enrichPosts`** — `src/lib/queries/posts.ts`: كان يُعيد استعلام نفس صفوف `posts` مرة ثانية لجلب `shares_count`/`shared_post_id`/`reactions_summary`. ضُمّت الأعمدة إلى `POST_SELECT` (عبر مساعد `postsTable()` واحد) فتصل مع الاستعلام الرئيسي — **جولة قاعدة بيانات أقل** على كل فيد/منشور/بروفايل/فيديو/محفوظات. بلا تغيير في المخرجات.
+2. **توحيد `getInitials`** — `src/lib/utils.ts`: دالة واحدة null-safe بدل 5 نسخ مكرّرة (`user-avatar`, `profile-header`, `notification-item`, `send-via-message-sheet`, `post-composer`) — وأصلحت أيضاً غياب `toUpperCase` في `post-composer`.
+3. **تدقيق أخطاء التعليقات** — لا تغيير لازم: إجراءات التعليقات تُستهلك حصراً عبر `use-comments.ts` بـ `.mutate()`، وكل mutation له `onError` + rollback + `toast.error`. النمط مثالي بالفعل (إضافة try/catch يدوي كانت ستكسر الـ rollback).
+
+### إزالة كود ميّت (~900 سطر) — 5 ملفات معزولة
+
+استُبدلت بإعادات تصميم سابقة ولا يستوردها أي ملف (تحقّقنا عبر grep على المسارات والرموز — لا barrel ولا dynamic import):
+- **تعليقات (استبدلها `CommentBubble` + `CommentsSheet`):** `comment-item.tsx`، `comments-dialog.tsx`، `inline-comments.tsx`
+- **موقع (استبدلها `LocationMessageCard` + `LocationViewerModal`):** `location-bubble.tsx`، `location-viewer.tsx`
+
+**النتائج النهائية:** `npx tsc --noEmit` → 0 errors · `eslint src` → 0 errors (5 تحذيرات سابقة في ملفات لم نمسّها) · `next build` → نجح بالكامل.
 
 ---
 
