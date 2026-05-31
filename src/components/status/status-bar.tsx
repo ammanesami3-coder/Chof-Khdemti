@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Plus } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import { OfficialBadge } from '@/components/shared/official-badge';
+import { isOfficialAccount } from '@/lib/constants/official';
 import { StatusComposer } from './status-composer';
 import { StatusViewer } from './status-viewer';
 import { cn } from '@/lib/utils';
@@ -267,8 +269,9 @@ function StoryCard({
 
       {/* ── Name at bottom ─── */}
       <div className="absolute bottom-0 inset-x-0 px-2.5 pb-3 z-10">
-        <p className="truncate text-start text-[11.5px] font-semibold text-white drop-shadow-md leading-tight">
-          {isOwn ? t('myStoryLabel') : user.full_name}
+        <p className="flex items-center gap-1 truncate text-start text-[11.5px] font-semibold text-white drop-shadow-md leading-tight">
+          <span className="truncate">{isOwn ? t('myStoryLabel') : user.full_name}</span>
+          {!isOwn && isOfficialAccount(user) && <OfficialBadge size="xs" className="drop-shadow" />}
         </p>
       </div>
 
