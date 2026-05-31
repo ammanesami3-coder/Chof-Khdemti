@@ -1,6 +1,8 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { resolveOfficialAccountId } from '@/lib/official/account';
+import { OFFICIAL_PINNED_LIMIT } from '@/lib/constants/official';
 import type { PostMedia, PostWithAuthor, SharedPostData } from '@/lib/validations/post';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -518,6 +520,32 @@ export async function fetchSavedPosts(
         ? { saved_at: last.created_at, post_id: last.post_id }
         : null,
   };
+}
+
+/**
+ * Most-recent posts authored by the official platform account.
+ * Used to pin platform announcements at the very top of the feed for ALL
+ * users, bypassing follow/subscription filters. Returns [] when no official
+ * account is configured (graceful no-op).
+ */
+export async function fetchOfficialPosts(
+  currentUserId?: string,
+  limit: number = OFFICIAL_PINNED_LIMIT
+): Promise<PostWithAuthor[]> {
+  const supabase = await createClient();
+
+  const officialId = await resolveOfficialAccountId(supabase);
+  if (!officialId) return [];
+
+  const { data: raw } = await postsTable(supabase)
+    .select(POST_SELECT)
+    .eq('author_id', officialId)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(limit);
+
+  if (!raw?.length) return [];
+  return enrichPosts(supabase, raw as RawPost[], currentUserId);
 }
 
 export async function fetchPostById(

@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { canStartConversation } from '@/lib/privacy/visibility';
+import { resolveOfficialAccountId } from '@/lib/official/account';
+import { isOfficialAccount } from '@/lib/constants/official';
 import type { StatusContentType, StatusWithUser, StatusGroup } from '@/lib/types/status.types';
 
 type CreateStatusInput = {
@@ -49,6 +51,11 @@ export async function getActiveStatuses(): Promise<StatusGroup[]> {
 
   const followingIds = (follows ?? []).map((f) => f.following_id);
   const relevantIds = [...followingIds, user.id];
+
+  // Always include the official platform account so its stories reach every
+  // user, even those who don't follow it.
+  const officialId = await resolveOfficialAccountId(supabase);
+  if (officialId && !relevantIds.includes(officialId)) relevantIds.push(officialId);
 
   const now = new Date().toISOString();
 
@@ -147,6 +154,11 @@ export async function getActiveStatuses(): Promise<StatusGroup[]> {
   const groups = orderedUserIds.map((id) => groupMap.get(id)!).sort((a, b) => {
     if (a.user.id === ownId) return -1;
     if (b.user.id === ownId) return 1;
+    // Official platform stories rank right after the user's own.
+    const aOfficial = isOfficialAccount(a.user);
+    const bOfficial = isOfficialAccount(b.user);
+    if (aOfficial && !bOfficial) return -1;
+    if (!aOfficial && bOfficial) return 1;
     if (a.hasUnviewed && !b.hasUnviewed) return -1;
     if (!a.hasUnviewed && b.hasUnviewed) return 1;
     return 0;

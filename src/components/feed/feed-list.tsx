@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { ArrowUp, Compass, Image, Loader2, RefreshCw, VideoOff } from "lucide-react";
 import { PostCard } from "@/components/feed/post-card";
 import { PostCardSkeletonList } from "@/components/feed/post-card-skeleton";
@@ -13,6 +13,7 @@ import {
   fetchUserPosts,
   fetchSmartFeed,
   fetchVideoFeed,
+  fetchOfficialPosts,
 } from "@/lib/queries/posts";
 import { useLang } from "@/lib/i18n/language-context";
 import type { FeedCursor, FeedPage } from "@/lib/queries/posts";
@@ -107,6 +108,21 @@ export function FeedList({
     ...(initialData
       ? { initialData: { pages: [initialData], pageParams: [undefined] } }
       : {}),
+  });
+
+  // ── Pinned official-account posts ─────────────────────────────────────────
+  // Platform announcements are injected at the top of the main social feeds
+  // for ALL users, bypassing the follow/subscription filters. Skipped on
+  // single-profile and video-only feeds.
+  const pinsOfficial =
+    feedType === "smart" || feedType === "following" || feedType === "discover";
+
+  const { data: officialPosts = [] } = useQuery<PostWithAuthor[]>({
+    queryKey: ["official-pinned", currentUserId ?? "anon"],
+    queryFn: () => fetchOfficialPosts(currentUserId),
+    enabled: pinsOfficial,
+    staleTime: 300_000,
+    gcTime: 600_000,
   });
 
   // ── Infinite scroll ───────────────────────────────────────────────────────
@@ -215,9 +231,16 @@ export function FeedList({
   }
 
   const fetchedPosts = data?.pages.flatMap((p) => p.posts) ?? [];
+  // Pinned official posts go first; dedupe them out of the regular stream so
+  // they never appear twice (they also surface chronologically in discover).
+  const pinned = pinsOfficial ? officialPosts : [];
+  const officialIds = new Set(pinned.map((p) => p.id));
   const fetchedIds = new Set(fetchedPosts.map((p) => p.id));
-  const uniqueNew = newPosts.filter((p) => !fetchedIds.has(p.id));
-  const displayed = [...uniqueNew, ...fetchedPosts];
+  const uniqueNew = newPosts.filter(
+    (p) => !fetchedIds.has(p.id) && !officialIds.has(p.id)
+  );
+  const rest = [...uniqueNew, ...fetchedPosts].filter((p) => !officialIds.has(p.id));
+  const displayed = [...pinned, ...rest];
 
   // ── Empty states ──────────────────────────────────────────────────────────
   if (!displayed.length) {
