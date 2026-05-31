@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
+import Script from "next/script";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
 import "./globals.css";
+
+const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
 
 const cairo = Cairo({
   variable: "--font-cairo",
@@ -31,6 +34,15 @@ export default function RootLayout({
       <body className="font-[family-name:var(--font-cairo)] antialiased">
         <Providers>{children}</Providers>
         <Toaster position="top-center" richColors />
+        {adsenseClient && (
+          <Script
+            id="adsbygoogle-init"
+            async
+            strategy="afterInteractive"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClient}`}
+            crossOrigin="anonymous"
+          />
+        )}
       </body>
     </html>
   );

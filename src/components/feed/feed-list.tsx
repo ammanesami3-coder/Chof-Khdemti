@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ArrowUp, Compass, Image, Loader2, RefreshCw, VideoOff } from "lucide-react";
 import { PostCard } from "@/components/feed/post-card";
 import { PostCardSkeletonList } from "@/components/feed/post-card-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { AdSlot } from "@/components/shared/ad-slot";
 import {
   fetchFollowingFeed,
   fetchDiscoverFeed,
@@ -18,6 +19,10 @@ import type { FeedCursor, FeedPage } from "@/lib/queries/posts";
 import type { PostWithAuthor } from "@/lib/validations/post";
 
 export type FeedType = "following" | "discover" | "user" | "smart" | "videos";
+
+// Inject a native ad after every Nth post in the main social feed.
+const AD_INTERVAL = 6;
+const FEED_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_FEED_SLOT ?? "";
 
 type CurrentUser = {
   id: string;
@@ -296,15 +301,27 @@ export function FeedList({
       )}
 
       <div className="space-y-4">
-        {displayed.map((post, i) => (
-          <PostCard
-            key={post.id}
-            post={post}
-            currentUserId={currentUserId}
-            currentUser={currentUser}
-            priority={i === 0}
-          />
-        ))}
+        {displayed.map((post, i) => {
+          // Show ads only in the main social feeds, after every Nth post,
+          // but never trailing as the final item.
+          const showAd =
+            feedType !== "user" &&
+            feedType !== "videos" &&
+            (i + 1) % AD_INTERVAL === 0 &&
+            i < displayed.length - 1;
+
+          return (
+            <Fragment key={post.id}>
+              <PostCard
+                post={post}
+                currentUserId={currentUserId}
+                currentUser={currentUser}
+                priority={i === 0}
+              />
+              {showAd && <AdSlot slot={FEED_AD_SLOT} />}
+            </Fragment>
+          );
+        })}
       </div>
 
       <div ref={sentinelRef} />
