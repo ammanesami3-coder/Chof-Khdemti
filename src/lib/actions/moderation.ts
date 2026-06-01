@@ -65,6 +65,21 @@ export async function getModerationCapabilities(): Promise<ModerationCaps> {
   };
 }
 
+/**
+ * Resolve a user's moderation role ('user' | 'artisan' | 'moderator' | 'admin').
+ * Used by the moderation toolbar to hide destructive actions when a moderator
+ * is looking at admin-owned content (the RPCs enforce this server-side too).
+ */
+export async function getUserRole(userId: string): Promise<string> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return data?.role ?? 'user';
+}
+
 type ActionResult = { success: boolean; error?: string };
 
 /** Delete a post as a moderator (RPC enforces can_delete_posts / admin). */
