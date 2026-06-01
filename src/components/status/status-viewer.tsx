@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
+import Link from 'next/link';
 import { X, Trash2, Eye, ChevronRight, ChevronLeft, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/shared/user-avatar';
@@ -473,19 +474,25 @@ export function StatusViewer({
           className="absolute inset-x-0 z-20 flex items-center gap-2.5 px-3 py-2"
           style={{ top: 'max(env(safe-area-inset-top, 10px) + 16px, 26px)' }}
         >
-          {/* Avatar */}
-          <div
-            className="shrink-0 rounded-full ring-[2px] ring-white/60 shadow-md cursor-pointer"
-            onClick={(e) => e.stopPropagation()}
+          {/* Avatar → profile */}
+          <Link
+            href={`/profile/${story.user.username}`}
+            onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
+            className="shrink-0 rounded-full ring-[2px] ring-white/60 shadow-md transition-transform hover:scale-105"
+            aria-label={story.user.full_name}
           >
             <UserAvatar user={story.user} size="sm" linkable={false} />
-          </div>
+          </Link>
 
           {/* Name + time */}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13.5px] font-semibold text-white leading-tight drop-shadow-sm">
+            <Link
+              href={`/profile/${story.user.username}`}
+              onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
+              className="inline-block max-w-full truncate text-[13.5px] font-semibold text-white leading-tight drop-shadow-sm transition-opacity hover:opacity-80"
+            >
               {story.user.full_name}
-            </p>
+            </Link>
             <p className="text-[11px] text-white/70 leading-tight mt-0.5">{timeAgo}</p>
           </div>
 

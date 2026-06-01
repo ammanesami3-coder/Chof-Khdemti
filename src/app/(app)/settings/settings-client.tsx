@@ -10,6 +10,7 @@ import {
   LogOut,
   Pencil,
   Shield,
+  ShieldCheck,
 } from 'lucide-react';
 import { BackButton } from '@/components/shared/back-button';
 import { SoundSettings } from '@/components/settings/sound-settings';
@@ -26,6 +27,7 @@ type Props = {
     account_type: string;
   } | null;
   avatarUrl: string | null;
+  isAdmin?: boolean;
 };
 
 function SettingsRow({
@@ -86,7 +88,7 @@ function SettingsCard({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function SettingsClient({ userData, avatarUrl }: Props) {
+export function SettingsClient({ userData, avatarUrl, isAdmin = false }: Props) {
   const { t } = useLang();
   const isArtisan = userData?.account_type === 'artisan';
 
@@ -215,6 +217,23 @@ export function SettingsClient({ userData, avatarUrl }: Props) {
           />
         </SettingsCard>
       </section>
+
+      {/* Administration (admins only) */}
+      {isAdmin && (
+        <section className="mb-5">
+          <SectionTitle>{t('administration')}</SectionTitle>
+          <SettingsCard>
+            <SettingsRow
+              icon={ShieldCheck}
+              label={t('moderatorsTitle')}
+              description={t('moderatorsSubtitle')}
+              href="/settings/moderators"
+              iconBg="bg-slate-100 dark:bg-slate-800"
+              iconColor="text-slate-700 dark:text-slate-200"
+            />
+          </SettingsCard>
+        </section>
+      )}
 
       {/* Logout */}
       <section className="mb-6">
