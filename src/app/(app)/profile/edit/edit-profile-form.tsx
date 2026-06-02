@@ -19,9 +19,10 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { ImageUpload } from '@/components/shared/image-upload';
-import { CRAFTS } from '@/lib/constants/crafts';
-import { CITIES } from '@/lib/constants/cities';
+import { CRAFTS, getCraftName } from '@/lib/constants/crafts';
+import { CITIES, getCityName } from '@/lib/constants/cities';
 import { updateProfile } from '@/lib/actions/profile';
+import { useLang } from '@/lib/i18n/language-context';
 
 const schema = z.object({
   full_name: z.string().min(2, 'الاسم قصير جداً').max(100),
@@ -48,6 +49,7 @@ type Props = {
 
 export function EditProfileForm({ defaultValues, accountType, username }: Props) {
   const router = useRouter();
+  const { lang } = useLang();
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<FormValues>({
@@ -122,7 +124,7 @@ export function EditProfileForm({ defaultValues, accountType, username }: Props)
                   <option value="">اختر مدينتك</option>
                   {CITIES.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name_ar}
+                      {getCityName(c.id, lang)}
                     </option>
                   ))}
                 </SelectNative>
@@ -146,7 +148,7 @@ export function EditProfileForm({ defaultValues, accountType, username }: Props)
                       <option value="">اختر تخصصك</option>
                       {CRAFTS.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.name_ar}
+                          {getCraftName(c.id, lang)}
                         </option>
                       ))}
                     </SelectNative>

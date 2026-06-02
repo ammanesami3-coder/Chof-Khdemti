@@ -6,8 +6,8 @@ import { Search, X, SlidersHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { SelectNative } from '@/components/ui/select-native';
-import { CRAFTS, getCraftById } from '@/lib/constants/crafts';
-import { CITIES, getCityById } from '@/lib/constants/cities';
+import { CRAFTS, getCraftName } from '@/lib/constants/crafts';
+import { CITIES, getCityName } from '@/lib/constants/cities';
 import { useLang } from '@/lib/i18n/language-context';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +32,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
 // ── ExploreFilters ────────────────────────────────────────────────────────────
 
 export function ExploreFilters() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const router = useRouter();
   const searchParams = useSearchParams();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -83,8 +83,8 @@ export function ExploreFilters() {
   }
 
   // Human-readable labels for chips
-  const craftLabel = craft ? (getCraftById(craft)?.name_ar ?? craft) : null;
-  const cityLabel  = city  ? (getCityById(city)?.name_ar  ?? city)  : null;
+  const craftLabel = craft ? getCraftName(craft, lang) : null;
+  const cityLabel  = city  ? getCityName(city, lang)   : null;
 
   return (
     <div className="space-y-3">
@@ -112,7 +112,7 @@ export function ExploreFilters() {
             <option value="">{t('allCrafts')}</option>
             {CRAFTS.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name_ar}
+                {getCraftName(c.id, lang)}
               </option>
             ))}
           </SelectNative>
@@ -126,7 +126,7 @@ export function ExploreFilters() {
             <option value="">{t('allCities')}</option>
             {CITIES.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name_ar}
+                {getCityName(c.id, lang)}
               </option>
             ))}
           </SelectNative>
