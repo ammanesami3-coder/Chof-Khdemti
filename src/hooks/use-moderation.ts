@@ -21,8 +21,15 @@ export function useModeration(enabled = true): ModerationCaps {
     queryKey: ['moderation-caps'],
     queryFn: getModerationCapabilities,
     enabled,
-    staleTime: 10 * 60_000,
+    // Keep a short freshness window, but always re-check on mount so the tools
+    // reflect the *current* role on every page entry. Without this, a cached
+    // NO_CAPS (e.g. fetched before the session resolved or before a promotion)
+    // persisted for the whole staleTime window and the moderation tools only
+    // appeared after a full page reload.
+    staleTime: 60_000,
     gcTime: 30 * 60_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
   return data ?? NO_CAPS;
 }
