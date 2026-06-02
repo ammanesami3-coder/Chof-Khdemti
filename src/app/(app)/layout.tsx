@@ -1,71 +1,77 @@
-import { createClient } from '@/lib/supabase/server';
+import { Suspense } from 'react';
+import { getCurrentAppUser } from '@/lib/supabase/get-current-user';
 import { Navbar } from '@/components/layout/navbar';
+import { NavbarSkeleton } from '@/components/layout/navbar-skeleton';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { GlobalRealtimeProvider } from '@/components/providers/global-realtime-provider';
 import { GlobalPostComposer } from '@/components/layout/global-post-composer';
 import { SidebarProvider } from '@/components/layout/sidebar-context';
 import { MobileSidebar } from '@/components/layout/mobile-sidebar';
-import type { SidebarUser } from '@/components/layout/left-sidebar';
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+/**
+ * User-dependent shell pieces (mobile sidebar, realtime wiring, bottom nav,
+ * composer). Pulled out of the layout body so its `await` happens inside a
+ * <Suspense> boundary and never blocks the static shell from painting.
+ */
+async function AppShellUserBits() {
+  const appUser = await getCurrentAppUser();
 
-  let sidebarUser: SidebarUser | null = null;
-  let currentUser: { id: string; username: string; full_name: string; avatar_url: string | null } | null = null;
-  let presencePrivacy = {
-    lastSeenHidden: false,
-    onlineHidden: false,
-    typingHidden: false,
-  };
-  if (user) {
-    const [userRes, profileRes] = await Promise.all([
-      supabase.from('users').select('username, full_name').eq('id', user.id).single(),
-      supabase
-        .from('profiles')
-        .select('avatar_url, last_seen_hidden, online_hidden, typing_hidden')
-        .eq('user_id', user.id)
-        .single(),
-    ]);
-    presencePrivacy = {
-      lastSeenHidden: profileRes.data?.last_seen_hidden ?? false,
-      onlineHidden: profileRes.data?.online_hidden ?? false,
-      typingHidden: profileRes.data?.typing_hidden ?? false,
-    };
-    if (userRes.data) {
-      sidebarUser = {
-        username: userRes.data.username as string,
-        full_name: userRes.data.full_name as string,
-        avatar_url: profileRes.data?.avatar_url ?? null,
-      };
-      currentUser = {
-        id: user.id,
-        username: userRes.data.username as string,
-        full_name: userRes.data.full_name as string,
-        avatar_url: profileRes.data?.avatar_url ?? null,
-      };
-    }
-  }
+  // Mobile sidebar renders for guests too (login/menu options), matching the
+  // previous always-rendered behavior — so pass a possibly-null user.
+  const sidebarUser = appUser
+    ? {
+        username: appUser.username,
+        full_name: appUser.full_name,
+        avatar_url: appUser.avatar_url,
+      }
+    : null;
 
-  const username = sidebarUser?.username ?? null;
+  return (
+    <>
+      <MobileSidebar user={sidebarUser} />
+      {appUser && (
+        <>
+          <GlobalRealtimeProvider
+            currentUserId={appUser.id}
+            presencePrivacy={appUser.presence}
+          />
+          <MobileBottomNav username={appUser.username} />
+          <GlobalPostComposer
+            currentUser={{
+              id: appUser.id,
+              username: appUser.username,
+              full_name: appUser.full_name,
+              avatar_url: appUser.avatar_url,
+            }}
+          />
+        </>
+      )}
+    </>
+  );
+}
 
+/**
+ * App shell. Intentionally NOT async: the structural frame (and the reserved
+ * navbar/bottom-nav space) renders synchronously and instantly. The navbar and
+ * the user-specific pieces stream in via their own <Suspense> boundaries, and
+ * each page streams behind its own loading.tsx — so navigation paints the frame
+ * immediately instead of blocking on auth + profile round-trips.
+ */
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <div className="min-h-screen pt-14 pb-16 md:pb-0">
-        <Navbar />
-        <MobileSidebar user={sidebarUser} />
+        <Suspense fallback={<NavbarSkeleton />}>
+          <Navbar />
+        </Suspense>
+
+        <Suspense fallback={null}>
+          <AppShellUserBits />
+        </Suspense>
 
         <div dir="rtl" className="mx-auto max-w-[1440px]">
           {children}
         </div>
-
-        {user && username && (
-          <>
-            <GlobalRealtimeProvider currentUserId={user.id} presencePrivacy={presencePrivacy} />
-            <MobileBottomNav username={username} />
-            {currentUser && <GlobalPostComposer currentUser={currentUser} />}
-          </>
-        )}
       </div>
     </SidebarProvider>
   );
