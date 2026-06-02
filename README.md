@@ -53,7 +53,7 @@ LEMON_SQUEEZY_STORE_ID=
 LEMON_SQUEEZY_VARIANT_ID=
 LEMON_SQUEEZY_WEBHOOK_SECRET=
 
-# App
+# App — local dev uses localhost; production is https://chofkhdemti.com
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 

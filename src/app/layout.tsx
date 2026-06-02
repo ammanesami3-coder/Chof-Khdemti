@@ -3,6 +3,7 @@ import { Cairo } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
+import { SITE_NAME, SITE_URL } from "@/lib/constants/site";
 import "./globals.css";
 
 const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
@@ -15,8 +16,14 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: "Chof Khdemti — منصة الحرفيين",
+  metadataBase: new URL(SITE_URL),
+  title: `${SITE_NAME} — منصة الحرفيين`,
   description: "منصة اجتماعية للحرفيين وأصحاب الخدمات في المغرب والعالم العربي",
+  openGraph: {
+    siteName: SITE_NAME,
+    url: SITE_URL,
+    type: "website",
+  },
 };
 
 export default function RootLayout({

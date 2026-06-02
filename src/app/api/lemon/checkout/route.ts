@@ -3,6 +3,7 @@ import { createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
 import { createClient } from '@/lib/supabase/server';
 import { setupLS } from '@/lib/lemon-squeezy';
 import { rateLimit } from '@/lib/rate-limit';
+import { SITE_URL } from '@/lib/constants/site';
 
 export async function POST() {
   const supabase = await createClient();
@@ -47,7 +48,7 @@ export async function POST() {
         custom: { user_id: user.id },
       },
       productOptions: {
-        redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription?success=1`,
+        redirectUrl: `${SITE_URL}/settings/subscription?success=1`,
         receiptButtonText: 'العودة للمنصة',
         receiptThankYouNote: 'شكراً على اشتراكك في Chof Khdemti!',
       },
