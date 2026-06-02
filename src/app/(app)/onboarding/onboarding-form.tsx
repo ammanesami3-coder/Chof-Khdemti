@@ -18,8 +18,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { CRAFTS } from '@/lib/constants/crafts';
-import { CITIES } from '@/lib/constants/cities';
+import { CRAFTS, getCraftName } from '@/lib/constants/crafts';
+import { CITIES, getCityName } from '@/lib/constants/cities';
 import { completeOnboarding } from '@/lib/actions/onboarding';
 import { useLang } from '@/lib/i18n/language-context';
 
@@ -121,7 +121,7 @@ function ArtisanStep2({ onSubmit, isPending }: {
   onSubmit: (values: ArtisanValues) => void;
   isPending: boolean;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const artisanSchema = makeArtisanSchema({
     chooseCraft: t('chooseCraftError'),
     chooseCity: t('chooseCityError'),
@@ -157,7 +157,7 @@ function ArtisanStep2({ onSubmit, isPending }: {
                   <option value="">{t('chooseSpecialty')}</option>
                   {CRAFTS.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name_ar}
+                      {getCraftName(c.id, lang)}
                     </option>
                   ))}
                 </SelectNative>
@@ -178,7 +178,7 @@ function ArtisanStep2({ onSubmit, isPending }: {
                   <option value="">{t('chooseCity')}</option>
                   {CITIES.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name_ar}
+                      {getCityName(c.id, lang)}
                     </option>
                   ))}
                 </SelectNative>
@@ -250,7 +250,7 @@ function CustomerStep2({ onSubmit, isPending }: {
   onSubmit: (values: CustomerValues) => void;
   isPending: boolean;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const customerSchema = makeCustomerSchema({
     chooseCity: t('chooseCityError'),
     tooLong: t('bioTooLongCustomerError'),
@@ -281,7 +281,7 @@ function CustomerStep2({ onSubmit, isPending }: {
                   <option value="">{t('chooseCity')}</option>
                   {CITIES.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name_ar}
+                      {getCityName(c.id, lang)}
                     </option>
                   ))}
                 </SelectNative>
