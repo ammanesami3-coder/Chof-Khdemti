@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -189,20 +190,79 @@ function isEmailAlreadyExistsError(err: { message?: string } | null): boolean {
 }
 
 /**
- * Resolve an existing auth user's id from their email via the admin API.
- * GoTrue's admin SDK has no getByEmail, so we page through listUsers (this
- * platform is small; capped to stay bounded). Returns null when not found.
+ * Resolve an existing auth user from their email via the admin API. GoTrue's
+ * admin SDK has no getByEmail, so we page through listUsers (this platform is
+ * small; capped to stay bounded). Returns null when not found.
  */
-async function findAuthUserIdByEmail(email: string): Promise<string | null> {
+async function findAuthUserByEmail(email: string): Promise<User | null> {
   const target = email.trim().toLowerCase();
   const perPage = 1000;
   for (let page = 1; page <= 20; page++) {
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
     if (error || !data?.users?.length) return null;
     const match = data.users.find((u) => (u.email ?? '').toLowerCase() === target);
-    if (match) return match.id;
+    if (match) return match;
     if (data.users.length < perPage) return null; // reached the last page
   }
+  return null;
+}
+
+/**
+ * Guarantee that public.users + public.profiles rows exist for `userId`, then
+ * set the profile role to moderator. moderator_permissions.user_id FKs to
+ * profiles(user_id); accounts created outside the normal signup flow (directly
+ * in Supabase Auth, or before the signup trigger existed) can be missing these
+ * rows, which is what triggered the moderator_permissions_user_id_fkey
+ * violation. Returns an error message on failure, or null on success.
+ */
+async function ensureUserAndModeratorProfile(
+  userId: string,
+  authUser: User | null,
+): Promise<string | null> {
+  // 1. public.users — created by the signup trigger normally; backfill if absent.
+  const { data: userRow } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!userRow) {
+    const meta = (authUser?.user_metadata ?? {}) as Record<string, unknown>;
+    const metaUsername = typeof meta.username === 'string' ? meta.username : '';
+    const emailPrefix = authUser?.email ? authUser.email.split('@')[0] : '';
+    let base = (metaUsername || emailPrefix || `user_${userId.slice(0, 8)}`)
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '')
+      .slice(0, 24);
+    if (base.length < 3) base = `user_${userId.slice(0, 8)}`;
+
+    // Resolve a username that doesn't collide (username is UNIQUE NOT NULL).
+    let username = base;
+    for (let i = 0; i < 6; i++) {
+      const { data: clash } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('username', username)
+        .maybeSingle();
+      if (!clash) break;
+      username = `${base}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 30);
+    }
+
+    const fullName =
+      typeof meta.full_name === 'string' && meta.full_name ? meta.full_name : base;
+
+    const { error } = await supabaseAdmin
+      .from('users')
+      .insert({ id: userId, username, full_name: fullName, account_type: 'customer' });
+    if (error) return error.message;
+  }
+
+  // 2. public.profiles — insert if missing, set role to moderator either way.
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .upsert({ user_id: userId, role: 'moderator' }, { onConflict: 'user_id' });
+  if (error) return error.message;
+
   return null;
 }
 
@@ -244,16 +304,18 @@ export async function createModeratorAccount(input: {
   });
 
   let targetId: string;
+  let authUser: User | null = created?.user ?? null;
   let promotedExisting = false;
 
   if (createErr || !created?.user) {
     // Email already registered → fall back to promoting that existing account.
     if (isEmailAlreadyExistsError(createErr)) {
-      const existingId = await findAuthUserIdByEmail(email);
-      if (!existingId) {
+      const existing = await findAuthUserByEmail(email);
+      if (!existing) {
         return { success: false, error: createErr?.message ?? 'Could not create account' };
       }
-      targetId = existingId;
+      targetId = existing.id;
+      authUser = existing;
       promotedExisting = true;
     } else {
       return { success: false, error: createErr?.message ?? 'Could not create account' };
@@ -272,13 +334,12 @@ export async function createModeratorAccount(input: {
     return { success: false, error: 'Cannot modify an admin account' };
   }
 
-  // Elevate to moderator + grant permissions (service role bypasses RLS).
-  const { error: roleErr } = await supabaseAdmin
-    .from('profiles')
-    .update({ role: 'moderator' })
-    .eq('user_id', targetId);
-  if (roleErr) {
-    return { success: false, error: roleErr.message };
+  // Ensure the users + profiles rows exist (covers accounts that predate the
+  // signup trigger), then set role = moderator. Without this the permissions
+  // upsert below fails its FK to profiles(user_id).
+  const ensureErr = await ensureUserAndModeratorProfile(targetId, authUser);
+  if (ensureErr) {
+    return { success: false, error: ensureErr };
   }
 
   const { error: permErr } = await supabaseAdmin
@@ -306,20 +367,28 @@ export async function appointModerator(
   const parsed = permsSchema.safeParse(perms);
   if (!parsed.success) return { success: false, error: 'Invalid input' };
 
+  // The target must be a real account.
+  const { data: userRow } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+  if (!userRow) return { success: false, error: 'User not found' };
+
   const { data: target } = await supabaseAdmin
     .from('profiles')
     .select('role')
     .eq('user_id', userId)
     .maybeSingle();
-  if (!target) return { success: false, error: 'User not found' };
-  if (target.role === 'admin') {
+  if (target?.role === 'admin') {
     return { success: false, error: 'Cannot modify an admin account' };
   }
 
+  // Upsert (not update): some accounts can lack a profiles row, and the
+  // permissions FK below points at profiles(user_id).
   const { error: roleErr } = await supabaseAdmin
     .from('profiles')
-    .update({ role: 'moderator' })
-    .eq('user_id', userId);
+    .upsert({ user_id: userId, role: 'moderator' }, { onConflict: 'user_id' });
   if (roleErr) return { success: false, error: roleErr.message };
 
   const { error: permErr } = await supabaseAdmin
