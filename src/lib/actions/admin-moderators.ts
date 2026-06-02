@@ -178,16 +178,49 @@ const permsSchema = z.object({
   can_view_reports: z.boolean(),
 });
 
+/** True when createUser failed only because the email already has an account. */
+function isEmailAlreadyExistsError(err: { message?: string } | null): boolean {
+  if (!err) return false;
+  const code = (err as { code?: string }).code;
+  if (code === 'email_exists') return true;
+  const msg = (err.message ?? '').toLowerCase();
+  // "A user with this email address has already been registered"
+  return msg.includes('already') && msg.includes('registered');
+}
+
 /**
- * Create a brand-new moderator account (auth user + profile) and grant the
- * requested permissions. Admin only.
+ * Resolve an existing auth user's id from their email via the admin API.
+ * GoTrue's admin SDK has no getByEmail, so we page through listUsers (this
+ * platform is small; capped to stay bounded). Returns null when not found.
+ */
+async function findAuthUserIdByEmail(email: string): Promise<string | null> {
+  const target = email.trim().toLowerCase();
+  const perPage = 1000;
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+    if (error || !data?.users?.length) return null;
+    const match = data.users.find((u) => (u.email ?? '').toLowerCase() === target);
+    if (match) return match.id;
+    if (data.users.length < perPage) return null; // reached the last page
+  }
+  return null;
+}
+
+/**
+ * Provision a moderator from the settings form and grant the requested
+ * permissions. Admin only.
+ *
+ * If the email already belongs to an account, we don't fail — the admin's
+ * intent is "make this person a moderator", so we promote the existing account
+ * instead (its username/password are left untouched). The result's
+ * `promotedExisting` flag lets the UI message accordingly.
  */
 export async function createModeratorAccount(input: {
   email: string;
   password: string;
   username: string;
   permissions?: ModPerms;
-}): Promise<ActionResult<{ userId: string }>> {
+}): Promise<ActionResult<{ userId: string; promotedExisting: boolean }>> {
   const adminId = await getAdminId();
   if (!adminId) return { success: false, error: 'Unauthorized' };
 
@@ -210,30 +243,53 @@ export async function createModeratorAccount(input: {
     },
   });
 
+  let targetId: string;
+  let promotedExisting = false;
+
   if (createErr || !created?.user) {
-    return { success: false, error: createErr?.message ?? 'Could not create account' };
+    // Email already registered → fall back to promoting that existing account.
+    if (isEmailAlreadyExistsError(createErr)) {
+      const existingId = await findAuthUserIdByEmail(email);
+      if (!existingId) {
+        return { success: false, error: createErr?.message ?? 'Could not create account' };
+      }
+      targetId = existingId;
+      promotedExisting = true;
+    } else {
+      return { success: false, error: createErr?.message ?? 'Could not create account' };
+    }
+  } else {
+    targetId = created.user.id;
   }
 
-  const newId = created.user.id;
+  // Never silently turn an admin into a moderator.
+  const { data: targetProfile } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('user_id', targetId)
+    .maybeSingle();
+  if (targetProfile?.role === 'admin') {
+    return { success: false, error: 'Cannot modify an admin account' };
+  }
 
   // Elevate to moderator + grant permissions (service role bypasses RLS).
   const { error: roleErr } = await supabaseAdmin
     .from('profiles')
     .update({ role: 'moderator' })
-    .eq('user_id', newId);
+    .eq('user_id', targetId);
   if (roleErr) {
     return { success: false, error: roleErr.message };
   }
 
   const { error: permErr } = await supabaseAdmin
     .from('moderator_permissions')
-    .upsert({ user_id: newId, ...perms, assigned_by: adminId }, { onConflict: 'user_id' });
+    .upsert({ user_id: targetId, ...perms, assigned_by: adminId }, { onConflict: 'user_id' });
   if (permErr) {
     return { success: false, error: permErr.message };
   }
 
   revalidatePath('/settings/moderators');
-  return { success: true, data: { userId: newId } };
+  return { success: true, data: { userId: targetId, promotedExisting } };
 }
 
 /**

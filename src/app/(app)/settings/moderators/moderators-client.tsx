@@ -185,7 +185,12 @@ function CreateModeratorSection({ onDone }: { onDone: () => void }) {
         toast.error(res.error ?? t('moderationActionFailed'));
         return;
       }
-      toast.success(t('moderatorCreatedSuccess'));
+      // Email already had an account → it was promoted to moderator instead.
+      toast.success(
+        res.data?.promotedExisting
+          ? t('moderatorAppointedSuccess')
+          : t('moderatorCreatedSuccess'),
+      );
       setEmail('');
       setPassword('');
       setUsername('');
