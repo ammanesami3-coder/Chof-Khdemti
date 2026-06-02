@@ -65,6 +65,39 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+/**
+ * Streams the artisan grid. The RPC search + auth lookup run HERE, inside the
+ * Suspense boundary, so awaiting them never blocks the page wrapper from
+ * painting. The guest banner depends on the auth result, so it lives here too.
+ */
+async function ExploreData({
+  craft,
+  city,
+  q,
+  sort,
+}: {
+  craft: string;
+  city: string;
+  q: string;
+  sort: string;
+}) {
+  const [initialArtisans, { data: { user } }] = await Promise.all([
+    fetchArtisansServer(craft, city, q, sort),
+    createClient().then((sb) => sb.auth.getUser()),
+  ]);
+
+  return (
+    <ExploreClient
+      initialArtisans={initialArtisans}
+      initialCraft={craft}
+      initialCity={city}
+      initialQ={q}
+      initialSort={sort}
+      currentUserId={user?.id ?? null}
+    />
+  );
+}
+
 export default async function ExplorePage({ searchParams }: Props) {
   const params = await searchParams;
   const craft = (params.craft as string) ?? '';
@@ -72,24 +105,15 @@ export default async function ExplorePage({ searchParams }: Props) {
   const q     = (params.q     as string) ?? '';
   const sort  = (params.sort  as string) ?? '';
 
-  const [initialArtisans, { data: { user } }] = await Promise.all([
-    fetchArtisansServer(craft, city, q, sort),
-    createClient().then((sb) => sb.auth.getUser()),
-  ]);
-
+  // GuestBanner self-gates client-side (shows for guests only) and is a
+  // full-width sticky bar, so it renders instantly at the top. The wrapper
+  // paints immediately; the artisan grid streams in behind the skeleton.
   return (
     <>
-      {!user && <GuestBanner />}
+      <GuestBanner />
       <main className="mx-auto max-w-5xl px-4 py-6">
         <Suspense fallback={<ArtisanGridSkeleton />}>
-          <ExploreClient
-            initialArtisans={initialArtisans}
-            initialCraft={craft}
-            initialCity={city}
-            initialQ={q}
-            initialSort={sort}
-            currentUserId={user?.id ?? null}
-          />
+          <ExploreData craft={craft} city={city} q={q} sort={sort} />
         </Suspense>
       </main>
     </>
