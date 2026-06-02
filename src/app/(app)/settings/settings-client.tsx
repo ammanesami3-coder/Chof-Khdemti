@@ -5,6 +5,7 @@ import {
   Bookmark,
   ChevronLeft,
   CreditCard,
+  Flag,
   HelpCircle,
   Key,
   LogOut,
@@ -29,6 +30,7 @@ type Props = {
   } | null;
   avatarUrl: string | null;
   isAdmin?: boolean;
+  canViewReports?: boolean;
 };
 
 function SettingsRow({
@@ -89,7 +91,12 @@ function SettingsCard({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function SettingsClient({ userData, avatarUrl, isAdmin = false }: Props) {
+export function SettingsClient({
+  userData,
+  avatarUrl,
+  isAdmin = false,
+  canViewReports = false,
+}: Props) {
   const { t } = useLang();
   const isArtisan = userData?.account_type === 'artisan';
 
@@ -219,19 +226,31 @@ export function SettingsClient({ userData, avatarUrl, isAdmin = false }: Props) 
         </SettingsCard>
       </section>
 
-      {/* Administration (admins only) */}
-      {isAdmin && (
+      {/* Administration (admins + moderators with the matching permission) */}
+      {(isAdmin || canViewReports) && (
         <section className="mb-5">
           <SectionTitle>{t('administration')}</SectionTitle>
           <SettingsCard>
-            <SettingsRow
-              icon={ShieldCheck}
-              label={t('moderatorsTitle')}
-              description={t('moderatorsSubtitle')}
-              href="/settings/moderators"
-              iconBg="bg-slate-100 dark:bg-slate-800"
-              iconColor="text-slate-700 dark:text-slate-200"
-            />
+            {canViewReports && (
+              <SettingsRow
+                icon={Flag}
+                label={t('reportsInboxTitle')}
+                description={t('reportsLinkDesc')}
+                href="/settings/reports"
+                iconBg="bg-rose-50 dark:bg-rose-950/40"
+                iconColor="text-rose-600 dark:text-rose-400"
+              />
+            )}
+            {isAdmin && (
+              <SettingsRow
+                icon={ShieldCheck}
+                label={t('moderatorsTitle')}
+                description={t('moderatorsSubtitle')}
+                href="/settings/moderators"
+                iconBg="bg-slate-100 dark:bg-slate-800"
+                iconColor="text-slate-700 dark:text-slate-200"
+              />
+            )}
           </SettingsCard>
         </section>
       )}

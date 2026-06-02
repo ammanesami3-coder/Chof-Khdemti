@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getCurrentAppUser } from '@/lib/supabase/get-current-user';
+import { getModerationCapabilities } from '@/lib/actions/moderation';
 import { SettingsClient } from './settings-client';
 import { SettingsSkeleton } from '@/components/settings/settings-skeleton';
 
@@ -16,6 +17,9 @@ async function SettingsData() {
   const appUser = await getCurrentAppUser();
   if (!appUser) redirect('/login');
 
+  // Moderation capabilities decide which admin/moderator entries appear.
+  const caps = await getModerationCapabilities();
+
   return (
     <SettingsClient
       userData={{
@@ -24,7 +28,8 @@ async function SettingsData() {
         account_type: appUser.account_type,
       }}
       avatarUrl={appUser.avatar_url}
-      isAdmin={appUser.role === 'admin'}
+      isAdmin={caps.isAdmin}
+      canViewReports={caps.canViewReports}
     />
   );
 }
