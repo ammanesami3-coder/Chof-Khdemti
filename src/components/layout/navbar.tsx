@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentAppUser } from '@/lib/supabase/get-current-user';
 import { TrialIndicator } from '@/components/subscription/trial-indicator';
 import { UserMenu } from './user-menu';
 import { ThemeToggle } from './theme-toggle';
@@ -12,32 +12,21 @@ import { MobileNotifButton } from './mobile-notif-button';
 import { MobileVideosButton } from './mobile-videos-button';
 import { CenterNav, GuestCenterNav } from './center-nav';
 
-async function getNavUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const [userRes, profileRes] = await Promise.all([
-    supabase.from('users').select('username, full_name').eq('id', user.id).single(),
-    supabase.from('profiles').select('avatar_url').eq('user_id', user.id).single(),
-  ]);
-
-  if (!userRes.data) return null;
-
-  return {
-    id: user.id,
-    username: userRes.data.username,
-    full_name: userRes.data.full_name,
-    avatar_url: profileRes.data?.avatar_url ?? null,
-  };
-}
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 export async function Navbar() {
-  const navUser = await getNavUser();
+  // Shared, request-deduped fetch — see getCurrentAppUser. The layout streams
+  // this component inside its own <Suspense>, so the navbar never blocks the
+  // rest of the shell from painting.
+  const appUser = await getCurrentAppUser();
+  const navUser = appUser
+    ? {
+        id: appUser.id,
+        username: appUser.username,
+        full_name: appUser.full_name,
+        avatar_url: appUser.avatar_url,
+      }
+    : null;
 
   /* ── نسخة الزوار ─────────────────────────────────────── */
   if (!navUser) {

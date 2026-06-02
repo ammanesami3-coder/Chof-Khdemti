@@ -1,21 +1,15 @@
 import { redirect } from 'next/navigation';
-import { requireUser } from '@/lib/supabase/require-user';
+import { isCurrentUserAdmin } from '@/lib/supabase/get-current-user';
 import { listModerators } from '@/lib/actions/admin-moderators';
 import { ModeratorsClient } from './moderators-client';
 
 export const metadata = { title: 'إدارة المشرفين — Chof Khdemti' };
 
 export default async function ModeratorsPage() {
-  const { supabase, user } = await requireUser();
-
-  // Strict gate: admins only. Everyone else is bounced back to settings.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (profile?.role !== 'admin') {
+  // Iron-clad server-side gate: the role is read fresh from the database in
+  // server context. Non-admins are redirected before any moderator markup is
+  // rendered; listModerators() independently re-checks admin via service role.
+  if (!(await isCurrentUserAdmin())) {
     redirect('/settings');
   }
 

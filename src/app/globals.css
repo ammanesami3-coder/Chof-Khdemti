@@ -135,6 +135,13 @@
   100% { transform: scale(1); }
 }
 
+/* Slim top progress bar used by the root loading.tsx fallback. */
+@keyframes loading-bar {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(150%); }
+  100% { transform: translateX(400%); }
+}
+
 @keyframes statusProgress {
   from { transform: scaleX(0); transform-origin: left; }
   to   { transform: scaleX(1); transform-origin: left; }
