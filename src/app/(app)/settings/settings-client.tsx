@@ -13,6 +13,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { BackButton } from '@/components/shared/back-button';
+import { LogoutButton } from '@/components/auth/logout-button';
 import { SoundSettings } from '@/components/settings/sound-settings';
 import { DarkModeSettings } from '@/components/settings/dark-mode-settings';
 import { LanguageSettings } from '@/components/settings/language-settings';
@@ -235,10 +236,19 @@ export function SettingsClient({ userData, avatarUrl, isAdmin = false }: Props) 
         </section>
       )}
 
-      {/* Logout */}
+      {/* Logout — POST via LogoutButton, never a <Link>, so Next.js prefetch
+          can't silently sign the user out while browsing settings. */}
       <section className="mb-6">
         <SettingsCard>
-          <SettingsRow icon={LogOut} label={t('logout')} href="/logout" danger />
+          <LogoutButton className="group flex w-full items-center gap-3 px-4 py-3.5 text-destructive transition-all duration-150 hover:bg-muted/50 active:scale-[0.99] disabled:opacity-60">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-destructive/10 transition-transform group-hover:scale-105">
+              <LogOut className="size-[18px] text-destructive" />
+            </span>
+            <div className="min-w-0 flex-1 text-start">
+              <p className="text-sm font-medium leading-tight">{t('logout')}</p>
+            </div>
+            <ChevronLeft className="size-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:-translate-x-0.5" />
+          </LogoutButton>
         </SettingsCard>
       </section>
 

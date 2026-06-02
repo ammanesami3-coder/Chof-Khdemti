@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2, ShieldCheck } from "lucide-react";
 
 import { acceptTerms } from "@/lib/actions/terms";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { useLang } from "@/lib/i18n/language-context";
 import { cn } from "@/lib/utils";
 import { AppLogo } from "@/components/layout/app-logo";
@@ -99,17 +100,16 @@ export function AcceptTermsClient({ next }: AcceptTermsClientProps) {
             {t("termsGateAgreeBtn")}
           </Button>
 
-          {/* Decline → log out cleanly and browse as a guest.
-              Plain <a> + buttonVariants since this Button (Base UI) has no asChild. */}
-          <a
-            href="/logout"
+          {/* Decline → log out cleanly and browse as a guest. POST via
+              LogoutButton (never a prefetchable <a href="/logout">). */}
+          <LogoutButton
             className={cn(
               buttonVariants({ variant: "ghost" }),
               "w-full text-muted-foreground",
             )}
           >
             {t("termsGateLogout")}
-          </a>
+          </LogoutButton>
         </CardFooter>
       </Card>
     </div>

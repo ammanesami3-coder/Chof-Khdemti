@@ -24,7 +24,7 @@
 -- ─────────────────────────────────────────────────────────────
 do $$
 declare
-  v_official_uuid uuid := '00000000-0000-0000-0000-000000000000'; -- ⬅️ REPLACE
+  v_official_uuid uuid := '34ff275f-cc3a-4eac-9eb7-2f70af0efd21'; -- ⬅️ REPLACE
 begin
   if not exists (select 1 from auth.users where id = v_official_uuid) then
     raise notice 'Official auth user % not found. Create it (Auth > Users) then re-run.', v_official_uuid;
@@ -52,7 +52,7 @@ end $$;
 -- ─────────────────────────────────────────────────────────────
 do $$
 declare
-  v_admin_uuid uuid := '11111111-1111-1111-1111-111111111111'; -- ⬅️ REPLACE (your UUID)
+  v_admin_uuid uuid := '283e944d-3504-4c3d-a5a2-ecbc15edbee5'; -- ⬅️ REPLACE (your UUID)
 begin
   if not exists (select 1 from public.profiles where user_id = v_admin_uuid) then
     raise notice 'Profile for % not found. Sign in once, then re-run.', v_admin_uuid;
@@ -70,8 +70,8 @@ end $$;
 -- ─────────────────────────────────────────────────────────────
 do $$
 declare
-  v_mod_uuid     uuid := '22222222-2222-2222-2222-222222222222'; -- ⬅️ REPLACE (test user UUID)
-  v_assigned_by  uuid := '11111111-1111-1111-1111-111111111111'; -- ⬅️ REPLACE (admin UUID)
+  v_mod_uuid     uuid := '34ff275f-cc3a-4eac-9eb7-2f70af0efd21'; -- ⬅️ REPLACE (test user UUID)
+  v_assigned_by  uuid := '283e944d-3504-4c3d-a5a2-ecbc15edbee5'; -- ⬅️ REPLACE (admin UUID)
 begin
   if not exists (select 1 from public.profiles where user_id = v_mod_uuid) then
     raise notice 'Profile for % not found. Have the test user sign in once, then re-run.', v_mod_uuid;
