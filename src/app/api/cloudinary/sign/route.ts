@@ -14,10 +14,26 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const {
+  
+  // 1. محاولة جلب المستخدم عبر الكوكي الافتراضية (للويب)
+  let {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // 2. Fallback للموبايل: التحقق من وجود توكن في ترويسة Authorization
+  if (!user) {
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.toLowerCase().startsWith("bearer ") 
+      ? authHeader.slice(7).trim() 
+      : null;
+
+    if (token) {
+      const { data: authData } = await supabase.auth.getUser(token);
+      user = authData.user;
+    }
+  }
+
+  // إذا لم ينجح كلا الخيارين، نرجع 401
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
