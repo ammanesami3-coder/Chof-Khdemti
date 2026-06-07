@@ -10,6 +10,7 @@ import { SidebarProvider } from '@/components/layout/sidebar-context';
 import { LeftSidebar } from '@/components/layout/left-sidebar';
 import { MobileSidebar } from '@/components/layout/mobile-sidebar';
 import { RightSidebar } from '@/components/layout/right-sidebar';
+import { HomeJsonLd } from '@/components/seo/json-ld';
 
 export const metadata = {
   title: 'Chof Khdemti — منصة الحرفيين المغاربة',
@@ -71,6 +72,7 @@ export default async function HomePage() {
 
   return (
     <SidebarProvider>
+      <HomeJsonLd />
       {/* Viewport layout: navbar fixed at top, two sidebars stay put, only the center column scrolls */}
       <div className="flex h-screen flex-col overflow-hidden pt-14">
         <Navbar />
