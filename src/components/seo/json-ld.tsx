@@ -1,4 +1,6 @@
 import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from "@/lib/constants/site";
+import { getCraftName } from "@/lib/constants/crafts";
+import { getCityName } from "@/lib/constants/cities";
 
 /**
  * Organization + WebApplication JSON-LD for the home view. Tells search
@@ -59,6 +61,65 @@ export function HomeJsonLd() {
       type="application/ld+json"
       // Trusted, server-built object — safe to inline.
       dangerouslySetInnerHTML={{ __html: JSON.stringify(graph) }}
+    />
+  );
+}
+
+type ProfileJsonLdInput = {
+  username: string;
+  full_name: string;
+  craft_category: string | null;
+  city: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  avgRating: number | null;
+  totalRatingsCount: number;
+};
+
+/**
+ * Person + (when rated) AggregateRating JSON-LD for an artisan profile. Lets
+ * Google show the craftsman as a rich result with stars. Craft/city are
+ * resolved to Arabic labels (the helpers fall back gracefully for legacy or
+ * unknown values), so the markup always carries human-readable terms.
+ */
+export function ProfilePersonJsonLd({ profile }: { profile: ProfileJsonLdInput }) {
+  const craft = profile.craft_category ? getCraftName(profile.craft_category, "ar") : "";
+  const city = profile.city ? getCityName(profile.city, "ar") : "";
+
+  const node: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: profile.full_name,
+    url: `${SITE_URL}/profile/${profile.username}`,
+    ...(craft ? { jobTitle: craft } : {}),
+    ...(profile.avatar_url ? { image: profile.avatar_url } : {}),
+    ...(profile.bio ? { description: profile.bio } : {}),
+    ...(city
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: city,
+            addressCountry: "MA",
+          },
+        }
+      : {}),
+    ...(profile.avgRating && profile.totalRatingsCount > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: profile.avgRating,
+            ratingCount: profile.totalRatingsCount,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(node) }}
     />
   );
 }

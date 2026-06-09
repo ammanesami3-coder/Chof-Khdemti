@@ -60,20 +60,13 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ar_MA",
     alternateLocale: ["fr_MA", "en_US"],
-    images: [
-      {
-        url: "/logo.png",
-        width: 512,
-        height: 512,
-        alt: SITE_NAME,
-      },
-    ],
+    // Image comes from the generated app/opengraph-image.tsx (1200×630 card).
   },
   twitter: {
     card: "summary_large_image",
     title: `${SITE_NAME} — منصة الحرفيين المغاربة`,
     description: SITE_DESCRIPTION,
-    images: ["/logo.png"],
+    // Twitter image falls back to the generated opengraph-image.tsx.
   },
 };
 

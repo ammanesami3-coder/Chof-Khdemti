@@ -25,25 +25,51 @@ export type Locale = (typeof LOCALES)[number];
  * structured data, and any future landing pages share one source of truth.
  */
 export const SITE_KEYWORDS: string[] = [
-  // Brand + common typos
+  // Brand — Latin (correct + common misspellings)
   'Chof Khdemti',
-  'Chouf khdemti',
-  'Chofkhdmti',
-  'Shof khdemti',
+  'chofkhdemti',
+  'Chof Khedmti',
+  'Chof Khedmati',
+  'Chouf Khdemti',
+  'Shof Khdemti',
+  'Chof Khdimti',
+  'Chof Khadmti',
+  'Chouf Khadmeti',
+  // Brand — Arabic (correct + common misspellings)
   'شوف خدمتي',
+  'شوف خدمة',
+  'شف خدمتي',
   'شوف خمدتي',
   'شوف خدامتي',
   'شوف خدماتي',
-  // Service terms — FR / EN
-  'Artisans Maroc',
-  'Plombier',
-  'Electricien',
-  'Zellaji',
-  'Sebbagh',
+  // Darija / generic craft terms
+  'حرفي',
+  'صنايعي',
+  'معلم',
+  'خدام',
+  'بلاصة حرفيين',
   // Service terms — AR
-  'حرفيين في المغرب',
+  'حرفيين المغرب',
+  'خدمات منزلية المغرب',
+  'كهربائي المغرب',
+  'سباك المغرب',
+  'نجار المغرب',
+  'منصة الحرفيين',
   'معلم زليج',
-  'بلومبي',
   'كهربائي منازل',
   'صباغ',
+  // Service terms — FR
+  'artisans Maroc',
+  'services à domicile Maroc',
+  'trouver artisan Maroc',
+  'électricien Maroc',
+  'plombier Maroc',
+  'menuisier Maroc',
+  'Zellaji',
+  'Sebbagh',
+  // Service terms — EN
+  'Moroccan craftsmen platform',
+  'Morocco home services',
+  'find artisan Morocco',
+  'handyman Morocco',
 ];

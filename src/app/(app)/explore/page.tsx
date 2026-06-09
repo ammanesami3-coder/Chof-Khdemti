@@ -1,11 +1,40 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { ExploreClient } from '@/components/explore/explore-client';
 import { ArtisanGridSkeleton } from '@/components/explore/artisan-grid';
 import { GuestBanner } from '@/components/shared/guest-banner';
+import { getCraftName } from '@/lib/constants/crafts';
+import { getCityName } from '@/lib/constants/cities';
+import { SITE_URL } from '@/lib/constants/site';
 import type { ArtisanListItem } from '@/lib/queries/artisans';
 
-export const metadata = { title: 'اكتشف الحرفيين — Chof Khdemti' };
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const params = await searchParams;
+  const craft = params.craft ? getCraftName(params.craft as string, 'ar') : '';
+  const city = params.city ? getCityName(params.city as string, 'ar') : '';
+
+  let title = 'اكتشف الحرفيين في المغرب';
+  let description = 'ابحث عن أفضل الحرفيين وأصحاب الخدمات في مدينتك بالمغرب — شوف خدمتي.';
+
+  if (craft && city) {
+    title = `${craft} في ${city}`;
+    description = `ابحث عن أفضل ${craft} في ${city}. تواصل معهم مباشرة على منصة شوف خدمتي.`;
+  } else if (craft) {
+    title = `${craft} في المغرب`;
+    description = `ابحث عن ${craft} محترفين في كل مدن المغرب على منصة شوف خدمتي.`;
+  } else if (city) {
+    title = `حرفيون في ${city}`;
+    description = `اكتشف أفضل الحرفيين وأصحاب الخدمات في ${city} على منصة شوف خدمتي.`;
+  }
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `${SITE_URL}/explore` },
+    openGraph: { title, description, url: `${SITE_URL}/explore` },
+  };
+}
 
 const PAGE_SIZE = 20;
 

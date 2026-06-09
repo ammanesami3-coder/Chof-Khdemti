@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
@@ -10,6 +11,10 @@ import { RatingCard } from '@/components/rating/rating-card';
 import { AddEditRating } from '@/components/rating/add-edit-rating';
 import { Lock } from 'lucide-react';
 import { GuestBanner } from '@/components/shared/guest-banner';
+import { ProfilePersonJsonLd } from '@/components/seo/json-ld';
+import { getCraftName } from '@/lib/constants/crafts';
+import { getCityName } from '@/lib/constants/cities';
+import { SITE_URL } from '@/lib/constants/site';
 import { createClient } from '@/lib/supabase/server';
 import { fetchUserPosts } from '@/lib/queries/posts';
 import type { Rating } from '@/lib/validations/rating';
@@ -20,28 +25,74 @@ type Props = {
   params: Promise<{ username: string }>;
 };
 
-export async function generateMetadata({ params }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params;
   const supabase = await createClient();
 
-  // A non-public profile (followers/none) should not be indexed by search engines.
-  let isPrivate = false;
   const { data: pUser } = await supabase
     .from('users')
-    .select('id')
+    .select('id, full_name, account_type')
     .eq('username', username)
     .single();
-  if (pUser) {
-    const { data: vis } = await supabase
-      .from('profiles')
-      .select('profile_visibility')
-      .eq('user_id', pUser.id)
-      .single();
-    isPrivate = !!vis && (vis.profile_visibility as string) !== 'everyone';
+
+  if (!pUser) {
+    return { title: 'حرفي غير موجود · Chof Khdemti' };
   }
 
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('bio, avatar_url, craft_category, city, profile_visibility')
+    .eq('user_id', pUser.id)
+    .single();
+
+  // A non-public profile (followers/none) should not be indexed.
+  const isPrivate =
+    !!prof && ((prof.profile_visibility as string) ?? 'everyone') !== 'everyone';
+
+  const isArtisan = pUser.account_type === 'artisan';
+  const craft = prof?.craft_category ? getCraftName(prof.craft_category, 'ar') : '';
+  const city = prof?.city ? getCityName(prof.city, 'ar') : '';
+
+  // Title: "الاسم — حرفة في مدينة" when we have the pieces, else fall back.
+  const locationPart = [craft, city].filter(Boolean).join(' في ');
+  const title =
+    isArtisan && locationPart
+      ? `${pUser.full_name} — ${locationPart}`
+      : `${pUser.full_name} (@${username})`;
+
+  const bioSnippet = prof?.bio ? `${prof.bio.slice(0, 120)}… ` : '';
+  const description =
+    isArtisan && locationPart
+      ? `${pUser.full_name}، ${craft || 'حرفي'} محترف${city ? ` في ${city}` : ''}. ${bioSnippet}تواصل معه الآن على منصة شوف خدمتي.`
+      : `${pUser.full_name} على منصة شوف خدمتي — Chof Khdemti.`;
+
+  const canonical = `${SITE_URL}/profile/${username}`;
+  const ogImage = prof?.avatar_url ?? `${SITE_URL}/logo.png`;
+
   return {
-    title: `@${username} — Chof Khdemti`,
+    title,
+    description,
+    keywords: [
+      pUser.full_name,
+      ...(craft ? [craft, `${craft} المغرب`] : []),
+      ...(city ? [city, ...(craft ? [`${craft} في ${city}`] : [])] : []),
+      'شوف خدمتي',
+      'Chof Khdemti',
+    ],
+    alternates: { canonical },
+    openGraph: {
+      type: 'profile',
+      title,
+      description,
+      url: canonical,
+      images: [{ url: ogImage, width: 400, height: 400, alt: pUser.full_name }],
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+      images: [ogImage],
+    },
     ...(isPrivate ? { robots: { index: false, follow: false } } : {}),
   };
 }
@@ -308,6 +359,20 @@ export default async function ProfilePage({ params }: Props) {
 
   return (
     <>
+      {isArtisan && profileVisibility === 'everyone' && (
+        <ProfilePersonJsonLd
+          profile={{
+            username: profileUser.username,
+            full_name: profileUser.full_name,
+            craft_category: profile.craft_category,
+            city: profile.city,
+            avatar_url: profile.avatar_url,
+            bio: profile.bio,
+            avgRating,
+            totalRatingsCount,
+          }}
+        />
+      )}
       {!authUser && <GuestBanner />}
     <main className="mx-auto max-w-2xl">
       <ProfileClient
