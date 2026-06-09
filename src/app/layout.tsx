@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
 import Script from "next/script";
+import NextTopLoader from "nextjs-toploader";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
 import {
@@ -89,6 +90,18 @@ export default function RootLayout({
         <link rel="alternate icon" href="/favicon.svg" />
       </head>
       <body className="font-[family-name:var(--font-cairo)] antialiased">
+        <NextTopLoader
+          color="#DC2626"
+          initialPosition={0.1}
+          crawlSpeed={200}
+          height={3}
+          crawl={true}
+          showSpinner={false}
+          easing="ease"
+          speed={200}
+          shadow="0 0 10px #DC2626,0 0 5px #DC2626"
+          zIndex={1600}
+        />
         <Providers>{children}</Providers>
         <Toaster position="top-center" richColors />
         {adsenseClient && (
