@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import NextTopLoader from "nextjs-toploader";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
@@ -97,6 +98,7 @@ export default function RootLayout({
         />
         <Providers>{children}</Providers>
         <Toaster position="top-center" richColors />
+        <Analytics />
         {adsenseClient && (
           <Script
             id="adsbygoogle-init"
