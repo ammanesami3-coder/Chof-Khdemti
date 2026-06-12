@@ -224,27 +224,33 @@ export function SignupForm({ next }: SignupFormProps) {
                         className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
                       />
                     </FormControl>
-                    <FormLabel className="text-sm font-normal leading-snug text-muted-foreground">
-                      {t('agreeToTermsPrefix')}{" "}
-                      <Link
-                        href="/terms"
-                        target="_blank"
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {t('termsOfUseLink')}
-                      </Link>{" "}
-                      {/* No space after the connector: Arabic wāw attaches to
-                          the next word (وسياسة); FR/EN carry their own trailing
-                          space in the translation value. */}
-                      {t('andConnector')}
-                      <Link
-                        href="/privacy"
-                        target="_blank"
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {t('privacyPolicyLink')}
-                      </Link>{" "}
-                      {t('platformSuffix')}
+                    {/* FormLabel (shadcn Label) is `flex items-center gap-2`, which
+                        would turn every inline piece into a stacked flex item. Wrap
+                        all the text in ONE span so it flows as normal inline text and
+                        wraps into balanced lines. flex-1/min-w-0 gives it full width. */}
+                    <FormLabel className="min-w-0 flex-1 text-sm font-normal leading-snug text-muted-foreground">
+                      <span className="[text-wrap:pretty]">
+                        {t('agreeToTermsPrefix')}{" "}
+                        <Link
+                          href="/terms"
+                          target="_blank"
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {t('termsOfUseLink')}
+                        </Link>{" "}
+                        {/* No space after the connector: Arabic wāw attaches to
+                            the next word (وسياسة); FR/EN carry their own trailing
+                            space in the translation value. */}
+                        {t('andConnector')}
+                        <Link
+                          href="/privacy"
+                          target="_blank"
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {t('privacyPolicyLink')}
+                        </Link>{" "}
+                        {t('platformSuffix')}
+                      </span>
                     </FormLabel>
                   </div>
                   <FormMessage />
