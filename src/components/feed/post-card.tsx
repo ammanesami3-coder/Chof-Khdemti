@@ -14,7 +14,9 @@ const CommentsSheetLazy = dynamic(
 );
 const OptimizedVideoLazy = dynamic(
   () => import("@/components/feed/optimized-video").then((m) => m.OptimizedVideo),
-  { ssr: false }
+  // Fills its (already space-reserved) parent while the chunk loads, so the card
+  // never collapses to a "small" layout before the video mounts.
+  { ssr: false, loading: () => <div className="h-full w-full bg-black" /> }
 );
 const MediaLightboxLazy = dynamic(
   () => import("@/components/shared/media-lightbox").then((m) => m.MediaLightbox),
@@ -98,14 +100,30 @@ function SingleMedia({
   onImageClick?: () => void;
 }) {
   const { t } = useLang();
+  // Intrinsic aspect ratio from stored upload dims (absent on legacy posts).
+  const hasDims = !!(item.width && item.height);
+  const ratio = hasDims ? item.width! / item.height! : null;
+  const isPortrait = ratio !== null && ratio < 0.8;
 
   if (item.type === "video") {
-    // OptimizedVideo handles its own rounded corners + smart aspect ratio
-    return <OptimizedVideoLazy item={item} autoAspect />;
+    // Reserve the exact aspect ratio on this SERVER-rendered wrapper so the space
+    // is held before the (ssr:false) player chunk loads — no collapse, no snap.
+    // Legacy posts (no dims) fall back to 4/5, matching the carousel default.
+    return (
+      <div className="flex justify-center overflow-hidden rounded-xl bg-black">
+        <div
+          className={`relative w-full ${isPortrait ? "sm:w-auto sm:max-h-[560px]" : ""}`}
+          style={{ aspectRatio: ratio ? `${item.width}/${item.height}` : "4/5" }}
+        >
+          <OptimizedVideoLazy item={item} className="h-full w-full" />
+        </div>
+      </div>
+    );
   }
 
-  // Image: render at natural proportions, center-crop portrait images at max-height.
-  // Using flex+items-center on the wrapper so the crop is symmetric (center of image visible).
+  // Image: when we know the dimensions, reserve the exact aspect (capped height)
+  // so nothing shifts as the bytes arrive. Legacy posts keep the natural-height
+  // render (the skeleton + lazy loading still cover the gap).
   return (
     <button
       type="button"
@@ -113,14 +131,17 @@ function SingleMedia({
       className="block w-full cursor-zoom-in overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={t('viewFullImageAriaLabel')}
     >
-      <div className="flex max-h-[600px] items-center overflow-hidden bg-muted">
+      <div
+        className="flex max-h-[600px] items-center justify-center overflow-hidden bg-muted"
+        style={ratio ? { aspectRatio: `${item.width}/${item.height}` } : undefined}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={cloudinaryLoader({ src: item.url, width: 1280 })}
           alt=""
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          className="block h-auto w-full"
+          className={ratio ? "h-full w-full object-cover" : "block h-auto w-full"}
         />
       </div>
     </button>

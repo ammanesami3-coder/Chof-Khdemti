@@ -6,6 +6,10 @@ export const mediaItemSchema = z.object({
   thumbnail: z.string().url(),
   duration: z.number().optional(),
   publicId: z.string().optional(),
+  // Intrinsic pixel dimensions captured at upload — used to reserve the exact
+  // aspect ratio on first paint so the feed never shifts layout (CLS).
+  width: z.number().optional(),
+  height: z.number().optional(),
 });
 
 export const postSchema = z
@@ -26,6 +30,10 @@ export type PostMedia = {
   thumbnail: string;
   duration?: number;
   publicId?: string;
+  /** Intrinsic pixel width, captured at upload (absent on legacy posts) */
+  width?: number;
+  /** Intrinsic pixel height, captured at upload (absent on legacy posts) */
+  height?: number;
 };
 
 export type RecentComment = {

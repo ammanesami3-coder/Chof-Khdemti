@@ -4,6 +4,10 @@ export type MediaItem = {
   thumbnail: string;
   duration?: number;
   publicId?: string;
+  /** Intrinsic pixel width from Cloudinary — lets the feed reserve exact aspect (no CLS) */
+  width?: number;
+  /** Intrinsic pixel height from Cloudinary — lets the feed reserve exact aspect (no CLS) */
+  height?: number;
 };
 
 export type AttachmentUploadResult = {
@@ -79,11 +83,15 @@ export async function uploadToCloudinary(
           public_id: string;
           secure_url: string;
           duration?: number;
+          width?: number;
+          height?: number;
         };
 
         const url = data.secure_url;
         const publicId = data.public_id;
         const duration = data.duration;
+        const width = data.width;
+        const height = data.height;
 
         // For videos: generate a thumbnail from the first frame via Cloudinary transformation
         const thumbnail = isVideo
@@ -95,7 +103,7 @@ export async function uploadToCloudinary(
               .replace(/\.\w+$/, ".jpg")
           : url;
 
-        resolve({ type: isVideo ? "video" : "image", url, thumbnail, duration, publicId });
+        resolve({ type: isVideo ? "video" : "image", url, thumbnail, duration, publicId, width, height });
       } else {
         reject(new Error("فشل رفع الملف إلى Cloudinary"));
       }

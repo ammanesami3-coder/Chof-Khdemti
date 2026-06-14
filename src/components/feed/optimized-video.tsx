@@ -35,8 +35,11 @@ export function OptimizedVideo({ item, className = "", autoAspect = false }: Opt
   const instanceId = useRef(`v-${Math.random().toString(36).slice(2)}`);
   const [inView, setInView] = useState(false);
   const [loading, setLoading] = useState(false);
-  // Detected dimensions — null until metadata available
-  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+  // Detected dimensions — seeded from stored upload dims (zero layout shift on
+  // first paint); falls back to runtime metadata detection for legacy posts.
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(
+    item.width && item.height ? { w: item.width, h: item.height } : null
+  );
 
   // ── Singleton: broadcast when this video starts playing ───────────────────
   useEffect(() => {
