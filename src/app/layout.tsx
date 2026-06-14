@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
 import {
   SITE_NAME,
+  SITE_BRAND,
   SITE_URL,
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
@@ -25,12 +26,23 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} — منصة الحرفيين المغاربة`,
-    template: `%s · ${SITE_NAME}`,
+    default: `${SITE_BRAND} — منصة الحرفيين المغاربة`,
+    template: `%s · ${SITE_BRAND}`,
   },
   description: SITE_DESCRIPTION,
   keywords: SITE_KEYWORDS,
   applicationName: SITE_NAME,
+  icons: {
+    icon: [
+      // ICO first: the format Google reads most reliably for the SERP favicon.
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180" }],
+    shortcut: [{ url: "/favicon.ico" }],
+  },
   // The app switches UI language client-side (no locale sub-paths), so every
   // hreflang points at the canonical root. x-default falls back to Arabic.
   alternates: {
@@ -54,8 +66,8 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    siteName: SITE_NAME,
-    title: `${SITE_NAME} — منصة الحرفيين المغاربة`,
+    siteName: SITE_BRAND,
+    title: `${SITE_BRAND} — منصة الحرفيين المغاربة`,
     description: SITE_DESCRIPTION,
     url: SITE_URL,
     type: "website",
@@ -65,7 +77,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} — منصة الحرفيين المغاربة`,
+    title: `${SITE_BRAND} — منصة الحرفيين المغاربة`,
     description: SITE_DESCRIPTION,
     // Twitter image falls back to the generated opengraph-image.tsx.
   },
@@ -80,8 +92,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" className={cairo.variable} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://res.cloudinary.com" />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
-        <link rel="alternate icon" href="/favicon.svg" />
+        {/* Icons are declared via the `icons` field in metadata above. */}
       </head>
       <body className="font-[family-name:var(--font-cairo)] antialiased">
         <NextTopLoader

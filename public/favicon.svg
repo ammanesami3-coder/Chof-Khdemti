@@ -1,1 +1,13 @@
-<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><defs><style>.cls-1{fill:url(#Orange_Yellow);}.cls-2{font-size:18.74px;fill:#fff;font-family:FoxDuckyRegular, Fox Ducky;}</style><linearGradient id="Orange_Yellow" x1="0.19" y1="16.09" x2="32" y2="16.09" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff33b"/><stop offset="0.04" stop-color="#fee72e"/><stop offset="0.12" stop-color="#fed51b"/><stop offset="0.2" stop-color="#fdca10"/><stop offset="0.28" stop-color="#fdc70c"/><stop offset="0.67" stop-color="#f3903f"/><stop offset="0.89" stop-color="#ed683c"/><stop offset="1" stop-color="#e93e3a"/></linearGradient></defs><circle class="cls-1" cx="16.09" cy="16.09" r="15.91"/><text class="cls-2" transform="translate(3.56 21.88)">CH</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="ch-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff33b"/>
+      <stop offset="0.28" stop-color="#fdc70c"/>
+      <stop offset="0.67" stop-color="#f3903f"/>
+      <stop offset="1" stop-color="#e93e3a"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="30" height="30" rx="7" fill="url(#ch-grad)"/>
+  <text x="16" y="22" text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="16" fill="#fff">CH</text>
+</svg>

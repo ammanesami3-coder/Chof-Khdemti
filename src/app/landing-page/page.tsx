@@ -13,9 +13,9 @@ import {
 } from 'lucide-react';
 
 export const metadata = {
-  title: 'Chof Khdemti — منصة الحرفيين المغاربة',
+  title: { absolute: 'Chof Khdemti | شوف خدمتي — منصة الحرفيين المغاربة' },
   description:
-    'اكتشف أفضل الحرفيين في مدينتك، وشارك أعمالك مع آلاف الزبائن. منصة اجتماعية متخصصة للحرفيين في المغرب.',
+    'شوف خدمتي (Chof Khdemti) — اكتشف أفضل الحرفيين في مدينتك، وشارك أعمالك مع آلاف الزبائن. منصة اجتماعية متخصصة للحرفيين في المغرب.',
 };
 
 export default function LandingPage() {

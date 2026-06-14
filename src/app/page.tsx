@@ -11,11 +11,12 @@ import { LeftSidebar } from '@/components/layout/left-sidebar';
 import { MobileSidebar } from '@/components/layout/mobile-sidebar';
 import { RightSidebar } from '@/components/layout/right-sidebar';
 import { HomeJsonLd } from '@/components/seo/json-ld';
+import { SITE_BRAND } from '@/lib/constants/site';
 
 export const metadata = {
-  title: 'Chof Khdemti — منصة الحرفيين المغاربة',
+  title: { absolute: `${SITE_BRAND} — منصة الحرفيين المغاربة` },
   description:
-    'اكتشف أفضل الحرفيين في مدينتك، وشارك أعمالك مع آلاف الزبائن. منصة اجتماعية متخصصة للحرفيين في المغرب.',
+    'شوف خدمتي (Chof Khdemti) — اكتشف أفضل الحرفيين في مدينتك، وشارك أعمالك مع آلاف الزبائن. منصة اجتماعية متخصصة للحرفيين في المغرب.',
 };
 
 export default async function HomePage() {

@@ -11,6 +11,14 @@ export const SITE_URL = (
 
 export const SITE_NAME = 'Chof Khdemti';
 
+/** Arabic brand name. Surfaced in titles/JSON-LD so the site ranks for the
+ *  native query "شوف خدمتي" (Google ignores the keywords meta tag). */
+export const SITE_NAME_AR = 'شوف خدمتي';
+
+/** Brand label combining both scripts — used in <title> and OG so a single
+ *  string covers Latin and Arabic brand searches. */
+export const SITE_BRAND = `${SITE_NAME} | ${SITE_NAME_AR}`;
+
 /** Default platform description (Arabic — the primary locale). */
 export const SITE_DESCRIPTION =
   'منصة اجتماعية متخصصة للحرفيين وأصحاب الخدمات في المغرب والعالم العربي — اكتشف أفضل الحرفيين في مدينتك، شارك أعمالك، وتواصل مع آلاف الزبائن.';

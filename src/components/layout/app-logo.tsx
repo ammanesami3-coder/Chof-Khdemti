@@ -25,7 +25,7 @@ function LogoImage({ size }: { size: Size }) {
       {/* Light mode */}
       <Image
         src="/logo.png"
-        alt="Chof Khdemti"
+        alt="Chof Khdemti — شوف خدمتي"
         width={px}
         height={px}
         className={cn('rounded-xl object-cover dark:hidden', size === 'sm' && 'rounded-lg')}
@@ -34,7 +34,7 @@ function LogoImage({ size }: { size: Size }) {
       {/* Dark mode */}
       <Image
         src="/logo-dark.png"
-        alt="Chof Khdemti"
+        alt="Chof Khdemti — شوف خدمتي"
         width={px}
         height={px}
         className={cn('hidden rounded-xl object-cover dark:block', size === 'sm' && 'rounded-lg')}
@@ -58,7 +58,7 @@ export function AppLogo({ size = 'md', showText = false, href = '/', className }
 
   if (!href) return content;
   return (
-    <Link href={href} aria-label="Chof Khdemti">
+    <Link href={href} aria-label="Chof Khdemti — شوف خدمتي">
       {content}
     </Link>
   );

@@ -1,4 +1,4 @@
-import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from "@/lib/constants/site";
+import { SITE_NAME, SITE_NAME_AR, SITE_URL, SITE_DESCRIPTION } from "@/lib/constants/site";
 import { getCraftName } from "@/lib/constants/crafts";
 import { getCityName } from "@/lib/constants/cities";
 
@@ -16,8 +16,12 @@ export function HomeJsonLd() {
         "@type": "Organization",
         "@id": `${SITE_URL}/#organization`,
         name: SITE_NAME,
+        // Native Arabic brand + common variants so Google links the query
+        // "شوف خدمتي" to this entity, not just the Latin spelling.
+        alternateName: [SITE_NAME_AR, "Chofkhdemti", "Chouf Khdemti"],
         url: SITE_URL,
-        logo: `${SITE_URL}/logo.png`,
+        logo: `${SITE_URL}/icon-512.png`,
+        image: `${SITE_URL}/icon-512.png`,
         description: SITE_DESCRIPTION,
         areaServed: { "@type": "Country", name: "Morocco" },
       },
@@ -25,6 +29,7 @@ export function HomeJsonLd() {
         "@type": "WebApplication",
         "@id": `${SITE_URL}/#webapp`,
         name: SITE_NAME,
+        alternateName: SITE_NAME_AR,
         url: SITE_URL,
         applicationCategory: "BusinessApplication",
         operatingSystem: "Web",
@@ -43,6 +48,8 @@ export function HomeJsonLd() {
         "@id": `${SITE_URL}/#website`,
         url: SITE_URL,
         name: SITE_NAME,
+        alternateName: SITE_NAME_AR,
+        inLanguage: ["ar", "fr", "en"],
         publisher: { "@id": `${SITE_URL}/#organization` },
         potentialAction: {
           "@type": "SearchAction",
